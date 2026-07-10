@@ -4,7 +4,8 @@ import { CATEGORY_KEYS } from '../../config/site';
 import { normalizeTagSegment } from './tags';
 
 const nonemptyString = z.string().trim().min(1);
-const dateInput = z.union([z.string(), z.date()]).pipe(z.coerce.date());
+const isoCalendarDate = z.iso.date().transform((value) => new Date(`${value}T00:00:00+09:00`));
+const dateInput = z.union([isoCalendarDate, z.date()]);
 
 const tags = z.array(nonemptyString).superRefine((labels, context) => {
   const seenSegments = new Set<string>();

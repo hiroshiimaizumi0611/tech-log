@@ -26,13 +26,34 @@ describe('blogMetadataSchema', () => {
     expect(blogMetadataSchema.safeParse({ ...validMetadata, tags: ['ＡＷＳ', ' aws '] }).success).toBe(false);
   });
 
-  it('accepts Date and string dates and returns Date values', () => {
-    const publishedAt = new Date('2026-01-02T00:00:00Z');
-    const fromDate = blogMetadataSchema.parse({ ...validMetadata, publishedAt });
-    const fromString = blogMetadataSchema.parse(validMetadata);
+  it('converts a strict ISO calendar date to JST midnight', () => {
+    const result = blogMetadataSchema.parse(validMetadata);
 
-    expect(fromDate.publishedAt).toEqual(publishedAt);
-    expect(fromString.publishedAt).toBeInstanceOf(Date);
+    expect(result.publishedAt).toEqual(new Date('2026-01-02T00:00:00+09:00'));
+  });
+
+  it('accepts a valid leap date', () => {
+    const result = blogMetadataSchema.parse({ ...validMetadata, publishedAt: '2024-02-29' });
+
+    expect(result.publishedAt).toEqual(new Date('2024-02-29T00:00:00+09:00'));
+  });
+
+  it('accepts a valid Date object unchanged in value', () => {
+    const publishedAt = new Date('2026-01-02T00:00:00Z');
+    const result = blogMetadataSchema.parse({ ...validMetadata, publishedAt });
+
+    expect(result.publishedAt).toEqual(publishedAt);
+  });
+
+  it.each(['2026-02-30', '2026/01/02', 'January 2, 2026', '1', '2026-01-02T00:00:00+09:00'])(
+    'rejects non-strict or invalid calendar date %s',
+    (publishedAt) => {
+      expect(blogMetadataSchema.safeParse({ ...validMetadata, publishedAt }).success).toBe(false);
+    },
+  );
+
+  it('rejects an invalid Date object', () => {
+    expect(blogMetadataSchema.safeParse({ ...validMetadata, publishedAt: new Date(Number.NaN) }).success).toBe(false);
   });
 
   it.each([true, false, 0, 1, 1_700_000_000_000])('rejects non-string, non-Date date input %s', (publishedAt) => {
