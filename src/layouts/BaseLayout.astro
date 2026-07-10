@@ -1,0 +1,39 @@
+---
+import SEOHead from '@/components/common/SEOHead.astro';
+import Footer from '@/components/layout/Footer.astro';
+import Header from '@/components/layout/Header.astro';
+import { SITE } from '@/config/site';
+import '@/styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+  canonical?: URL | string;
+}
+
+const { title = SITE.name, description = SITE.description, canonical } = Astro.props;
+const hasHeaderActions = Astro.slots.has('header-actions');
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <SEOHead {title} {description} {canonical} />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">本文へスキップ</a>
+    {
+      hasHeaderActions ? (
+        <Header>
+          <slot name="header-actions" slot="actions" />
+        </Header>
+      ) : (
+        <Header />
+      )
+    }
+    <main id="main-content" tabindex="-1">
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>

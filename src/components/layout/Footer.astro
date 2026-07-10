@@ -1,0 +1,149 @@
+---
+import Container from '@/components/common/Container.astro';
+import { CATEGORIES, SITE } from '@/config/site';
+
+const socialLinks = [
+  { label: 'GitHub', href: SITE.github },
+  { label: 'X', href: SITE.x },
+  { label: 'Zenn', href: SITE.zenn },
+  { label: 'メール', href: SITE.email ? `mailto:${SITE.email}` : '' },
+].filter((link) => link.href);
+---
+
+<footer class="site-footer">
+  <Container>
+    <div class="site-footer__grid">
+      <div class="site-footer__brand">
+        <a href="/" class="site-footer__name">{SITE.name}</a>
+        <p>{SITE.description}</p>
+      </div>
+
+      <nav aria-label="フッターナビゲーション">
+        <h2>サイト</h2>
+        <ul>
+          <li><a href="/blog/">記事</a></li>
+          <li><a href="/categories/">カテゴリー</a></li>
+          <li><a href="/tags/">タグ</a></li>
+          <li><a href="/about/">プロフィール</a></li>
+        </ul>
+      </nav>
+
+      <nav aria-label="カテゴリーナビゲーション">
+        <h2>カテゴリー</h2>
+        <ul>
+          {
+            Object.values(CATEGORIES).map((category) => (
+              <li>
+                <a href={`/categories/${category.slug}/`}>{category.label}</a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+
+      {
+        socialLinks.length > 0 && (
+          <nav aria-label="ソーシャルリンク">
+            <h2>リンク</h2>
+            <ul>
+              {socialLinks.map((link) => (
+                <li>
+                  <a href={link.href}>{link.label}</a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )
+      }
+    </div>
+
+    <div class="site-footer__base">
+      <small>&copy; {new Date().getFullYear()} {SITE.author}</small>
+    </div>
+  </Container>
+</footer>
+
+<style>
+  .site-footer {
+    margin-block-start: var(--space-24);
+    border-block-start: 1px solid var(--color-border);
+    background: var(--color-section);
+  }
+
+  .site-footer__grid {
+    display: grid;
+    grid-template-columns: minmax(16rem, 2fr) repeat(2, minmax(8rem, 1fr));
+    gap: var(--space-12) clamp(var(--space-8), 5vw, var(--space-16));
+    padding-block: var(--space-16);
+  }
+
+  .site-footer__brand {
+    max-inline-size: 31rem;
+  }
+
+  .site-footer__name {
+    color: var(--color-text);
+    font-family: var(--font-ui);
+    font-weight: 750;
+    letter-spacing: 0.05em;
+    text-decoration: none;
+  }
+
+  p {
+    margin: var(--space-4) 0 0;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+    line-height: 1.85;
+  }
+
+  h2 {
+    margin: 0 0 var(--space-4);
+    color: var(--color-text-weak);
+    font-family: var(--font-ui);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  ul {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li,
+  li a {
+    color: var(--color-text-muted);
+    font-size: 0.8125rem;
+  }
+
+  li a {
+    text-decoration: none;
+  }
+
+  li a:hover {
+    color: var(--color-accent-soft);
+  }
+
+  .site-footer__base {
+    padding-block: var(--space-5);
+    border-block-start: 1px solid var(--color-border);
+    color: var(--color-text-weak);
+    font-family: var(--font-ui);
+    font-size: 0.75rem;
+  }
+
+  @media (max-width: 47.99rem) {
+    .site-footer__grid {
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-10) var(--space-6);
+    }
+
+    .site-footer__brand {
+      grid-column: 1 / -1;
+    }
+  }
+</style>

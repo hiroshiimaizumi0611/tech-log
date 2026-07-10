@@ -1,0 +1,178 @@
+---
+import Container from '@/components/common/Container.astro';
+import { SITE } from '@/config/site';
+import MobileMenu from './MobileMenu.astro';
+
+const links = [
+  { label: 'Home', href: '/' },
+  { label: '記事', href: '/blog/' },
+  { label: 'カテゴリー', href: '/categories/' },
+  { label: 'タグ', href: '/tags/' },
+  { label: 'プロフィール', href: '/about/' },
+];
+
+const hasActions = Astro.slots.has('actions');
+---
+
+<header class="site-header">
+  <Container class="site-header__inner">
+    <a class="brand" href="/" aria-label={SITE.name}>
+      <span class="brand__mark" aria-hidden="true"><span>&gt;_</span></span>
+      <span class="brand__copy">
+        <span class="brand__name">{SITE.name}</span>
+        <span class="brand__tagline">{SITE.tagline}</span>
+      </span>
+    </a>
+
+    <div class="site-header__controls">
+      <nav class="desktop-nav" aria-label="メインナビゲーション">
+        <ul>
+          {
+            links.map((link) => (
+              <li>
+                <a href={link.href}>{link.label}</a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+      {
+        hasActions && (
+          <div class="site-header__actions">
+            <slot name="actions" />
+          </div>
+        )
+      }
+      <MobileMenu />
+    </div>
+  </Container>
+</header>
+
+<style>
+  .site-header {
+    position: relative;
+    z-index: 30;
+    block-size: var(--header-height);
+    border-block-end: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-section) 96%, transparent);
+  }
+
+  :global(.site-header__inner) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    block-size: 100%;
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3);
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .brand:hover {
+    color: var(--color-text);
+  }
+
+  .brand__mark {
+    display: grid;
+    place-items: center;
+    inline-size: 2.25rem;
+    block-size: 2.25rem;
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius-sm);
+    color: var(--color-accent-soft);
+    background: var(--color-card);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 700;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 12%, transparent);
+  }
+
+  .brand__copy {
+    display: grid;
+    gap: 1px;
+  }
+
+  .brand__name {
+    font-family: var(--font-ui);
+    font-size: 1rem;
+    font-weight: 750;
+    letter-spacing: 0.05em;
+    line-height: 1.3;
+  }
+
+  .brand__tagline {
+    color: var(--color-text-weak);
+    font-size: 0.6875rem;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+  }
+
+  .site-header__controls,
+  .desktop-nav ul {
+    display: flex;
+    align-items: center;
+  }
+
+  .site-header__controls {
+    gap: var(--space-5);
+  }
+
+  .desktop-nav ul {
+    gap: clamp(var(--space-4), 2vw, var(--space-8));
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .desktop-nav a {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    block-size: var(--header-height);
+    color: var(--color-text-muted);
+    font-family: var(--font-ui);
+    font-size: 0.8125rem;
+    font-weight: 650;
+    letter-spacing: 0.025em;
+    text-decoration: none;
+    transition: color var(--transition-fast);
+  }
+
+  .desktop-nav a::after {
+    position: absolute;
+    inset-block-end: -1px;
+    inset-inline: 0;
+    block-size: 1px;
+    background: var(--color-accent);
+    content: '';
+    transform: scaleX(0);
+    transition: transform var(--transition-fast);
+  }
+
+  .desktop-nav a:hover {
+    color: var(--color-text);
+  }
+
+  .desktop-nav a:hover::after {
+    transform: scaleX(1);
+  }
+
+  .site-header__actions {
+    display: flex;
+    align-items: center;
+  }
+
+  @media (max-width: 47.99rem) {
+    .desktop-nav {
+      display: none;
+    }
+
+    .brand__tagline {
+      display: none;
+    }
+  }
+</style>
