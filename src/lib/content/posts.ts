@@ -1,4 +1,5 @@
 import type { CategoryKey } from '../../config/site';
+import { assertNonNegativeInteger } from './pagination';
 
 export interface PostLike {
   id: string;
@@ -35,7 +36,8 @@ export function getFeaturedPost<T extends PostLike>(posts: readonly T[], options
 }
 
 export function getLatestPosts<T extends PostLike>(posts: readonly T[], limit: number, options?: PublicationOptions): T[] {
-  return getPublishedPosts(posts, options).slice(0, Math.max(0, limit));
+  assertNonNegativeInteger(limit, 'limit');
+  return getPublishedPosts(posts, options).slice(0, limit);
 }
 
 function commonTagCount(left: PostLike, right: PostLike): number {
@@ -44,6 +46,7 @@ function commonTagCount(left: PostLike, right: PostLike): number {
 }
 
 export function getRelatedPosts<T extends PostLike>(current: T, posts: readonly T[], limit: number): T[] {
+  assertNonNegativeInteger(limit, 'limit');
   return posts
     .filter(({ id, data }) => id !== current.id && !data.draft)
     .sort(
@@ -53,7 +56,7 @@ export function getRelatedPosts<T extends PostLike>(current: T, posts: readonly 
         right.data.publishedAt.getTime() - left.data.publishedAt.getTime() ||
         compareIds(left, right),
     )
-    .slice(0, Math.max(0, limit));
+    .slice(0, limit);
 }
 
 export interface AdjacentPosts<T extends PostLike> {

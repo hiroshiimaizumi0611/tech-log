@@ -64,6 +64,10 @@ describe('post selections', () => {
   it('returns the requested number of latest posts in published order', () => {
     expect(getLatestPosts(posts, 2).map(({ id }) => id)).toEqual(['newest', 'newer-featured']);
   });
+
+  it.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])('rejects invalid latest-post limit %s', (limit) => {
+    expect(() => getLatestPosts(posts, limit)).toThrow(/non-negative integer/i);
+  });
 });
 
 describe('getRelatedPosts', () => {
@@ -87,6 +91,11 @@ describe('getRelatedPosts', () => {
     ];
 
     expect(getRelatedPosts(current, posts, 4).map(({ id }) => id)).toEqual(['same-two-a', 'same-two-b', 'same-two-old', 'same-one-new']);
+  });
+
+  it.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])('rejects invalid related-post limit %s', (limit) => {
+    const current = post('current', '2026-01-02');
+    expect(() => getRelatedPosts(current, [current], limit)).toThrow(/non-negative integer/i);
   });
 });
 

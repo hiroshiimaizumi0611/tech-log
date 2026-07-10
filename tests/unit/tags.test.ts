@@ -30,6 +30,10 @@ describe('getPopularTags', () => {
       { label: 'Zod', count: 2 },
     ]);
   });
+
+  it.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])('rejects invalid popular-tag limit %s', (limit) => {
+    expect(() => getPopularTags([], limit)).toThrow(/non-negative integer/i);
+  });
 });
 
 describe('tag paths', () => {
@@ -47,5 +51,20 @@ describe('tag paths', () => {
 
   it('detects normalization collisions', () => {
     expect(() => buildTagIndex([{ label: 'ＡＷＳ' }, { label: 'aws' }])).toThrow(/衝突/);
+  });
+
+  it('returns deterministic entries sorted by normalized segment', () => {
+    expect(buildTagIndex([{ label: 'Zod' }, { label: 'Astro' }])).toEqual([
+      { label: 'Astro', segment: 'astro', href: '/tags/astro/' },
+      { label: 'Zod', segment: 'zod', href: '/tags/zod/' },
+    ]);
+  });
+
+  it('collapses exact duplicate labels', () => {
+    expect(buildTagIndex([{ label: 'Astro' }, { label: 'Astro' }])).toEqual([{ label: 'Astro', segment: 'astro', href: '/tags/astro/' }]);
+  });
+
+  it.each(['', '   ', 'AWS/CDK', 'why?', 'C#', 'AWS／CDK'])('rejects invalid indexed tag %s', (label) => {
+    expect(() => buildTagIndex([{ label }])).toThrow();
   });
 });

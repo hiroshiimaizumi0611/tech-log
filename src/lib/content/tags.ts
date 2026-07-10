@@ -1,4 +1,5 @@
 import type { PostLike } from './posts';
+import { assertNonNegativeInteger } from './pagination';
 
 const PATH_SENSITIVE_CHARACTER = /[/?#]/;
 
@@ -7,11 +8,12 @@ function compareLabels(left: string, right: string): number {
 }
 
 export function normalizeTagSegment(tag: string): string {
-  if (PATH_SENSITIVE_CHARACTER.test(tag)) {
+  const normalizedTag = tag.normalize('NFKC');
+  if (PATH_SENSITIVE_CHARACTER.test(normalizedTag)) {
     throw new Error(`タグにパスで使用できない文字が含まれています: ${tag}`);
   }
 
-  const segment = tag.normalize('NFKC').trim().toLowerCase().replace(/\s+/gu, '-');
+  const segment = normalizedTag.trim().toLowerCase().replace(/\s+/gu, '-');
   if (!segment) throw new Error('タグは空にできません');
   return segment;
 }
@@ -42,11 +44,13 @@ export function buildTagIndex(tags: Iterable<TagLabel>): TagIndexEntry[] {
     labelsBySegment.set(segment, label);
   }
 
-  return [...labelsBySegment].map(([segment, label]) => ({
-    label,
-    segment,
-    href: `/tags/${encodeURIComponent(segment)}/`,
-  }));
+  return [...labelsBySegment]
+    .map(([segment, label]) => ({
+      label,
+      segment,
+      href: `/tags/${encodeURIComponent(segment)}/`,
+    }))
+    .sort((left, right) => compareLabels(left.segment, right.segment));
 }
 
 export interface PopularTag {
@@ -55,6 +59,7 @@ export interface PopularTag {
 }
 
 export function getPopularTags(posts: readonly PostLike[], limit: number): PopularTag[] {
+  assertNonNegativeInteger(limit, 'limit');
   const counts = new Map<string, number>();
 
   for (const { data } of posts) {
@@ -65,5 +70,5 @@ export function getPopularTags(posts: readonly PostLike[], limit: number): Popul
   return [...counts]
     .map(([label, count]) => ({ label, count }))
     .sort((left, right) => right.count - left.count || compareLabels(left.label, right.label))
-    .slice(0, Math.max(0, limit));
+    .slice(0, limit);
 }
