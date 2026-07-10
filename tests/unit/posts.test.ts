@@ -91,13 +91,18 @@ describe('getRelatedPosts', () => {
 });
 
 describe('getAdjacentPosts', () => {
-  it('returns neighbors in published order while excluding drafts and self', () => {
-    const current = post('middle', '2026-01-02');
-    const posts = [post('oldest', '2026-01-01'), post('draft', '2026-01-04', { draft: true }), current, post('newest', '2026-01-03')];
+  it('returns the older post as previous and the newer post as next', () => {
+    const current = post('current-2026-01-02', '2026-01-02');
+    const posts = [
+      post('older-2026-01-01', '2026-01-01'),
+      post('draft-2026-01-04', '2026-01-04', { draft: true }),
+      current,
+      post('newer-2026-01-03', '2026-01-03'),
+    ];
 
     expect(getAdjacentPosts(current, posts)).toEqual({
-      previous: expect.objectContaining({ id: 'newest' }),
-      next: expect.objectContaining({ id: 'oldest' }),
+      previous: expect.objectContaining({ id: 'older-2026-01-01' }),
+      next: expect.objectContaining({ id: 'newer-2026-01-03' }),
     });
   });
 });

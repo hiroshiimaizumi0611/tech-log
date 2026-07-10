@@ -26,8 +26,8 @@ describe('getPopularTags', () => {
     ];
 
     expect(getPopularTags(posts, 2)).toEqual([
-      { label: 'Astro', count: 2, href: '/tags/astro/' },
-      { label: 'Zod', count: 2, href: '/tags/zod/' },
+      { label: 'Astro', count: 2 },
+      { label: 'Zod', count: 2 },
     ]);
   });
 });
@@ -46,6 +46,6 @@ describe('tag paths', () => {
   });
 
   it('detects normalization collisions', () => {
-    expect(() => buildTagIndex(['ＡＷＳ', 'aws'])).toThrow(/衝突/);
+    expect(() => buildTagIndex([{ label: 'ＡＷＳ' }, { label: 'aws' }])).toThrow(/衝突/);
   });
 });

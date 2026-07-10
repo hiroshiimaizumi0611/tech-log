@@ -68,7 +68,7 @@ export function getAdjacentPosts<T extends PostLike>(current: T, posts: readonly
   if (currentIndex === -1) return {};
 
   return {
-    previous: published[currentIndex - 1],
-    next: published[currentIndex + 1],
+    previous: published[currentIndex + 1],
+    next: published[currentIndex - 1],
   };
 }

@@ -26,10 +26,14 @@ export interface TagIndexEntry {
   href: string;
 }
 
-export function buildTagIndex(tags: Iterable<string>): TagIndexEntry[] {
+export interface TagLabel {
+  label: string;
+}
+
+export function buildTagIndex(tags: Iterable<TagLabel>): TagIndexEntry[] {
   const labelsBySegment = new Map<string, string>();
 
-  for (const label of tags) {
+  for (const { label } of tags) {
     const segment = normalizeTagSegment(label);
     const existing = labelsBySegment.get(segment);
     if (existing !== undefined && existing !== label) {
@@ -48,7 +52,6 @@ export function buildTagIndex(tags: Iterable<string>): TagIndexEntry[] {
 export interface PopularTag {
   label: string;
   count: number;
-  href: string;
 }
 
 export function getPopularTags(posts: readonly PostLike[], limit: number): PopularTag[] {
@@ -60,7 +63,7 @@ export function getPopularTags(posts: readonly PostLike[], limit: number): Popul
   }
 
   return [...counts]
-    .map(([label, count]) => ({ label, count, href: tagToHref(label) }))
+    .map(([label, count]) => ({ label, count }))
     .sort((left, right) => right.count - left.count || compareLabels(left.label, right.label))
     .slice(0, Math.max(0, limit));
 }
