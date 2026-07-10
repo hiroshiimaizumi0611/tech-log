@@ -26,6 +26,14 @@
 
 提供されたデザインカンプをデスクトップの基準とし、可能な限り忠実に再現する。ただし、次は置き換える。
 
+基準カンプの識別情報:
+
+- ソースファイル: `/Users/hiroshiimaizumi/Downloads/ChatGPT Image 2026年7月10日 14_24_24.png`
+- 画像サイズ: `1122 × 1402 px`
+- SHA-256: `5de510f2e464569e1ff6d130d545a466db97121dfa19efa76c8a2d7a990267f4`
+
+このパスのファイルを実装と視覚確認の基準にする。パスが変わった場合は、同じSHA-256の画像を基準カンプとして扱う。
+
 - 実在しない記事数、閲覧数、運用期間は表示しない。
 - 動作しない操作は置かない。
 - 公式ロゴを模倣した画像は使わず、独自の抽象図形へ置き換える。
@@ -179,6 +187,9 @@ GitHubリポジトリはPublicとし、サイト実装自体もポートフォ�
 - ファイル名のstemをURL slugとする。
 - ファイル名は小文字ASCIIのkebab-caseとする。
 - 例: `terraform-drift-detection.md` → `/blog/terraform-drift-detection/`
+- タグURLは、表示名をUnicode NFKC正規化し、前後空白を除去し、小文字化し、連続空白を`-`へ変換してからURLエンコードする。
+- 例: `TypeScript` → `/tags/typescript/`、`生成 AI` → `/tags/%E7%94%9F%E6%88%90-ai/`
+- 異なる表示名が同じタグURLになる場合はビルドを失敗させ、記事側のタグ表記を統一する。
 
 ### 7.2 frontmatter
 
@@ -223,7 +234,7 @@ GitHubリポジトリはPublicとし、サイト実装自体もポートフォ�
 - 最新記事: 公開日降順の先頭4件。
 - 人気タグ: 公開記事の件数降順、同数なら表示名昇順。先頭10件。
 - 読了時間: 本文の空白を除く文字数を500文字/分で割って切り上げ、最低1分。
-- 関連記事: 自分を除き、同カテゴリー、共通タグ数、公開日の順で順位付けし、最大3件。
+- 関連記事: 自分を除き、同カテゴリー一致を優先し、次に共通タグ数の多い順、公開日の新しい順、最後にslugの昇順で順位付けし、最大3件。
 - 前後記事: 公開日順で直前と直後の記事。
 - 画像: `heroImage`未設定時はカテゴリー別の抽象画像を使う。
 
@@ -288,7 +299,7 @@ Pagefindのモーダル検索を採用する。ヘッダーの検索ボタンか
 - 見出しにはアンカーリンクを付ける。
 - 外部リンクは視覚的に判別できるようにする。
 - コードブロックはShikiで装飾し、任意のファイル名、コピーボタン、横スクロールを提供する。
-- コピー成功時は短時間`Copied`、失敗時は`コピーできませんでした`を表示する。
+- コピー成功時は短時間`コピーしました`、失敗時は`コピーできませんでした`を表示する。
 - 画像は幅と高さを確保し、遅延読み込み、必須alt、任意キャプションに対応する。
 - `featuredCode`はトップの注目記事専用で、未設定ならコード領域自体を表示しない。
 
@@ -395,14 +406,14 @@ Pull Requestでは次を必須チェックにする。
 - Wrangler設定は`assets.directory = "./dist"`と独自404処理を持つ。
 - SSR entry pointは持たない。
 - Cloudflare API tokenとAccount IDはGitHub Secretsで管理する。
-- 本番URLと公開設定はGitHub Repository Variablesで管理する。
+- 本番URLは`SITE_URL`、Cloudflare Web Analytics tokenは`PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN`というGitHub Repository Variablesで管理する。
 - 秘密値をコード、Actionsログ、公開リポジトリへ出力しない。
 - デプロイ失敗時は直前の公開版を維持する。
 - デプロイ後にトップ、代表記事、RSS、sitemap、404をHTTPで確認する。
 
 ### 15.3 Analytics
 
-Cloudflare Web AnalyticsはProductionだけで有効化する。設定値がない開発・テスト環境ではスクリプトを出力しない。初期版ではCookie、広告、ユーザー追跡用DBを使用しない。
+Cloudflare Web AnalyticsはProductionだけで有効化する。`PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN`がない開発・テスト環境ではスクリプトを出力しない。このtokenはブラウザへ配信される公開設定値として扱い、Secretには入れない。初期版ではCookie、広告、ユーザー追跡用DBを使用しない。
 
 ## 16. 外部入力と公開前作業
 
@@ -410,7 +421,8 @@ Cloudflare Web AnalyticsはProductionだけで有効化する。設定値がな�
 
 - CloudflareアカウントとWorkers用API token、Account ID
 - GitHubリポジトリの作成先
-- 最終的な`*.workers.dev` URL
+- 最終的な`*.workers.dev` URLを設定する`SITE_URL`
+- Cloudflare Web Analyticsの`PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN`
 - 公開するメールアドレス
 - GitHub、X、Zennのうち表示するURL
 - 著者イラスト作成用の参考画像と、生成画像へのユーザー承認
