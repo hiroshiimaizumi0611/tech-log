@@ -12,6 +12,7 @@ const initializeMobileMenus = () => {
       trigger.setAttribute('aria-expanded', 'false');
       trigger.setAttribute('aria-label', 'メニューを開く');
       panel.hidden = true;
+      panel.removeAttribute('data-open');
       document.body.classList.remove('menu-open');
       if (restoreFocus) trigger.focus();
     };
@@ -19,9 +20,12 @@ const initializeMobileMenus = () => {
     const open = () => {
       trigger.setAttribute('aria-expanded', 'true');
       trigger.setAttribute('aria-label', 'メニューを閉じる');
+      panel.setAttribute('data-open', '');
       panel.hidden = false;
       document.body.classList.add('menu-open');
     };
+
+    close();
 
     trigger.addEventListener('click', () => {
       if (trigger.getAttribute('aria-expanded') === 'true') close();

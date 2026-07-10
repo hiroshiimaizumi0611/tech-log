@@ -22,7 +22,7 @@ const links = [
     <span aria-hidden="true"></span>
   </button>
 
-  <div class="mobile-menu__panel" id="mobile-menu-panel" data-mobile-menu-panel hidden>
+  <div class="mobile-menu__panel" id="mobile-menu-panel" data-mobile-menu-panel>
     <nav aria-label="モバイルナビゲーション">
       <ul>
         {
@@ -47,7 +47,7 @@ const links = [
   }
 
   .mobile-menu__trigger {
-    display: grid;
+    display: none;
     place-content: center;
     gap: 5px;
     inline-size: 2.75rem;
@@ -93,6 +93,10 @@ const links = [
     display: none;
   }
 
+  :global(.js) .mobile-menu__panel:not([data-open]) {
+    display: none;
+  }
+
   ul {
     max-inline-size: var(--container-max);
     margin: 0 auto;
@@ -118,6 +122,10 @@ const links = [
   @media (max-width: 47.99rem) {
     .mobile-menu {
       display: block;
+    }
+
+    :global(.js) .mobile-menu__trigger {
+      display: grid;
     }
   }
 </style>

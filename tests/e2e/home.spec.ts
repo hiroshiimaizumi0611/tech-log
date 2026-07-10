@@ -90,3 +90,22 @@ test('モバイルメニューを開閉しフォーカスとスクロールを�
   await expect(trigger).toBeFocused();
   await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden');
 });
+
+test.describe('JavaScriptが無効な場合', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('モバイルナビゲーションのリンクを通常のリンクとして表示する', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+
+    const trigger = page.locator('[data-mobile-menu-trigger]');
+    const mobileNav = page.getByRole('navigation', { name: 'モバイルナビゲーション' });
+
+    await expect(trigger).toBeHidden();
+    await expect(mobileNav).toBeVisible();
+
+    for (const link of primaryLinks) {
+      await expect(mobileNav.getByRole('link', { name: link.name, exact: true })).toHaveAttribute('href', link.href);
+    }
+  });
+});
