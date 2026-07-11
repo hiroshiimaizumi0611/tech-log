@@ -81,12 +81,15 @@ const links = [
   }
 
   .mobile-menu__panel {
+    border-block-end: 1px solid var(--color-border);
+    background: var(--color-section);
+  }
+
+  :global(.js) .mobile-menu__panel {
     position: fixed;
     z-index: 20;
     inset-block-start: var(--header-height);
     inset-inline: 0;
-    border-block-end: 1px solid var(--color-border);
-    background: var(--color-section);
   }
 
   .mobile-menu__panel[hidden] {
@@ -122,6 +125,10 @@ const links = [
   @media (max-width: 47.99rem) {
     .mobile-menu {
       display: block;
+    }
+
+    :global(html:not(.js)) .mobile-menu {
+      inline-size: 100%;
     }
 
     :global(.js) .mobile-menu__trigger {
