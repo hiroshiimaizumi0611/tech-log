@@ -25,7 +25,7 @@ test('記事一覧は公開日の降順で公開記事を表示する', async ({
   await expectNoHighImpactAxeViolations(page);
 });
 
-test('タグ一覧と詳細は同じルートを使いエンコードを重複させない', async ({ page, request }) => {
+test('タグ一覧の全リンクが共有ルートの詳細へ解決される', async ({ page, request }) => {
   await page.goto('/tags/');
 
   await expect(page.getByRole('heading', { level: 1, name: 'タグ一覧' })).toBeVisible();
@@ -33,7 +33,7 @@ test('タグ一覧と詳細は同じルートを使いエンコードを重複�
   expect(await tagLinks.count()).toBeGreaterThan(0);
 
   const hrefs = await tagLinks.evaluateAll((links) => links.map((link) => link.getAttribute('href') ?? ''));
-  expect(hrefs.every((href) => href.startsWith('/tags/') && !href.includes('%25'))).toBe(true);
+  expect(hrefs.every((href) => href.startsWith('/tags/'))).toBe(true);
 
   for (const href of hrefs) {
     expect((await request.get(href)).status(), href).toBe(200);
@@ -68,7 +68,7 @@ test('カテゴリー一覧は0件を含む6種類を表示し、全詳細ルー
 });
 
 test('未知のタグ・カテゴリーと無効な記事ページは404を返す', async ({ request }) => {
-  for (const path of ['/tags/not-a-real-tag/', '/categories/not-a-real-category/', '/blog/page/1/', '/blog/page/2/', '/blog/page/0/']) {
+  for (const path of ['/tags/not-a-real-tag/', '/categories/not-a-real-category/', '/blog/page/1/', '/blog/page/999/', '/blog/page/0/']) {
     expect((await request.get(path)).status(), path).toBe(404);
   }
 });

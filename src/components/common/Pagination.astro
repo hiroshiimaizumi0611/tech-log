@@ -1,28 +1,17 @@
 ---
-interface Props {
-  current: number;
-  total: number;
-  base: string;
-}
+import type { PaginationModel } from '@/lib/content/pagination';
 
-const { current, total, base } = Astro.props;
+type Props = PaginationModel;
 
-if (!Number.isInteger(current) || !Number.isInteger(total) || current < 1 || total < 1 || current > total) {
-  throw new RangeError('Pagination requires a valid current page and total page count');
-}
-
-const normalizedBase = base.endsWith('/') ? base : `${base}/`;
-const pageHref = (page: number) => (page === 1 ? normalizedBase : `${normalizedBase}page/${page}/`);
-const previous = current > 1 ? current - 1 : undefined;
-const next = current < total ? current + 1 : undefined;
+const { current, total, previousHref, nextHref } = Astro.props;
 ---
 
 {
   total > 1 && (
     <nav class="pagination" aria-label="ページネーション">
       <div>
-        {previous ? (
-          <a href={pageHref(previous)} rel="prev">
+        {previousHref ? (
+          <a href={previousHref} rel="prev">
             ← 前のページ
           </a>
         ) : (
@@ -32,8 +21,8 @@ const next = current < total ? current + 1 : undefined;
           <span class="sr-only">現在のページ: </span>
           {current} / {total}
         </p>
-        {next ? (
-          <a href={pageHref(next)} rel="next">
+        {nextHref ? (
+          <a href={nextHref} rel="next">
             次のページ →
           </a>
         ) : (

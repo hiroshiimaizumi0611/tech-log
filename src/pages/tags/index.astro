@@ -17,9 +17,20 @@ const tagPages = buildTagPages(await getCollection('blog'));
       <p class="description">関心のあるキーワードから記事を探せます。</p>
       <p class="count">{tagPages.length}種類のタグ</p>
     </header>
-    <nav class="tag-index" data-tag-index aria-label="タグ別の記事">
-      {tagPages.map(({ label, href, count }) => <TagChip {label} {href} {count} />)}
-    </nav>
+    {
+      tagPages.length > 0 ? (
+        <nav class="tag-index" data-tag-index aria-label="タグ別の記事">
+          {tagPages.map(({ label, href, count }) => (
+            <TagChip {label} {href} {count} />
+          ))}
+        </nav>
+      ) : (
+        <div class="empty-state" role="status">
+          <p>まだタグの付いた記事はありません。</p>
+          <a href="/blog/">すべての記事を見る</a>
+        </div>
+      )
+    }
   </Container>
 </BaseLayout>
 
@@ -74,5 +85,37 @@ const tagPages = buildTagPages(await getCollection('blog'));
     min-block-size: 2.5rem;
     padding-inline: var(--space-4);
     font-size: 0.85rem;
+  }
+
+  .empty-state {
+    margin-block-start: var(--space-12);
+    padding: var(--space-8);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-card);
+    color: var(--color-text-muted);
+    background: color-mix(in srgb, var(--color-card) 72%, transparent);
+  }
+
+  .empty-state p {
+    margin: 0 0 var(--space-5);
+  }
+
+  .empty-state a {
+    display: inline-flex;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+    background: var(--color-card);
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .empty-state a:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent-soft);
+    background: var(--color-card-hover);
   }
 </style>

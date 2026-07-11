@@ -1,7 +1,8 @@
 import { getPublishedPosts, type PostLike } from './posts';
 import { assertNonNegativeInteger } from './pagination';
 
-const PATH_SENSITIVE_CHARACTER = /[/?#]/;
+const PATH_SENSITIVE_CHARACTER = /[\\/?#\p{Cc}]/u;
+const PATH_NORMALIZATION_SEGMENTS = new Set(['.', '..']);
 
 function compareLabels(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
@@ -15,6 +16,9 @@ export function normalizeTagSegment(tag: string): string {
 
   const segment = normalizedTag.trim().toLowerCase().replace(/\s+/gu, '-');
   if (!segment) throw new Error('タグは空にできません');
+  if (PATH_SENSITIVE_CHARACTER.test(segment) || PATH_NORMALIZATION_SEGMENTS.has(segment)) {
+    throw new Error(`タグを安全なパスに変換できません: ${tag}`);
+  }
   return segment;
 }
 
@@ -61,14 +65,22 @@ export interface TagPage<T extends PostLike = PostLike> extends TagIndexEntry {
 export function buildTagPages<T extends PostLike>(posts: readonly T[]): TagPage<T>[] {
   const published = getPublishedPosts(posts);
   const tagIndex = buildTagIndex(published.flatMap(({ data }) => data.tags.map((label) => ({ label }))));
+  const pagesBySegment = new Map(tagIndex.map((tag) => [tag.segment, { ...tag, posts: [] as T[] }]));
 
-  return tagIndex.map((tag) => {
-    const matchingPosts = published.filter(({ data }) => data.tags.includes(tag.label));
-    return {
-      ...tag,
-      count: matchingPosts.length,
-      posts: matchingPosts,
-    };
+  for (const post of published) {
+    const postSegments = new Set<string>();
+    for (const label of post.data.tags) {
+      const segment = normalizeTagSegment(label);
+      if (postSegments.has(segment)) continue;
+      postSegments.add(segment);
+      pagesBySegment.get(segment)?.posts.push(post);
+    }
+  }
+
+  return tagIndex.map(({ segment }) => {
+    const page = pagesBySegment.get(segment);
+    if (!page) throw new Error(`タグページを生成できません: ${segment}`);
+    return { ...page, count: page.posts.length };
   });
 }
 

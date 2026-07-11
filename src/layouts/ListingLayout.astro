@@ -1,34 +1,17 @@
 ---
-import type { ImageMetadata } from 'astro';
-
 import ArticleCard from '@/components/blog/ArticleCard.astro';
 import Container from '@/components/common/Container.astro';
 import Pagination from '@/components/common/Pagination.astro';
-import type { CategoryKey } from '@/config/site';
 import BaseLayout from '@/layouts/BaseLayout.astro';
-
-export interface ArticleView {
-  href: string;
-  title: string;
-  description: string;
-  publishedDate: string;
-  publishedLabel: string;
-  category: CategoryKey;
-  tags: readonly string[];
-  readingMinutes: number;
-  heroImage?: ImageMetadata;
-}
+import type { ArticleView } from '@/lib/content/listings';
+import type { PaginationModel } from '@/lib/content/pagination';
 
 interface Props {
   title: string;
   description: string;
   articles: readonly ArticleView[];
   count?: number;
-  pagination?: {
-    current: number;
-    total: number;
-    base: string;
-  };
+  pagination?: PaginationModel;
   emptyMessage?: string;
   emptyAction?: {
     label: string;

@@ -45,7 +45,19 @@ describe('tag paths', () => {
     expect(tagToHref('生成 AI')).toBe('/tags/%E7%94%9F%E6%88%90-ai/');
   });
 
-  it.each(['AWS/CDK', 'why?', 'C#'])('rejects path-sensitive tag %s', (tag) => {
+  it('preserves a legitimate percent-sign tag by encoding it once', () => {
+    expect(normalizeTagSegment('%')).toBe('%');
+    expect(tagToHref('%')).toBe('/tags/%25/');
+  });
+
+  it.each(['.', '..', '．', '．．', '․', '﹒', 'AWS/CDK', 'AWS\\CDK', 'AWS／CDK', 'AWS＼CDK', 'why?', 'C#', 'line\nbreak', 'null\0byte'])(
+    'rejects path-sensitive tag %s',
+    (tag) => {
+      expect(() => normalizeTagSegment(tag)).toThrow();
+    },
+  );
+
+  it.each([' . ', ' .. ', ' ． ', ' ．． '])('rechecks path-normalization segment %s after normalization', (tag) => {
     expect(() => normalizeTagSegment(tag)).toThrow();
   });
 
@@ -57,7 +69,7 @@ describe('tag paths', () => {
     expect(() => buildTagPages([post('wide', ['ＡＷＳ']), post('ascii', ['aws'])])).toThrow(/衝突/);
   });
 
-  it('builds one published-post page per tag with deterministic counts and raw segments', () => {
+  it('builds the production route model with a raw Unicode param and a single-encoded href', () => {
     const pages = buildTagPages([
       post('newer', ['生成 AI', 'Astro']),
       { ...post('older', ['生成 AI']), data: { ...post('older', ['生成 AI']).data, publishedAt: new Date('2025-01-01') } },
@@ -80,6 +92,20 @@ describe('tag paths', () => {
         posts: [expect.objectContaining({ id: 'newer' }), expect.objectContaining({ id: 'older' })],
       },
     ]);
+
+    const unicodeRoute = pages[1];
+    expect(unicodeRoute.segment).toBe('生成-ai');
+    expect(encodeURIComponent(unicodeRoute.segment)).toBe('%E7%94%9F%E6%88%90-ai');
+    expect(new URL(unicodeRoute.href, 'https://fixture.invalid').pathname).toBe('/tags/%E7%94%9F%E6%88%90-ai/');
+    expect(decodeURIComponent(new URL(unicodeRoute.href, 'https://fixture.invalid').pathname)).toBe('/tags/生成-ai/');
+  });
+
+  it.each(['.', '..', '．', '．．', 'AWS\\CDK'])('rejects unsafe route label %s before tag paths are emitted', (label) => {
+    expect(() => buildTagPages([post('unsafe', [label])])).toThrow();
+  });
+
+  it('emits a safe single-encoded route for a percent-sign label', () => {
+    expect(buildTagPages([post('percent', ['%'])])).toMatchObject([{ label: '%', segment: '%', href: '/tags/%25/', count: 1 }]);
   });
 
   it('returns deterministic entries sorted by normalized segment', () => {

@@ -18,8 +18,15 @@ describe('blogMetadataSchema', () => {
     expect(blogMetadataSchema.safeParse(validMetadata).success).toBe(true);
   });
 
-  it.each(['AWS/CDK', 'why?', 'C#', 'AWS／CDK'])('rejects path-sensitive tag %s', (tag) => {
-    expect(blogMetadataSchema.safeParse({ ...validMetadata, tags: [tag] }).success).toBe(false);
+  it.each(['.', '..', '．', '．．', '․', '﹒', 'AWS/CDK', 'AWS\\CDK', 'why?', 'C#', 'AWS／CDK', 'AWS＼CDK', 'line\nbreak'])(
+    'rejects path-sensitive tag %s',
+    (tag) => {
+      expect(blogMetadataSchema.safeParse({ ...validMetadata, tags: [tag] }).success).toBe(false);
+    },
+  );
+
+  it('accepts a percent-sign tag', () => {
+    expect(blogMetadataSchema.safeParse({ ...validMetadata, tags: ['%'] }).success).toBe(true);
   });
 
   it('rejects tags that collide after shared normalization', () => {
