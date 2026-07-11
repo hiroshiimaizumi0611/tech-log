@@ -60,7 +60,10 @@ function markdownLinkDestinations(body: string): string[] {
   const tree = unified().use(remarkParse).parse(body);
 
   visit(tree, 'definition', (node) => {
-    definitions.set(normalizeReferenceIdentifier(node.identifier), node.url);
+    const identifier = normalizeReferenceIdentifier(node.identifier);
+    if (!definitions.has(identifier)) {
+      definitions.set(identifier, node.url);
+    }
   });
 
   visit(tree, 'link', (node) => {
@@ -78,12 +81,21 @@ function markdownLinkDestinations(body: string): string[] {
 }
 
 function isInternalLinkDestination(destination: string): boolean {
-  return (
-    destination.startsWith('#') ||
-    (destination.startsWith('/') && !destination.startsWith('//')) ||
-    destination.startsWith('./') ||
-    destination.startsWith('../')
-  );
+  if (destination.startsWith('//')) {
+    return false;
+  }
+
+  try {
+    new URL(destination);
+    return false;
+  } catch {
+    try {
+      const siteBase = new URL('https://fixture-site.invalid/blog/current');
+      return new URL(destination, siteBase).origin === siteBase.origin;
+    } catch {
+      return false;
+    }
+  }
 }
 
 function linkValidationErrors(destinations: string[], approvedHosts: ReadonlySet<string>): string[] {
@@ -146,6 +158,22 @@ describe('initial production article fixtures', () => {
     expect(markdownLinkDestinations(markdown).map(String)).toEqual(['https://openai.com/guide', 'https://unapproved.example/guide']);
   });
 
+  it('preserves an unsafe first definition when a later duplicate is approved', () => {
+    const markdown = ['[guide][docs]', '', '[docs]: https://unapproved.example/first', '[DOCS]: https://openai.com/second'].join('\n');
+    const destinations = markdownLinkDestinations(markdown);
+
+    expect(destinations).toEqual(['https://unapproved.example/first']);
+    expect(linkValidationErrors(destinations, new Set(['openai.com']))).toEqual(['External hostname is not approved: unapproved.example']);
+  });
+
+  it('preserves an approved first definition when a later duplicate is unsafe', () => {
+    const markdown = ['[guide][docs]', '', '[docs]: https://openai.com/first', '[DOCS]: https://unapproved.example/second'].join('\n');
+    const destinations = markdownLinkDestinations(markdown);
+
+    expect(destinations).toEqual(['https://openai.com/first']);
+    expect(linkValidationErrors(destinations, new Set(['openai.com']))).toEqual([]);
+  });
+
   it('collects internal relative and fragment links without requiring an external URL', () => {
     const markdown = ['[root](/blog/article)', '[same directory](./article)', '[parent directory](../article)', '[section](#section)'].join(
       '\n',
@@ -157,7 +185,12 @@ describe('initial production article fixtures', () => {
   it('allows internal links and reports unsafe or unapproved external links', () => {
     const approvedHosts = new Set(['openai.com']);
 
-    expect(linkValidationErrors(['/path', './path', '../path', '#section', 'https://openai.com/docs'], approvedHosts)).toEqual([]);
+    expect(
+      linkValidationErrors(
+        ['/path', './path', '../path', '#section', 'other-article', '?view=compact', 'https://openai.com/docs'],
+        approvedHosts,
+      ),
+    ).toEqual([]);
     expect(linkValidationErrors(['//openai.com/docs', 'http://openai.com/docs', 'https://unapproved.example/docs'], approvedHosts)).toEqual(
       [
         'Protocol-relative URL is not allowed: //openai.com/docs',
@@ -165,6 +198,10 @@ describe('initial production article fixtures', () => {
         'External hostname is not approved: unapproved.example',
       ],
     );
+    expect(linkValidationErrors(['javascript:alert(1)', 'mailto:reader@example.com'], approvedHosts)).toEqual([
+      'External URL must use HTTPS: javascript:alert(1)',
+      'External URL must use HTTPS: mailto:reader@example.com',
+    ]);
   });
 
   it('rejects missing or unclosed frontmatter delimiters', () => {
