@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildTagIndex, getPopularTags, normalizeTagSegment, tagToHref } from '../../src/lib/content/tags';
+import { buildTagIndex, buildTagPages, getPopularTags, normalizeTagSegment, tagToHref } from '../../src/lib/content/tags';
 import type { PostLike } from '../../src/lib/content/posts';
 
 function post(id: string, tags: string[], draft = false): PostLike {
@@ -51,6 +51,35 @@ describe('tag paths', () => {
 
   it('detects normalization collisions', () => {
     expect(() => buildTagIndex([{ label: 'ＡＷＳ' }, { label: 'aws' }])).toThrow(/衝突/);
+  });
+
+  it('detects normalization collisions while generating tag routes', () => {
+    expect(() => buildTagPages([post('wide', ['ＡＷＳ']), post('ascii', ['aws'])])).toThrow(/衝突/);
+  });
+
+  it('builds one published-post page per tag with deterministic counts and raw segments', () => {
+    const pages = buildTagPages([
+      post('newer', ['生成 AI', 'Astro']),
+      { ...post('older', ['生成 AI']), data: { ...post('older', ['生成 AI']).data, publishedAt: new Date('2025-01-01') } },
+      post('draft', ['Astro'], true),
+    ]);
+
+    expect(pages).toEqual([
+      {
+        label: 'Astro',
+        segment: 'astro',
+        href: '/tags/astro/',
+        count: 1,
+        posts: [expect.objectContaining({ id: 'newer' })],
+      },
+      {
+        label: '生成 AI',
+        segment: '生成-ai',
+        href: '/tags/%E7%94%9F%E6%88%90-ai/',
+        count: 2,
+        posts: [expect.objectContaining({ id: 'newer' }), expect.objectContaining({ id: 'older' })],
+      },
+    ]);
   });
 
   it('returns deterministic entries sorted by normalized segment', () => {

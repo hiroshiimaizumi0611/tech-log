@@ -1,4 +1,4 @@
-import type { PostLike } from './posts';
+import { getPublishedPosts, type PostLike } from './posts';
 import { assertNonNegativeInteger } from './pagination';
 
 const PATH_SENSITIVE_CHARACTER = /[/?#]/;
@@ -48,9 +48,28 @@ export function buildTagIndex(tags: Iterable<TagLabel>): TagIndexEntry[] {
     .map(([segment, label]) => ({
       label,
       segment,
-      href: `/tags/${encodeURIComponent(segment)}/`,
+      href: tagToHref(label),
     }))
     .sort((left, right) => compareLabels(left.segment, right.segment));
+}
+
+export interface TagPage<T extends PostLike = PostLike> extends TagIndexEntry {
+  count: number;
+  posts: T[];
+}
+
+export function buildTagPages<T extends PostLike>(posts: readonly T[]): TagPage<T>[] {
+  const published = getPublishedPosts(posts);
+  const tagIndex = buildTagIndex(published.flatMap(({ data }) => data.tags.map((label) => ({ label }))));
+
+  return tagIndex.map((tag) => {
+    const matchingPosts = published.filter(({ data }) => data.tags.includes(tag.label));
+    return {
+      ...tag,
+      count: matchingPosts.length,
+      posts: matchingPosts,
+    };
+  });
 }
 
 export interface PopularTag {

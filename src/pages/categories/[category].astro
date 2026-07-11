@@ -1,0 +1,46 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+
+import { CATEGORIES, CATEGORY_KEYS } from '@/config/site';
+import ListingLayout from '@/layouts/ListingLayout.astro';
+import { getPublishedPosts } from '@/lib/content/posts';
+import { readingMinutes } from '@/lib/content/reading-time';
+
+export const getStaticPaths = (async () => {
+  const published = getPublishedPosts(await getCollection('blog'));
+  return CATEGORY_KEYS.map((key) => ({
+    params: { category: CATEGORIES[key].slug },
+    props: {
+      category: CATEGORIES[key],
+      posts: published.filter(({ data }) => data.category === key),
+    },
+  }));
+}) satisfies GetStaticPaths;
+
+const { category, posts } = Astro.props;
+const dateFormatter = new Intl.DateTimeFormat('ja-JP', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+  timeZone: 'Asia/Tokyo',
+});
+const articles = posts.map((entry) => ({
+  href: `/blog/${entry.id}/`,
+  title: entry.data.title,
+  description: entry.data.description,
+  publishedDate: entry.data.publishedAt.toISOString(),
+  publishedLabel: dateFormatter.format(entry.data.publishedAt),
+  category: entry.data.category,
+  tags: entry.data.tags,
+  readingMinutes: readingMinutes(entry.body ?? ''),
+  heroImage: entry.data.heroImage,
+}));
+---
+
+<ListingLayout
+  title={`${category.label}の記事`}
+  description={`カテゴリー「${category.label}」の記事です。`}
+  {articles}
+  count={posts.length}
+/>

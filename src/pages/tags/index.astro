@@ -1,0 +1,78 @@
+---
+import { getCollection } from 'astro:content';
+
+import Container from '@/components/common/Container.astro';
+import TagChip from '@/components/common/TagChip.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { buildTagPages } from '@/lib/content/tags';
+
+const tagPages = buildTagPages(await getCollection('blog'));
+---
+
+<BaseLayout title="タグ一覧 | テックログ" description="記事に付けられたすべてのタグを件数付きで表示します。">
+  <Container class="index-shell">
+    <header>
+      <p class="eyebrow">TAGS</p>
+      <h1>タグ一覧</h1>
+      <p class="description">関心のあるキーワードから記事を探せます。</p>
+      <p class="count">{tagPages.length}種類のタグ</p>
+    </header>
+    <nav class="tag-index" data-tag-index aria-label="タグ別の記事">
+      {tagPages.map(({ label, href, count }) => <TagChip {label} {href} {count} />)}
+    </nav>
+  </Container>
+</BaseLayout>
+
+<style>
+  :global(.index-shell) {
+    padding-block: clamp(var(--space-16), 8vw, var(--space-24));
+  }
+
+  header {
+    max-inline-size: 48rem;
+  }
+
+  .eyebrow {
+    margin: 0 0 var(--space-3);
+    color: var(--color-accent);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+  }
+
+  h1 {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: clamp(2rem, 5vw, 3.75rem);
+    letter-spacing: -0.045em;
+    line-height: 1.12;
+  }
+
+  .description {
+    margin: var(--space-5) 0 0;
+    color: var(--color-text-muted);
+  }
+
+  .count {
+    margin: var(--space-6) 0 0;
+    color: var(--color-text-weak);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+  }
+
+  .tag-index {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-block-start: var(--space-12);
+    padding-block-start: var(--space-8);
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  .tag-index :global(.tag-chip) {
+    min-block-size: 2.5rem;
+    padding-inline: var(--space-4);
+    font-size: 0.85rem;
+  }
+</style>
