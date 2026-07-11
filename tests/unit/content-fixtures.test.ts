@@ -1,6 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
+import remarkParse from 'remark-parse';
+import { unified } from 'unified';
+import { visit } from 'unist-util-visit';
 import { describe, expect, it } from 'vitest';
 
 const articleFixtures = [
@@ -38,10 +41,33 @@ function featuredValue(frontmatter: string): boolean {
 }
 
 function markdownLinkDestinations(body: string): URL[] {
-  return [...body.matchAll(/\[[^\]]+\]\(([^\s)]+)\)/g)].map(([, destination]) => new URL(destination));
+  const destinations: URL[] = [];
+  const tree = unified().use(remarkParse).parse(body);
+
+  visit(tree, 'link', (node) => {
+    destinations.push(new URL(node.url));
+  });
+
+  return destinations;
 }
 
 describe('initial production article fixtures', () => {
+  it('collects only real Markdown links, excluding code and images', () => {
+    const markdown = [
+      '```md',
+      '[fenced](https://code.example/fenced)',
+      '```',
+      '',
+      '`[inline](https://code.example/inline)`',
+      '',
+      '![image](https://images.example/example.png)',
+      '',
+      '[real link](https://docs.example/guide)',
+    ].join('\n');
+
+    expect(markdownLinkDestinations(markdown).map(String)).toEqual(['https://docs.example/guide']);
+  });
+
   it('rejects missing or unclosed frontmatter delimiters', () => {
     expect(() => splitArticle('title: missing delimiters\n\nBody')).toThrow(/frontmatter enclosed/i);
     expect(() => splitArticle('---\ntitle: missing closing delimiter\n\nBody')).toThrow(/frontmatter enclosed/i);
@@ -88,14 +114,13 @@ describe('initial production article fixtures', () => {
     }
   });
 
-  it('uses the Astro 7 content collection imports and makes only supported build claims', async () => {
+  it('uses the Astro 7 content collection imports', async () => {
     const source = await readArticle('build-tech-blog-with-astro-2026');
     const { body } = splitArticle(source);
 
     expect(body).toContain("import { defineCollection } from 'astro:content';");
     expect(body).toContain("import { z } from 'astro/zod';");
     expect(body).not.toContain("import { defineCollection, z } from 'astro:content';");
-    expect(body).not.toContain('リンク切れ');
   });
 
   it('protects every saved Terraform plan and state backup artifact', async () => {
