@@ -103,7 +103,7 @@ const optimizedHero = heroImage
   .artwork-layer {
     position: relative;
     overflow: hidden;
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 16 / 7;
     border-block-end: 1px solid var(--color-border);
     background: var(--color-section);
   }
@@ -123,7 +123,7 @@ const optimizedHero = heroImage
     display: flex;
     flex: 1;
     flex-direction: column;
-    padding: var(--space-5);
+    padding: var(--space-4);
   }
 
   time,
@@ -139,9 +139,9 @@ const optimizedHero = heroImage
     overflow: hidden;
     margin: var(--space-3) 0 0;
     font-family: var(--font-ui);
-    font-size: 1.05rem;
+    font-size: 0.95rem;
     letter-spacing: -0.018em;
-    line-height: 1.55;
+    line-height: 1.45;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
   }
@@ -151,8 +151,8 @@ const optimizedHero = heroImage
     overflow: hidden;
     margin: var(--space-3) 0 0;
     color: var(--color-text-muted);
-    font-size: 0.82rem;
-    line-height: 1.7;
+    font-size: 0.76rem;
+    line-height: 1.6;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
   }
@@ -160,12 +160,19 @@ const optimizedHero = heroImage
   .tags {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-2);
-    margin-block-start: var(--space-4);
+    gap: var(--space-1) var(--space-2);
+    margin-block-start: var(--space-3);
   }
 
   .reading-time {
     margin-block-start: auto;
-    padding-block-start: var(--space-5);
+    padding-block-start: var(--space-3);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .article-card:hover,
+    .article-card:focus-within {
+      transform: none;
+    }
   }
 </style>

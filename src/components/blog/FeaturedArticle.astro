@@ -92,7 +92,8 @@ const optimizedHero = heroImage
 
 <style>
   .featured {
-    padding: clamp(var(--space-5), 4vw, var(--space-8));
+    min-inline-size: 0;
+    padding: clamp(var(--space-5), 2.5vw, var(--space-6));
     border: 1px solid var(--color-border);
     border-radius: var(--radius-card-lg);
     background: linear-gradient(145deg, color-mix(in srgb, var(--color-card-hover) 82%, transparent), var(--color-card)), var(--color-card);
@@ -130,7 +131,7 @@ const optimizedHero = heroImage
   h2 {
     margin: var(--space-5) 0 0;
     font-family: var(--font-ui);
-    font-size: clamp(1.4rem, 2.5vw, 2rem);
+    font-size: clamp(1.35rem, 2.2vw, 1.8rem);
     letter-spacing: -0.03em;
     line-height: 1.35;
   }
@@ -152,10 +153,15 @@ const optimizedHero = heroImage
   .code-panel,
   .media-layer {
     overflow: hidden;
-    margin-block-start: var(--space-6);
+    margin-block-start: var(--space-5);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-card);
     background: color-mix(in srgb, var(--color-background) 72%, transparent);
+  }
+
+  .highlighted-code {
+    min-inline-size: 0;
+    overflow: hidden;
   }
 
   .code-header {
@@ -166,7 +172,7 @@ const optimizedHero = heroImage
 
   .highlighted-code :global(pre.shiki) {
     overflow: auto;
-    max-block-size: 14rem;
+    max-block-size: 10.5rem;
     margin: 0;
     padding: var(--space-4);
     color: var(--color-text-muted);
@@ -192,7 +198,7 @@ const optimizedHero = heroImage
   }
 
   .footerline {
-    margin-block-start: var(--space-6);
+    margin-block-start: var(--space-5);
   }
 
   a {

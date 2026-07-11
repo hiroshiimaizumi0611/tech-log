@@ -56,7 +56,8 @@ const hasActions = Astro.slots.has('actions');
     z-index: 30;
     block-size: var(--header-height);
     border-block-end: 1px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-section) 96%, transparent);
+    background: color-mix(in srgb, var(--color-background) 97%, transparent);
+    backdrop-filter: blur(12px);
   }
 
   :global(.site-header__inner) {
@@ -81,8 +82,8 @@ const hasActions = Astro.slots.has('actions');
   .brand__mark {
     display: grid;
     place-items: center;
-    inline-size: 2.25rem;
-    block-size: 2.25rem;
+    inline-size: 2rem;
+    block-size: 2rem;
     border: 1px solid var(--color-accent);
     border-radius: var(--radius-sm);
     color: var(--color-accent-soft);
@@ -100,7 +101,7 @@ const hasActions = Astro.slots.has('actions');
 
   .brand__name {
     font-family: var(--font-ui);
-    font-size: 1rem;
+    font-size: 0.9375rem;
     font-weight: 750;
     letter-spacing: 0.05em;
     line-height: 1.3;

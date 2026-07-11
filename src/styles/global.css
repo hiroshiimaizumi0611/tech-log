@@ -19,9 +19,9 @@ body {
   color: var(--color-text);
   background-color: var(--color-background);
   background-image:
-    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--color-text-weak) 14%, transparent) 1px, transparent 0),
-    linear-gradient(color-mix(in srgb, var(--color-border) 12%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--color-border) 12%, transparent) 1px, transparent 1px);
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--color-text-weak) 8%, transparent) 1px, transparent 0),
+    linear-gradient(color-mix(in srgb, var(--color-border) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-border) 7%, transparent) 1px, transparent 1px);
   background-position:
     0 0,
     0 0,
