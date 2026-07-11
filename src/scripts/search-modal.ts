@@ -89,7 +89,7 @@ const initSearchModal = (root: HTMLElement) => {
 
   const showFailure = () => {
     requestId += 1;
-    summary.textContent = '';
+    summary.textContent = '検索を読み込めませんでした';
     results.replaceChildren();
     const fallback = document.createElement('p');
     fallback.className = 'search-dialog__error';
@@ -136,24 +136,21 @@ const initSearchModal = (root: HTMLElement) => {
     results.append(fragment);
   };
 
-  const search = async (query: string) => {
-    const currentRequest = ++requestId;
-    if (!query) {
-      summary.textContent = 'キーワードを入力してください';
-      results.replaceChildren();
-      return;
-    }
+  const isCurrentSearch = (generation: number, query: string) => dialog.open && generation === requestId && input.value.trim() === query;
+
+  const search = async (query: string, generation: number) => {
+    if (!isCurrentSearch(generation, query)) return;
 
     summary.textContent = '検索中…';
     try {
       const pagefind = await loadPagefind();
       const response = await pagefind.search(query);
       const data = await Promise.all(response.results.slice(0, RESULT_LIMIT).map((result) => result.data()));
-      if (currentRequest !== requestId) return;
+      if (!isCurrentSearch(generation, query)) return;
       renderResults(data, query, response.results.length);
     } catch (error) {
       console.error('Pagefind search failed', error);
-      if (currentRequest === requestId) showFailure();
+      if (isCurrentSearch(generation, query)) showFailure();
     }
   };
 
@@ -167,7 +164,7 @@ const initSearchModal = (root: HTMLElement) => {
     input.focus({ preventScroll: true });
     void loadPagefind().catch((error) => {
       console.error('Pagefind initialization failed', error);
-      showFailure();
+      if (dialog.open) showFailure();
     });
   });
 
@@ -176,14 +173,24 @@ const initSearchModal = (root: HTMLElement) => {
     if (event.target === dialog) close();
   });
   dialog.addEventListener('close', () => {
+    window.clearTimeout(debounceTimer);
+    debounceTimer = undefined;
+    requestId += 1;
     document.body.classList.remove('search-open');
     trigger.focus({ preventScroll: true });
   });
   form.addEventListener('submit', (event) => event.preventDefault());
   input.addEventListener('input', () => {
     window.clearTimeout(debounceTimer);
+    const generation = ++requestId;
     const query = input.value.trim();
-    debounceTimer = window.setTimeout(() => void search(query), DEBOUNCE_MS);
+    results.replaceChildren();
+    if (!query) {
+      summary.textContent = 'キーワードを入力してください';
+      return;
+    }
+    summary.textContent = '検索中…';
+    debounceTimer = window.setTimeout(() => void search(query, generation), DEBOUNCE_MS);
   });
 };
 

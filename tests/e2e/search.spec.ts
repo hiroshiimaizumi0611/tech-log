@@ -3,6 +3,25 @@ import { expect, test } from '@playwright/test';
 import { access, readFile } from 'node:fs/promises';
 
 const pagefindRequest = (url: string) => /\/pagefind\/pagefind\.js(?:\?|$)/.test(url);
+const fakeResultModule = `
+globalThis.__fakeSearchEvents = [];
+export const init = async () => {};
+export const search = async (query) => {
+  globalThis.__fakeSearchEvents.push(query + ':start');
+  if (query === 'closed') await new Promise((resolve) => { globalThis.__releaseClosedSearch = resolve; });
+  if (query === 'old') await new Promise((resolve) => { globalThis.__releaseOldSearch = resolve; });
+  globalThis.__fakeSearchEvents.push(query + ':end');
+  return {
+    results: [{
+      data: async () => ({
+        url: '/blog/build-tech-blog-with-astro-2026/',
+        plain_excerpt: query + ' excerpt',
+        meta: { title: query + ' result' },
+      }),
+    }],
+  };
+};
+`;
 
 test('Pagefindの成果物と日本語インデックスを生成する', async () => {
   await expect(access(new URL('../../dist/pagefind/pagefind.js', import.meta.url))).resolves.toBeUndefined();
@@ -70,6 +89,55 @@ test('Astro・Frontend・TypeScriptの記事を検索して結果へ移動でき
     await expect(results.getByRole('link').first()).toBeVisible();
     await expect(results).toContainText(new RegExp(query, 'i'));
   }
+
+  await input.fill('Astro');
+  const astroResult = results.getByRole('link', { name: /2026年版 Astroで技術ブログを構築した/ });
+  await expect(astroResult).toHaveAttribute('href', '/blog/build-tech-blog-with-astro-2026/');
+  await astroResult.click();
+  await expect(page).toHaveURL(/\/blog\/build-tech-blog-with-astro-2026\/$/);
+  await expect(page.getByRole('heading', { level: 1, name: '2026年版 Astroで技術ブログを構築した' })).toBeVisible();
+});
+
+test('close後に完了した検索を破棄し再open時に古い結果を表示しない', async ({ page }) => {
+  await page.route('**/pagefind/pagefind.js', (route) => route.fulfill({ contentType: 'text/javascript', body: fakeResultModule }));
+  await page.goto('/');
+  const trigger = page.getByRole('button', { name: '検索を開く' });
+  const dialog = page.getByRole('dialog', { name: 'サイト内検索' });
+
+  await trigger.click();
+  await dialog.getByRole('searchbox', { name: '記事を検索' }).fill('closed');
+  await expect
+    .poll(() => page.evaluate(() => (globalThis as { __fakeSearchEvents?: string[] }).__fakeSearchEvents ?? []))
+    .toContain('closed:start');
+  await dialog.getByRole('button', { name: '閉じる' }).click();
+  await page.evaluate(() => (globalThis as { __releaseClosedSearch?: () => void }).__releaseClosedSearch?.());
+  await expect
+    .poll(() => page.evaluate(() => (globalThis as { __fakeSearchEvents?: string[] }).__fakeSearchEvents ?? []))
+    .toContain('closed:end');
+  await trigger.click();
+
+  await expect(dialog.getByRole('link', { name: 'closed result' })).toHaveCount(0);
+});
+
+test('新入力時点で進行中の旧検索を無効化して結果の上書きを防ぐ', async ({ page }) => {
+  await page.route('**/pagefind/pagefind.js', (route) => route.fulfill({ contentType: 'text/javascript', body: fakeResultModule }));
+  await page.goto('/');
+  await page.getByRole('button', { name: '検索を開く' }).click();
+  const dialog = page.getByRole('dialog', { name: 'サイト内検索' });
+  const input = dialog.getByRole('searchbox', { name: '記事を検索' });
+
+  await input.fill('old');
+  await expect
+    .poll(() => page.evaluate(() => (globalThis as { __fakeSearchEvents?: string[] }).__fakeSearchEvents ?? []))
+    .toContain('old:start');
+  await input.fill('new');
+  await page.evaluate(() => (globalThis as { __releaseOldSearch?: () => void }).__releaseOldSearch?.());
+  await expect
+    .poll(() => page.evaluate(() => (globalThis as { __fakeSearchEvents?: string[] }).__fakeSearchEvents ?? []))
+    .toContain('old:end');
+  await page.waitForTimeout(20);
+  expect(await dialog.getByRole('link', { name: 'old result' }).count()).toBe(0);
+  await expect(dialog.getByRole('link', { name: 'new result' })).toBeVisible();
 });
 
 test('close buttonとbackdrop clickで閉じ、focusをtriggerへ戻す', async ({ page }) => {
@@ -88,14 +156,34 @@ test('close buttonとbackdrop clickで閉じ、focusをtriggerへ戻す', async 
   await expect(trigger).toBeFocused();
 });
 
-test('Pagefindの読み込み失敗時も記事一覧への導線と通常ページを維持する', async ({ page }) => {
-  await page.route('**/pagefind/pagefind.js', (route) => route.abort('failed'));
-  await page.goto('/');
-  await page.getByRole('button', { name: '検索を開く' }).click();
+for (const failure of ['import', 'init', 'search', 'data'] as const) {
+  test(`Pagefindの${failure}失敗時も通知と記事一覧導線と通常ページを維持する`, async ({ page }) => {
+    await page.route('**/pagefind/pagefind.js', (route) => {
+      if (failure === 'import') return route.abort('failed');
+      const init = failure === 'init' ? `throw new Error('init failed')` : '';
+      const search = failure === 'search' ? `throw new Error('search failed')` : '';
+      const data = failure === 'data' ? `throw new Error('data failed')` : `return { url: '/blog/', meta: { title: 'result' } }`;
+      return route.fulfill({
+        contentType: 'text/javascript',
+        body: `
+          export const init = async () => { ${init} };
+          export const search = async () => {
+            ${search}
+            return { results: [{ data: async () => { ${data} } }] };
+          };
+        `,
+      });
+    });
+    await page.goto('/');
+    await page.getByRole('button', { name: '検索を開く' }).click();
 
-  const dialog = page.getByRole('dialog', { name: 'サイト内検索' });
-  await expect(dialog.locator('.search-dialog__error')).toContainText('検索を読み込めませんでした');
-  await expect(dialog.getByRole('link', { name: '記事一覧を見る' })).toHaveAttribute('href', '/blog/');
-  await dialog.getByRole('button', { name: '閉じる' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'テックログ' })).toBeVisible();
-});
+    const dialog = page.getByRole('dialog', { name: 'サイト内検索' });
+    if (failure === 'search' || failure === 'data') await dialog.getByRole('searchbox', { name: '記事を検索' }).fill('failure');
+    const liveSummary = dialog.locator('[data-search-summary]');
+    await expect(liveSummary).toHaveAttribute('aria-live', 'polite');
+    await expect(liveSummary).toHaveText('検索を読み込めませんでした');
+    await expect(dialog.getByRole('link', { name: '記事一覧を見る' })).toHaveAttribute('href', '/blog/');
+    await dialog.getByRole('button', { name: '閉じる' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'テックログ' })).toBeVisible();
+  });
+}
