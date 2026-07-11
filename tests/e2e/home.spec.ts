@@ -61,7 +61,7 @@ test('デスクトップナビゲーションに主要リンクだけを表示�
   }
 
   await expect(page.getByRole('button', { name: /テーマ/ })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /検索/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '検索を開く' })).toHaveCount(1);
 });
 
 test('フッターに説明と必須リンクを表示し空のSNSリンクは描画しない', async ({ page }) => {

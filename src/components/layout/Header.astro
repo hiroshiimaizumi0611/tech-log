@@ -1,5 +1,6 @@
 ---
 import Container from '@/components/common/Container.astro';
+import SearchModal from '@/components/blog/SearchModal.astro';
 import { SITE } from '@/config/site';
 import MobileMenu from './MobileMenu.astro';
 
@@ -43,6 +44,7 @@ const hasActions = Astro.slots.has('actions');
           </div>
         )
       }
+      <SearchModal />
       <MobileMenu {links} />
     </div>
   </Container>
