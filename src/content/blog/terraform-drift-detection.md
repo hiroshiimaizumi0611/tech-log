@@ -4,6 +4,7 @@ description: Terraform管理外で変更されたリソースを検出し、コ�
 publishedAt: '2026-07-11'
 updatedAt: '2026-07-11'
 category: Infrastructure
+heroImage: ../../assets/blog/terraform-drift-abstract.svg
 tags:
   - AWS
   - Terraform

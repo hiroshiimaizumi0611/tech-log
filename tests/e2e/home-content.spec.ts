@@ -22,6 +22,12 @@ test('最新の注目記事とサイト紹介をヒーローに表示する', as
   await expect(featured.getByRole('heading', { name: latestArticleTitles[0] })).toBeVisible();
   await expect(featured.getByText('src/pages/blog/[id].astro', { exact: true })).toBeVisible();
   await expect(featured.getByRole('link', { name: /続きを読む/ })).toHaveAttribute('href', '/blog/build-tech-blog-with-astro-2026/');
+
+  const highlightedCode = featured.locator('pre.shiki');
+  await expect(highlightedCode).toHaveCount(1);
+  await expect(highlightedCode.locator('span[style]')).not.toHaveCount(0);
+  await expect(highlightedCode).toHaveText(/^import type \{ GetStaticPaths \} from 'astro';/);
+  await expect(page.locator('pre.shiki')).toHaveCount(1);
 });
 
 test('最新記事を公開日順に4件だけ表示しカード全体を一つのリンクにする', async ({ page }) => {
@@ -40,12 +46,45 @@ test('最新記事を公開日順に4件だけ表示しカード全体を一つ�
   }
 });
 
-test('サムネイル領域にカテゴリーアートを常設し画像フォールバック用JavaScriptを追加しない', async ({ page }) => {
+test('記事画像をカテゴリーアート上の装飾レイヤーとして表示する', async ({ page }) => {
   const cards = page.getByRole('region', { name: '最新の記事' }).locator('[data-article-card]');
+  const terraformCard = cards.filter({ hasText: latestArticleTitles[3] });
+  const customArtwork = terraformCard.locator('[data-custom-hero]');
 
   await expect(cards.locator('[data-category-artwork]')).toHaveCount(4);
-  await expect(cards.first().locator('[data-category-artwork]')).toHaveCSS('position', 'absolute');
+  await expect(customArtwork).toBeVisible();
+  await expect(customArtwork).toHaveCSS('background-image', /terraform-drift-abstract/);
+  await expect(terraformCard.locator('[data-category-artwork]')).toBeVisible();
   await expect(page.locator('script[data-image-fallback]')).toHaveCount(0);
+});
+
+test('記事画像の取得失敗時も固定比率のカテゴリーアートとカードリンクを利用できる', async ({ page }) => {
+  let abortedRequests = 0;
+  await page.route('**/*terraform-drift-abstract*', async (route) => {
+    abortedRequests += 1;
+    await route.abort('failed');
+  });
+  await page.goto('/?hero-image=failure');
+
+  const terraformCard = page
+    .getByRole('region', { name: '最新の記事' })
+    .locator('[data-article-card]')
+    .filter({ hasText: latestArticleTitles[3] });
+  const fallback = terraformCard.locator('[data-category-artwork]');
+  const customArtwork = terraformCard.locator('[data-custom-hero]');
+
+  await expect(customArtwork).toHaveCSS('background-image', /terraform-drift-abstract/);
+  await expect(fallback).toBeVisible();
+  expect(abortedRequests).toBeGreaterThan(0);
+
+  const fallbackBox = await fallback.boundingBox();
+  const customBox = await customArtwork.boundingBox();
+  expect(fallbackBox).not.toBeNull();
+  expect(customBox).not.toBeNull();
+  expect(customBox).toEqual(fallbackBox);
+  await expect(terraformCard.getByRole('link')).toHaveAttribute('href', '/blog/terraform-drift-detection/');
+  await expect(terraformCard.getByRole('heading', { name: latestArticleTitles[3] })).toBeVisible();
+  await expect(page.locator('script[data-image-fallback], [onerror]')).toHaveCount(0);
 });
 
 test('人気タグを件数付きで最大10件表示する', async ({ page }) => {

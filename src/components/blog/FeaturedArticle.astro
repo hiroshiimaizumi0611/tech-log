@@ -1,6 +1,6 @@
 ---
 import type { ImageMetadata } from 'astro';
-import { Image } from 'astro:assets';
+import { bundledLanguages, codeToHtml, type BundledLanguage } from 'shiki';
 
 import CategoryArtwork from '@/components/blog/CategoryArtwork.astro';
 import TagChip from '@/components/common/TagChip.astro';
@@ -26,6 +26,15 @@ interface Props {
 }
 
 const { href, title, description, publishedDate, publishedLabel, category, tags, readingMinutes, featuredCode, heroImage } = Astro.props;
+
+let highlightedCode: string | undefined;
+if (featuredCode) {
+  const language = featuredCode.language in bundledLanguages ? (featuredCode.language as BundledLanguage) : 'text';
+  highlightedCode = await codeToHtml(featuredCode.code, {
+    lang: language,
+    theme: 'github-dark-default',
+  });
+}
 ---
 
 <article class="featured" aria-label="注目記事">
@@ -45,14 +54,12 @@ const { href, title, description, publishedDate, publishedLabel, category, tags,
           <span>{featuredCode.filename ?? featuredCode.language}</span>
           <span>{featuredCode.language}</span>
         </div>
-        <pre>
-          <code class={`language-${featuredCode.language}`}>{featuredCode.code}</code>
-        </pre>
+        <div class="highlighted-code" set:html={highlightedCode} />
       </div>
     ) : (
       <div class="media-layer">
         <CategoryArtwork {category} />
-        {heroImage && <Image class="hero-image" src={heroImage} alt="" widths={[720, 1080]} sizes="(min-width: 64rem) 50vw, 100vw" />}
+        {heroImage && <span class="custom-hero" data-custom-hero aria-hidden="true" style={`background-image: url("${heroImage.src}")`} />}
       </div>
     )
   }
@@ -68,7 +75,7 @@ const { href, title, description, publishedDate, publishedLabel, category, tags,
     border: 1px solid var(--color-border);
     border-radius: var(--radius-card-lg);
     background: linear-gradient(145deg, color-mix(in srgb, var(--color-card-hover) 82%, transparent), var(--color-card)), var(--color-card);
-    box-shadow: 0 1.5rem 5rem rgb(0 0 0 / 0.28);
+    box-shadow: 0 1.5rem 5rem color-mix(in srgb, var(--color-background) 72%, transparent);
   }
 
   .topline,
@@ -136,7 +143,7 @@ const { href, title, description, publishedDate, publishedLabel, category, tags,
     background: var(--color-section);
   }
 
-  pre {
+  .highlighted-code :global(pre.shiki) {
     overflow: auto;
     max-block-size: 14rem;
     margin: 0;
@@ -153,15 +160,14 @@ const { href, title, description, publishedDate, publishedLabel, category, tags,
   }
 
   .media-layer :global([data-category-artwork]),
-  .media-layer :global(.hero-image) {
+  .custom-hero {
     position: absolute;
     inset: 0;
     inline-size: 100%;
     block-size: 100%;
-  }
-
-  .media-layer :global(.hero-image) {
-    object-fit: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
   }
 
   .footerline {
