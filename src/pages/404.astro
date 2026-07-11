@@ -1,0 +1,52 @@
+---
+import Container from '@/components/common/Container.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="ページが見つかりません" description="お探しのページは見つかりませんでした。" pageClass="not-found-page">
+  <Container class="not-found">
+    <p class="not-found__code">404 / NOT FOUND</p>
+    <h1>ページが見つかりません</h1>
+    <p>URLが変更されたか、ページが削除された可能性があります。</p>
+    <nav aria-label="復帰先"><a class="not-found__primary" href="/">ホームへ戻る</a><a href="/blog/">記事一覧を見る</a></nav>
+  </Container>
+</BaseLayout>
+
+<style>
+  .not-found {
+    min-block-size: 60vh;
+    display: grid;
+    place-content: center;
+    justify-items: start;
+    padding-block: var(--space-24);
+  }
+  .not-found__code {
+    color: var(--color-accent-soft);
+    font-family: var(--font-mono);
+    letter-spacing: 0.16em;
+  }
+  h1 {
+    margin: var(--space-2) 0;
+    font-size: clamp(2rem, 6vw, 4rem);
+  }
+  p {
+    color: var(--color-text-muted);
+  }
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    margin-block-start: var(--space-8);
+  }
+  a {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-control);
+    text-decoration: none;
+  }
+  .not-found__primary {
+    border-color: var(--color-accent);
+    color: var(--color-background);
+    background: var(--color-accent);
+  }
+</style>

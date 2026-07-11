@@ -37,6 +37,8 @@ const next = adjacent.next ? { href: `/blog/${adjacent.next.id}/`, title: adjace
   {previous}
   {next}
   {related}
+  ogImage={post.data.ogImage}
+  heroImage={post.data.heroImage}
 >
   <Content />
 </ArticleLayout>

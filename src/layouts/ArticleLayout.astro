@@ -7,6 +7,7 @@ import { SITE, type CategoryKey } from '@/config/site';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import type { ArticleView } from '@/lib/content/listings';
 import '@/styles/article.css';
+import type { ImageMetadata } from 'astro';
 
 interface Heading {
   depth: number;
@@ -31,6 +32,8 @@ interface Props {
   previous?: Adjacent;
   next?: Adjacent;
   related: ArticleView[];
+  ogImage?: string | ImageMetadata;
+  heroImage?: string | ImageMetadata;
 }
 const {
   title,
@@ -46,10 +49,21 @@ const {
   previous,
   next,
   related,
+  ogImage,
+  heroImage,
 } = Astro.props;
 ---
 
-<BaseLayout {title} {description} pageClass="article-page">
+<BaseLayout
+  {title}
+  {description}
+  pageClass="article-page"
+  pageType="article"
+  {ogImage}
+  {heroImage}
+  publishedAt={publishedDate}
+  updatedAt={updatedDate}
+>
   <Container class="article-shell">
     <article data-pagefind-body>
       <header class="article-header">
