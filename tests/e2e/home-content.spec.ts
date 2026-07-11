@@ -7,6 +7,24 @@ const latestArticleTitles = [
   'Terraformで手動変更されたリソースを追従する方法',
 ] as const;
 
+const featuredCode = `import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+
+export const getStaticPaths = (async () => {
+  const posts = await getCollection('blog');
+  return posts.map((post) => ({
+    params: { id: post.id },
+    props: { post },
+  }));
+}) satisfies GetStaticPaths;`;
+
+const backgroundImageUrl = async (locator: import('@playwright/test').Locator) => {
+  const backgroundImage = await locator.evaluate((element) => getComputedStyle(element).backgroundImage);
+  const match = backgroundImage.match(/^url\(["']?(.*?)["']?\)$/);
+  expect(match).not.toBeNull();
+  return match![1];
+};
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
@@ -23,11 +41,15 @@ test('最新の注目記事とサイト紹介をヒーローに表示する', as
   await expect(featured.getByText('src/pages/blog/[id].astro', { exact: true })).toBeVisible();
   await expect(featured.getByRole('link', { name: /続きを読む/ })).toHaveAttribute('href', '/blog/build-tech-blog-with-astro-2026/');
 
-  const highlightedCode = featured.locator('pre.shiki');
+  const highlightedCode = featured.locator('pre > code');
   await expect(highlightedCode).toHaveCount(1);
-  await expect(highlightedCode.locator('span[style]')).not.toHaveCount(0);
-  await expect(highlightedCode).toHaveText(/^import type \{ GetStaticPaths \} from 'astro';/);
-  await expect(page.locator('pre.shiki')).toHaveCount(1);
+  await expect(highlightedCode).toHaveText(featuredCode);
+  await expect(highlightedCode).toHaveJSProperty('textContent', featuredCode);
+  const tokenColors = await highlightedCode
+    .locator('*')
+    .evaluateAll((tokens) => [...new Set(tokens.map((token) => getComputedStyle(token).color))]);
+  expect(tokenColors.length).toBeGreaterThan(1);
+  await expect(page.getByRole('region', { name: '最新の記事' }).locator('pre > code')).toHaveCount(0);
 });
 
 test('最新記事を公開日順に4件だけ表示しカード全体を一つのリンクにする', async ({ page }) => {
@@ -53,14 +75,23 @@ test('記事画像をカテゴリーアート上の装飾レイヤーとして�
 
   await expect(cards.locator('[data-category-artwork]')).toHaveCount(4);
   await expect(customArtwork).toBeVisible();
-  await expect(customArtwork).toHaveCSS('background-image', /terraform-drift-abstract/);
+  const customImageUrl = await backgroundImageUrl(customArtwork);
+  expect(new URL(customImageUrl).pathname).toMatch(/^\/_astro\//);
+  await expect(customArtwork).toHaveAttribute('data-image-width', '640');
+  await expect(customArtwork).toHaveAttribute('data-image-height', '360');
+  await expect(customArtwork).toHaveAttribute('data-image-format', 'svg');
   await expect(terraformCard.locator('[data-category-artwork]')).toBeVisible();
   await expect(page.locator('script[data-image-fallback]')).toHaveCount(0);
 });
 
 test('記事画像の取得失敗時も固定比率のカテゴリーアートとカードリンクを利用できる', async ({ page }) => {
+  const initialCard = page
+    .getByRole('region', { name: '最新の記事' })
+    .locator('[data-article-card]')
+    .filter({ hasText: latestArticleTitles[3] });
+  const optimizedImageUrl = await backgroundImageUrl(initialCard.locator('[data-custom-hero]'));
   let abortedRequests = 0;
-  await page.route('**/*terraform-drift-abstract*', async (route) => {
+  await page.route(optimizedImageUrl, async (route) => {
     abortedRequests += 1;
     await route.abort('failed');
   });
@@ -73,7 +104,7 @@ test('記事画像の取得失敗時も固定比率のカテゴリーアート�
   const fallback = terraformCard.locator('[data-category-artwork]');
   const customArtwork = terraformCard.locator('[data-custom-hero]');
 
-  await expect(customArtwork).toHaveCSS('background-image', /terraform-drift-abstract/);
+  expect(await backgroundImageUrl(customArtwork)).toBe(optimizedImageUrl);
   await expect(fallback).toBeVisible();
   expect(abortedRequests).toBeGreaterThan(0);
 
@@ -85,6 +116,13 @@ test('記事画像の取得失敗時も固定比率のカテゴリーアート�
   await expect(terraformCard.getByRole('link')).toHaveAttribute('href', '/blog/terraform-drift-detection/');
   await expect(terraformCard.getByRole('heading', { name: latestArticleTitles[3] })).toBeVisible();
   await expect(page.locator('script[data-image-fallback], [onerror]')).toHaveCount(0);
+});
+
+test('ホーム内のSVG定義IDをすべて一意にする', async ({ page }) => {
+  const ids = await page.locator('svg [id]').evaluateAll((elements) => elements.map((element) => element.id));
+
+  expect(ids.length).toBeGreaterThan(0);
+  expect(new Set(ids).size).toBe(ids.length);
 });
 
 test('人気タグを件数付きで最大10件表示する', async ({ page }) => {

@@ -1,10 +1,12 @@
 ---
 import type { ImageMetadata } from 'astro';
-import { bundledLanguages, codeToHtml, type BundledLanguage } from 'shiki';
+import { getImage } from 'astro:assets';
+import { codeToHtml } from 'shiki';
 
 import CategoryArtwork from '@/components/blog/CategoryArtwork.astro';
 import TagChip from '@/components/common/TagChip.astro';
 import type { CategoryKey } from '@/config/site';
+import { resolveHighlightLanguage } from '@/lib/highlight-language';
 
 interface FeaturedCode {
   language: string;
@@ -29,12 +31,21 @@ const { href, title, description, publishedDate, publishedLabel, category, tags,
 
 let highlightedCode: string | undefined;
 if (featuredCode) {
-  const language = featuredCode.language in bundledLanguages ? (featuredCode.language as BundledLanguage) : 'text';
   highlightedCode = await codeToHtml(featuredCode.code, {
-    lang: language,
+    lang: resolveHighlightLanguage(featuredCode.language),
     theme: 'github-dark-default',
   });
 }
+const optimizedHeroFormat = heroImage?.format === 'svg' ? 'svg' : 'webp';
+const optimizedHero = heroImage
+  ? await getImage({
+      src: heroImage,
+      width: 1080,
+      height: 473,
+      fit: 'cover',
+      format: optimizedHeroFormat,
+    })
+  : undefined;
 ---
 
 <article class="featured" aria-label="注目記事">
@@ -58,8 +69,18 @@ if (featuredCode) {
       </div>
     ) : (
       <div class="media-layer">
-        <CategoryArtwork {category} />
-        {heroImage && <span class="custom-hero" data-custom-hero aria-hidden="true" style={`background-image: url("${heroImage.src}")`} />}
+        <CategoryArtwork {category} instanceKey={`featured-${href}`} />
+        {optimizedHero && (
+          <span
+            class="custom-hero"
+            data-custom-hero
+            data-image-width={optimizedHero.attributes.width}
+            data-image-height={optimizedHero.attributes.height}
+            data-image-format={optimizedHeroFormat}
+            aria-hidden="true"
+            style={`background-image: url("${optimizedHero.src}")`}
+          />
+        )}
       </div>
     )
   }
