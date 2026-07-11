@@ -212,6 +212,12 @@ body.search-open {
   transform: translateY(-1px);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .search-result:hover {
+    transform: none;
+  }
+}
+
 .search-result__title {
   color: var(--color-text);
   font-family: var(--font-ui);

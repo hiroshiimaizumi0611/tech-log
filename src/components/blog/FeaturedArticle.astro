@@ -214,6 +214,12 @@ const optimizedHero = heroImage
     transform: translateX(0.2rem);
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    a:hover span {
+      transform: none;
+    }
+  }
+
   @media (max-width: 30rem) {
     .reading-time {
       font-size: 0.68rem;

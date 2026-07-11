@@ -63,4 +63,10 @@ const { title, actionLabel, actionHref } = Astro.props;
   span {
     transition: transform var(--transition-fast);
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    a:hover span {
+      transform: none;
+    }
+  }
 </style>

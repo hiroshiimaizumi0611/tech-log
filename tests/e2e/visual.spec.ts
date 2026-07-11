@@ -1,5 +1,18 @@
 import { expect, test, type Page } from '@playwright/test';
 
+const reducedMotionSearchModule = `
+export const init = async () => {};
+export const search = async () => ({
+  results: [{
+    data: async () => ({
+      url: '/blog/build-tech-blog-with-astro-2026/',
+      plain_excerpt: 'Astro excerpt',
+      meta: { title: 'Astro result' },
+    }),
+  }],
+});
+`;
+
 const viewports = [
   { name: 'desktop', width: 1440, height: 1200 },
   { name: 'tablet', width: 768, height: 1024 },
@@ -77,12 +90,40 @@ test('390pxではコードだけが内部スクロールを受け持つ', async 
   await expect(codeBlocks.first()).toHaveCSS('overflow-x', 'auto');
 });
 
-test('reduced motionではtransitionを停止する', async ({ page }) => {
+test('reduced motionでは全hover移動とtransitionを停止する', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.route('**/pagefind/pagefind.js', (route) =>
+    route.fulfill({ contentType: 'text/javascript', body: reducedMotionSearchModule }),
+  );
   await page.goto('/');
+
   const card = page.locator('[data-article-card]').first();
-  const duration = await card.evaluate((element) => getComputedStyle(element).transitionDuration);
-  expect(duration.split(',').every((value) => Number.parseFloat(value) <= 0.001)).toBe(true);
   await card.hover();
   await expect(card).toHaveCSS('transform', 'none');
+
+  const sectionArrow = page.getByRole('link', { name: /すべての記事を見る/ }).locator('span');
+  await sectionArrow.locator('..').hover();
+  await expect(sectionArrow).toHaveCSS('transform', 'none');
+
+  const featuredArrow = page
+    .locator('.featured')
+    .getByRole('link', { name: /続きを読む/ })
+    .locator('span');
+  await featuredArrow.locator('..').hover();
+  await expect(featuredArrow).toHaveCSS('transform', 'none');
+
+  await page.getByRole('button', { name: '検索を開く' }).click();
+  await page.getByRole('searchbox', { name: '記事を検索' }).fill('Astro');
+  const searchResult = page.getByRole('dialog').getByRole('link', { name: /Astro result/ });
+  await expect(searchResult).toBeVisible();
+  await searchResult.hover();
+  await expect(searchResult).toHaveCSS('transform', 'none');
+
+  for (const target of [card, sectionArrow, featuredArrow, searchResult]) {
+    const durations = await target.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return [...style.transitionDuration.split(','), ...style.animationDuration.split(',')];
+    });
+    expect(durations.every((value) => Number.parseFloat(value) <= 0.001)).toBe(true);
+  }
 });
