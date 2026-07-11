@@ -12,9 +12,16 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: {
-    command: 'SITE_URL=https://example.invalid npm run build && npm run preview -- --host 127.0.0.1',
-    url: 'http://127.0.0.1:4321',
-    reuseExistingServer: false,
-  },
+  webServer: [
+    {
+      command: 'SITE_URL=https://example.invalid npm run build && npm run preview -- --host 127.0.0.1',
+      url: 'http://127.0.0.1:4321',
+      reuseExistingServer: false,
+    },
+    {
+      command: 'npm run test:e2e:fixture',
+      url: 'http://127.0.0.1:4322',
+      reuseExistingServer: false,
+    },
+  ],
 });

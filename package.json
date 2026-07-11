@@ -18,6 +18,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:fixture": "astro build --config tests/e2e/fixtures/astro.config.mjs && astro preview --config tests/e2e/fixtures/astro.config.mjs --host 127.0.0.1 --port 4322",
     "verify": "npm run format:check && npm run check && npm test && npm run build && npm run test:e2e",
     "validate:production": "node scripts/validate-production-env.mjs",
     "generate:og": "node scripts/generate-og.mjs",

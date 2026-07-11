@@ -1,0 +1,38 @@
+---
+import Pagination from '../../../../../src/components/common/Pagination.astro';
+import '../../../../../src/styles/global.css';
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pagination test fixture</title>
+  </head>
+  <body>
+    <main>
+      <section data-pagination-state="first" aria-label="最初のページ">
+        <Pagination current={1} total={2} nextHref="http://127.0.0.1:4321/blog/" />
+      </section>
+      <section data-pagination-state="last" aria-label="最後のページ">
+        <Pagination current={2} total={2} previousHref="http://127.0.0.1:4321/tags/" />
+      </section>
+      <section data-pagination-state="single" aria-label="1ページだけ">
+        <Pagination current={1} total={1} />
+      </section>
+    </main>
+  </body>
+</html>
+
+<style>
+  main {
+    inline-size: min(100% - 2rem, 48rem);
+    margin-inline: auto;
+    padding-block: var(--space-8);
+  }
+
+  section + section {
+    margin-block-start: var(--space-12);
+  }
+</style>
