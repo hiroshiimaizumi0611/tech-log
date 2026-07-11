@@ -17,6 +17,16 @@ const articleFixtures = [
     featured: false,
     referenceHosts: ['developer.hashicorp.com'],
   },
+  {
+    id: 'gpt-5-6-sol-terra-luna',
+    featured: false,
+    referenceHosts: ['openai.com', 'help.openai.com'],
+  },
+  {
+    id: 'chatgpt-work-guide',
+    featured: false,
+    referenceHosts: ['openai.com', 'help.openai.com'],
+  },
 ] as const;
 
 async function readArticle(id: string): Promise<string> {
@@ -82,7 +92,12 @@ describe('initial production article fixtures', () => {
       })),
     );
 
-    expect(articles.map(({ id }) => id)).toEqual(['build-tech-blog-with-astro-2026', 'terraform-drift-detection']);
+    expect(articles.map(({ id }) => id)).toEqual([
+      'build-tech-blog-with-astro-2026',
+      'terraform-drift-detection',
+      'gpt-5-6-sol-terra-luna',
+      'chatgpt-work-guide',
+    ]);
     for (const article of articles) {
       expect(featuredValue(article.frontmatter), article.id).toBe(article.expectedFeatured);
     }
@@ -98,7 +113,12 @@ describe('initial production article fixtures', () => {
 
     expect(contentCharacters).toBeGreaterThanOrEqual(600);
     expect(body).toMatch(/^##\s+\S+/m);
-    expect(body).toMatch(/```[a-z]+\n[\s\S]+?```/);
+    const hasConcreteFormat =
+      /```[a-z]+\n[\s\S]+?```/.test(body) ||
+      /^\|.+\|\n\|(?:\s*:?-+:?\s*\|)+/m.test(body) ||
+      (/^##\s+具体(?:例|的な\S*)/m.test(body) && /^\d+\.\s+\S+/m.test(body));
+
+    expect(hasConcreteFormat, `${fixture.id} needs a code fence, Markdown table, or ordered concrete-example section`).toBe(true);
     expect(body).toMatch(/^[-*]\s+\S+/m);
     expect(body).toMatch(/^>\s+\S+/m);
 
