@@ -169,7 +169,7 @@ body.search-open {
   padding: 0.2rem 0.4rem;
   border: 1px solid var(--color-border);
   border-radius: 0.25rem;
-  color: var(--color-text-weak);
+  color: var(--color-text-muted);
   background: var(--color-card);
   font-size: 0.625rem;
   letter-spacing: 0.06em;

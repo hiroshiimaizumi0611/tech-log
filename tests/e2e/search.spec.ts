@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { access, readFile } from 'node:fs/promises';
 
@@ -47,6 +48,14 @@ test('native dialogを開いて入力へfocusし、Escapeで閉じてtriggerへ�
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
   await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden');
+});
+
+test('開いた検索モーダルに重大なアクセシビリティ違反がない', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: '検索を開く' }).click();
+
+  const { violations } = await new AxeBuilder({ page }).analyze();
+  expect(violations.filter(({ impact }) => impact === 'serious' || impact === 'critical')).toEqual([]);
 });
 
 test('Astro・Frontend・TypeScriptの記事を検索して結果へ移動できる', async ({ page }) => {
