@@ -19,6 +19,43 @@
 - デザイン作業では`@frontend-design`、著者画像作成ではユーザーの参考画像受領後に`@imagegen`を使う。
 - 外部サービスの作成・Secrets設定・公開pushは、実行時に対象アカウントを確認してから行う。
 
+## 実装worktreeの開始確認
+
+公開基準branchは仕様とdeploy workflowに合わせて`main`へ統一する。リポジトリルートで確認する。
+
+```bash
+git branch --show-current
+```
+
+Expected: `main`。現在の出力が`master`なら、外部remoteへpushする前にリポジトリルートで`git branch -m master main`を1回だけ実行し、再度`git branch --show-current`が`main`になることを確認する。`main`でも`master`でもない場合は作業を止め、基準branchを確認する。
+
+実装は必ず`/Users/hiroshiimaizumi/Documents/tech blog 2/.worktrees/codex-tech-blog`で行う。続けてリポジトリルートから次を実行する。
+
+```bash
+git worktree list --porcelain
+git -C '.worktrees/codex-tech-blog' branch --show-current
+git -C '.worktrees/codex-tech-blog' status --short
+```
+
+Expected: worktree pathが`.worktrees/codex-tech-blog`、branchが`codex/tech-blog`。`status --short`に既存変更がある場合は、ユーザーの作業を消す`reset`、`restore`、`clean`を実行しない。変更が対応する進行中Taskを確認し、そのTaskを検証・commitしてから次へ進む。
+
+worktreeが存在しない場合は、branchの有無を確認する。
+
+```bash
+git show-ref --verify refs/heads/codex/tech-blog
+```
+
+- branchが存在する場合: `git worktree add '.worktrees/codex-tech-blog' codex/tech-blog`
+- branchも存在しない場合: `git worktree add '.worktrees/codex-tech-blog' -b codex/tech-blog main`
+
+worktreeがcleanになった時点で、承認済みspecとplanを取り込む。
+
+```bash
+git -C '.worktrees/codex-tech-blog' merge main --no-edit
+```
+
+Expected: merge成功後、worktree内にこのplanと最新specが存在する。以降の全コマンドはこのworktreeを作業ディレクトリとして実行する。
+
 ## ファイル責務マップ
 
 ### ルート設定
@@ -67,6 +104,7 @@
 - `src/pages/rss.xml.ts`: RSS
 - `src/content/blog/*.md`: 初期4記事。React Islandが必要な将来記事だけ`.mdx`
 - `src/assets/images/author.png`: 承認済み著者イラスト
+- `public/favicon.svg`: テックログのブランドfavicon
 - `public/og-default.png`: 共通OGP
 
 ### 検査と公開
@@ -328,7 +366,7 @@ git commit -m "feat: define typed blog content model"
 
 - [ ] **Step 1: semantic shellの失敗テストを追加する**
 
-Header内のロゴ、タグライン、`nav`、`main#main-content`、Footer、スキップリンク、存在するSNSだけが表示されることを検証する。Mobile viewportではメニューボタンが見え、Escape後にトリガーへフォーカスが戻ることも追加する。
+Header内のロゴ、タグライン、`nav`、`main#main-content`、Footer、スキップリンク、問い合わせ用`mailto:`、Copyright、RSS、存在するSNSだけが表示されることを検証する。Mobile viewportではメニューボタンが見え、Escape後にトリガーへフォーカスが戻ることも追加する。
 
 - [ ] **Step 2: 失敗を確認する**
 
@@ -342,7 +380,7 @@ Expected: FAIL with missing landmarks/menu。
 
 - [ ] **Step 4: BaseLayoutと共通ナビを実装する**
 
-Headerはホーム、記事、カテゴリー、タグ、プロフィール、検索用slotを持つ。MobileMenuはbutton、`aria-expanded`、メニューパネルを持ち、`mobile-menu.ts`が開閉、Escape、focus return、body scroll lockを処理する。Footerは空でないSNSだけを描画する。
+Headerはホーム、記事、カテゴリー、タグ、プロフィール、検索用slotを持つ。MobileMenuはbutton、`aria-expanded`、メニューパネルを持ち、`mobile-menu.ts`が開閉、Escape、focus return、body scroll lockを処理する。Footerはロゴ、説明、メニュー、カテゴリー、Privacy、問い合わせ用`mailto:`、RSS、Copyrightを常設し、SNSはURLが空でない項目だけを描画する。
 
 - [ ] **Step 5: トップをBaseLayoutへ移す**
 
@@ -421,15 +459,15 @@ git commit -m "content: add Astro and Terraform guides"
 
 - [ ] **Step 2: 記事3・4のfixture失敗テストを追加する**
 
-期待id、各600文字以上、H2、リスト、引用、OpenAI公式リンクを検証する。Run: `npm test -- tests/unit/content-fixtures.test.ts`。Expected: 記事3・4が未作成のためFAIL。
+期待id、各600文字以上、H2、リスト、引用、OpenAI公式リンクを検証する。さらに各記事がコードフェンス、表、または`## 具体例`配下の手順のいずれかを1つ以上含むことを検証する。Run: `npm test -- tests/unit/content-fixtures.test.ts`。Expected: 記事3・4が未作成のためFAIL。
 
 - [ ] **Step 3: GPT-5.6比較記事を書く**
 
-構成は「3モデルの位置付け」「Sol」「Terra」「Luna」「料金表」「ChatGPT/Work/Codex/APIでの提供差」「用途別選択」「注意点」。frontmatterは`category: AI`、タグ`[OpenAI, GPT-5.6, AI]`。
+構成は「3モデルの位置付け」「Sol」「Terra」「Luna」「料金表」「ChatGPT/Work/Codex/APIでの提供差」「用途別選択」「具体的な選択例」「注意点」。具体例では、速度優先、コスト優先、複雑な専門作業の3ケースを入力条件と選択理由つきで示す。frontmatterは`category: AI`、タグ`[OpenAI, GPT-5.6, AI]`。
 
 - [ ] **Step 4: ChatGPT Work記事を書く**
 
-構成は「Workとは」「Chatとの違い」「Codexとの違い」「使える環境」「ファイル・アプリ・成果物」「Planと承認」「向く仕事・向かない仕事」。frontmatterは`category: AI`、タグ`[OpenAI, ChatGPT, ChatGPT Work, Codex]`。
+構成は「Workとは」「Chatとの違い」「Codexとの違い」「使える環境」「ファイル・アプリ・成果物」「Planと承認」「具体的な利用例」「向く仕事・向かない仕事」。具体例では、複数資料から報告書を作る流れを、目標入力、コンテキスト収集、計画確認、成果物レビューの順で示す。frontmatterは`category: AI`、タグ`[OpenAI, ChatGPT, ChatGPT Work, Codex]`。
 
 - [ ] **Step 5: 誇張と未確認情報を除く**
 
@@ -509,17 +547,19 @@ git commit -m "feat: build the Tech Log homepage"
 - Create: `src/pages/tags/[tag].astro`
 - Create: `src/pages/categories/index.astro`
 - Create: `src/pages/categories/[category].astro`
+- Modify: `src/lib/content/tags.ts`
+- Modify: `tests/unit/tags.test.ts`
 - Create: `tests/e2e/listings.spec.ts`
 
 - [ ] **Step 1: 一覧の失敗テストを書く**
 
-公開日降順、タグ件数、カテゴリー6件、各詳細一覧、存在しないタグ/カテゴリーの404を検証する。12件超の分割規則はTask 2の単体テストで検証し、E2Eでは現在の4記事に不要なテスト用公開記事を混ぜない。
+公開日降順、タグ件数、カテゴリー6件、各詳細一覧、存在しないタグ/カテゴリーの404を検証する。`tests/unit/tags.test.ts`ではroute生成が実際に使う`buildTagPages(posts)`へ衝突するタグを渡し、同一URLになる表示名があるとthrowすることを追加する。12件超の分割規則はTask 2の単体テストで検証し、E2Eでは現在の4記事に不要なテスト用公開記事を混ぜない。
 
 - [ ] **Step 2: 失敗を確認する**
 
-Run: `npm run test:e2e -- tests/e2e/listings.spec.ts`
+Run: `npm test -- tests/unit/tags.test.ts && npm run test:e2e -- tests/e2e/listings.spec.ts`
 
-Expected: FAIL with missing routes。
+Expected: unit testは`buildTagPages`未実装、E2Eはroutes未作成でFAIL。
 
 - [ ] **Step 3: ListingLayoutとPaginationを実装する**
 
@@ -527,18 +567,18 @@ Paginationは前後リンク、現在ページ、総ページを受ける。先�
 
 - [ ] **Step 4: タグとカテゴリーrouteを実装する**
 
-`getStaticPaths()`で公開記事から許可されたpathだけを生成する。tag parameterには`normalizeTagSegment()`の生の値を渡し、Astro自身に一度だけURLエンコードさせる。リンクを組み立てるときだけ`tagToHref()`を使い、表示時は元ラベルを使う。E2Eで日本語タグURLに`%25`が混入しないことを検証する。
+`buildTagPages(posts)`はTask 2の`buildTagIndex()`を必ず呼び、衝突検出後の一意なtag pageデータだけを返す。`/tags/`と`/tags/[tag].astro`の`getStaticPaths()`は独自集計をせず、この同じ関数を使う。tag parameterには`normalizeTagSegment()`の生の値を渡し、Astro自身に一度だけURLエンコードさせる。リンクを組み立てるときだけ`tagToHref()`を使い、表示時は元ラベルを使う。E2Eで日本語タグURLに`%25`が混入しないことを検証する。
 
 - [ ] **Step 5: 検証する**
 
-Run: `npm run check && npm run test:e2e -- tests/e2e/listings.spec.ts`
+Run: `npm test -- tests/unit/tags.test.ts && npm run check && npm run test:e2e -- tests/e2e/listings.spec.ts`
 
 Expected: PASS。
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/layouts/ListingLayout.astro src/components/common/Pagination.astro src/pages/blog src/pages/tags src/pages/categories tests/e2e/listings.spec.ts
+git add src/lib/content/tags.ts src/layouts/ListingLayout.astro src/components/common/Pagination.astro src/pages/blog src/pages/tags src/pages/categories tests/unit/tags.test.ts tests/e2e/listings.spec.ts
 git commit -m "feat: add article discovery pages"
 ```
 
@@ -656,6 +696,7 @@ git commit -m "feat: add Pagefind modal search"
 - Modify: `package.json`
 - Modify: `playwright.config.ts`
 - Create: `.env.example`
+- Create: `public/favicon.svg`
 - Create: `public/robots.txt`
 - Create: `scripts/generate-og.mjs`
 - Create: `public/og-default.png`
@@ -665,7 +706,7 @@ git commit -m "feat: add Pagefind modal search"
 
 - [ ] **Step 1: SEOと必須envの失敗テストを書く**
 
-canonical、Blog/BlogPosting/Person JSON-LD、OGP fallback、`SITE_URL`未設定またはHTTPSでない通常buildのfailureを検証する。
+canonical、Blog/BlogPosting/Person JSON-LD、`ogImage → heroImage → site default`のOGP fallback順、favicon linkと`public/favicon.svg`、`SITE_URL`未設定またはHTTPSでない通常buildのfailureを検証する。
 
 - [ ] **Step 2: 静的ページと成果物の失敗テストを書く**
 
@@ -679,7 +720,7 @@ Expected: FAIL。
 
 - [ ] **Step 4: SEOとOGPを実装する**
 
-`package.json`へ`"prebuild": "node scripts/validate-site-url.mjs"`を追加する。`validate-site-url.mjs`は`SITE_URL`が有効なHTTPS URLでなければ終了コード1にする。PlaywrightのwebServer commandは既に`SITE_URL=https://example.invalid`を渡す。`SEOHead`はページ別title/description/canonical、OGP、Twitter Card、JSON-LDを描画する。`generate-og.mjs`は1200×630のブランドSVGをSharpでPNG化し、実行結果を`public/og-default.png`としてcommitする。
+`package.json`へ`"prebuild": "node scripts/validate-site-url.mjs"`を追加する。`validate-site-url.mjs`は`SITE_URL`が有効なHTTPS URLでなければ終了コード1にする。PlaywrightのwebServer commandは既に`SITE_URL=https://example.invalid`を渡す。`SEOHead`はページ別title/description/canonical、OGP、Twitter Card、JSON-LD、`/favicon.svg`へのlinkを描画する。記事OGPは`ogImage → heroImage → /og-default.png`の順で選ぶ。テックログのコード記号と青アクセントを使った単色でも識別可能な`public/favicon.svg`を作る。`generate-og.mjs`は1200×630のブランドSVGをSharpでPNG化し、実行結果を`public/og-default.png`としてcommitする。
 
 - [ ] **Step 5: 静的ページ、RSS、sitemapを実装する**
 
@@ -802,7 +843,15 @@ git commit -m "test: enforce accessible navigation"
 
 `SITE_URL`がHTTPSでない場合、`CLOUDFLARE_ACCOUNT_ID`または`CLOUDFLARE_API_TOKEN`がないdeploy環境で明確に失敗することを検証する。Analytics tokenはoptionalとする。
 
-- [ ] **Step 2: Wrangler静的設定を作る**
+- [ ] **Step 2: redを確認する**
+
+Run: `npm test -- tests/unit/production-env.test.ts`
+
+Expected: FAIL。追加したCloudflare認証検査がまだ実装されていない。
+
+- [ ] **Step 3: production validationとWrangler静的設定を作る**
+
+`validate-production-env.mjs`へCloudflare認証値とHTTPS `SITE_URL`の検査を最小実装し、続けて`wrangler.jsonc`を作る。
 
 ```jsonc
 {
@@ -818,25 +867,25 @@ git commit -m "test: enforce accessible navigation"
 
 `main`とCloudflare adapterは追加しない。
 
-- [ ] **Step 3: PR workflowを書く**
+- [ ] **Step 4: PR workflowを書く**
 
-`pull_request`でcheckout、Node 24、`npm ci`、Chromium install、`SITE_URL=https://example.invalid npm run verify`を実行する。tokenを参照しない。
+workflow名を`CI`、job idを`verify`とする。`pull_request`でcheckout、Node 24、`npm ci`、Chromium install、`SITE_URL=https://example.invalid npm run verify`を実行する。tokenを参照しない。branch protectionで要求するcheck名は`CI / verify`に固定する。
 
-- [ ] **Step 4: deploy workflowを書く**
+- [ ] **Step 5: deploy workflowを書く**
 
 `main` pushで同じverifyを実行後、`cloudflare/wrangler-action@v3`を使う。認証は`secrets.CLOUDFLARE_API_TOKEN`と`secrets.CLOUDFLARE_ACCOUNT_ID`、サイトURLとAnalytics tokenはRepository Variablesから渡す。deploy action成功後の次stepで`node scripts/smoke-production.mjs`を必ず実行し、失敗したらworkflow全体を失敗扱いにする。
 
-- [ ] **Step 5: post-deploy smoke scriptを書く**
+- [ ] **Step 6: post-deploy smoke scriptを書く**
 
 `SITE_URL`に対して`/`、代表記事、`/rss.xml`、`/sitemap-index.xml`が2xx、存在しないpathが404になることをfetchで検証する。response bodyやSecretsをログへ出さない。deploy workflow内に`env: SITE_URL: ${{ vars.SITE_URL }}`付きの実行stepを置く。
 
-- [ ] **Step 6: workflow syntaxとローカルbuildを検証する**
+- [ ] **Step 7: validation test、workflow、ローカルbuildを検証する**
 
-Run: `SITE_URL=https://example.invalid npm run verify && npx wrangler deploy --dry-run`
+Run: `npm test -- tests/unit/production-env.test.ts && SITE_URL=https://example.invalid npm run verify && npx wrangler deploy --dry-run`
 
 Expected: PASS、dry-runはstatic asset manifestを作り外部公開しない。
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add wrangler.jsonc .github scripts tests/unit/production-env.test.ts
@@ -866,38 +915,111 @@ Node.js、install、dev、記事追加、frontmatter、test、build、Pagefind�
 
 ユーザーから公開メール、GitHub、任意のX/Zenn URLを受け取り`site.ts`へ設定する。空URLは残してよいが、EmailとGitHubはProduction完成条件として確認する。
 
-- [ ] **Step 4: GitHubリポジトリをPublicで作るまたは既存remoteを確認する**
-
-外部操作前にowner/repository名を表示して確認する。作成が承認済みなら`gh repo create ... --public --source=. --remote=origin`を使い、保護ルールでPR必須チェックを有効にする。
-
-- [ ] **Step 5: Cloudflare設定を行う**
-
-最小権限のWorkers API token、Account ID、Workers subdomain、Analytics tokenをユーザーのGitHub Secrets/Variablesへ設定する。値自体をチャット、commit、ログへ出さない。
-
-- [ ] **Step 6: branchをpushしてPRを作る**
-
-CIがすべてPASSすることを確認する。失敗時はログの該当箇所だけを読み、Secretsを再表示しない。
-
-- [ ] **Step 7: mainへマージして公開を検証する**
-
-deploy workflowとsmoke testがPASSし、`*.workers.dev` URLでトップ、4記事、検索、RSS、sitemap、404を確認する。
-
-- [ ] **Step 8: Lighthouseを3回測定する**
-
-Mobileのトップと代表記事で3回測り、中央値がPerformance、Accessibility、Best Practices、SEOの各90以上であることを確認する。未達なら最大要因を修正して再測定する。
-
-- [ ] **Step 9: 最終ローカル検証を実行する**
+- [ ] **Step 4: clean installから最終ローカル検証を実行する**
 
 Run: `npm ci && SITE_URL=https://example.invalid npm run verify`
 
-Expected: all PASS from a clean install。
+Expected: all PASS。トップのFooterに問い合わせ、Copyright、RSS、設定済みSNSがあり、`/favicon.svg`が200で取得できる。
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 5: 公開前のローカル変更をCommitする**
 
 ```bash
 git add README.md src/config/site.ts .env.example docs/superpowers/specs/2026-07-11-tech-blog-design.md
 git commit -m "docs: add publishing and authoring guide"
 ```
+
+Expected: commit成功後、`git status --short`が空。
+
+- [ ] **Step 6: GitHubの接続先を確定して外部操作の承認を得る**
+
+Run:
+
+```bash
+gh auth status
+git remote -v
+gh repo view --json nameWithOwner,visibility,url
+```
+
+Expected: 認証ユーザーと、既存remoteがあれば正確な`OWNER/REPO`、visibility、URLが表示される。repositoryが存在しない場合は`OWNER/tech-log`を作成候補としてユーザーへ示す。作成、push、branch protection、Cloudflare/GitHub設定を行う前に、対象`OWNER/REPO`とCloudflare accountを明示して承認を得る。
+
+- [ ] **Step 7: Public repositoryを作成または検証する**
+
+既存repositoryがない場合だけ、承認済みの値で実行する。
+
+```bash
+gh repo create OWNER/tech-log --public --source=. --remote=origin
+gh repo view OWNER/tech-log --json nameWithOwner,visibility,url,defaultBranchRef
+```
+
+Expected: `visibility`が`PUBLIC`。既存repositoryを使う場合は作成せず、`git remote get-url origin`と`gh repo view`が同じ対象を指すことを確認する。default branchがすでに存在する場合は`main`であることを確認する。
+
+- [ ] **Step 8: 実装branchをpushしてdraft PRを作る**
+
+```bash
+git push -u origin main
+gh repo edit OWNER/tech-log --default-branch main
+git push -u origin codex/tech-blog
+gh pr create --draft --base main --head codex/tech-blog --title "feat: build Tech Log" --body "Implements the approved Tech Log design and plan."
+gh pr view --json number,url,isDraft,headRefName,baseRefName
+```
+
+Expected: remoteに`main`が存在し、default branchが`main`になる。その後、`headRefName`が`codex/tech-blog`、`baseRefName`が`main`のdraft PR URLが返る。
+
+- [ ] **Step 9: PR必須checkとbranch protectionを設定する**
+
+GitHub UIまたはGitHub APIで`main`へのPull Request必須、会話解決必須、force push禁止、削除禁止、required status check `CI / verify`を設定する。APIを使う場合は、値をファイルへ保存せず標準入力から渡す。
+
+```bash
+gh api --method PUT repos/OWNER/tech-log/branches/main/protection --input -
+gh api repos/OWNER/tech-log/branches/main/protection --jq '.required_status_checks.contexts'
+```
+
+最初のコマンドの標準入力JSONは`required_status_checks.strict=true`、`contexts=["CI / verify"]`、`required_pull_request_reviews={}`、`required_conversation_resolution=true`、`enforce_admins=true`、`restrictions=null`、`allow_force_pushes=false`、`allow_deletions=false`を含める。Expected: 2つ目の出力に`CI / verify`がある。
+
+- [ ] **Step 10: Cloudflare資格情報とWorkers URLを確認する**
+
+ユーザーがCloudflare dashboardでWorkers Scriptsの編集に必要な最小権限tokenを作成する。値は貼り付けてもらわず、ローカルの対話入力またはGitHub UIから登録する。ローカル認証がある場合は次でaccountとWorkers subdomainを確認する。
+
+```bash
+npx wrangler whoami
+```
+
+Expected: 承認済みCloudflare accountとAccount IDが表示される。Worker名は`tech-log`、Production URLは`https://tech-log.<workers-subdomain>.workers.dev`とする。
+
+- [ ] **Step 11: GitHub SecretsとVariablesを対話入力で設定する**
+
+値をコマンドライン引数やログへ出さず、各コマンドのpromptへ直接入力する。
+
+```bash
+gh secret set CLOUDFLARE_API_TOKEN
+gh secret set CLOUDFLARE_ACCOUNT_ID
+gh variable set SITE_URL --body "https://tech-log.<workers-subdomain>.workers.dev"
+gh variable set PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN
+gh secret list
+gh variable list
+```
+
+Expected: secret一覧に2つの名前、variable一覧に`SITE_URL`がある。Analyticsをまだ使わない場合は最後のAnalytics variable設定だけ省略できる。値そのものは表示しない。
+
+- [ ] **Step 12: PR checkを通し、readyにしてマージする**
+
+```bash
+gh pr checks --watch
+gh pr ready
+gh pr merge --merge --delete-branch
+```
+
+Expected: `CI / verify`がPASSしてからmergeされる。失敗時は該当jobだけを調査し、Secretsを再表示しない。
+
+- [ ] **Step 13: Production公開を検証する**
+
+Run: `gh run watch`
+
+Expected: deploy workflowとpost-deploy smoke testがPASSし、`SITE_URL`のトップ、4記事、検索、RSS、sitemap、404を確認できる。
+
+- [ ] **Step 14: Lighthouseを3回測定する**
+
+Mobileのトップと代表記事で3回測り、中央値がPerformance、Accessibility、Best Practices、SEOの各90以上であることを確認する。未達なら最大要因を修正し、別commitと同じ`CI / verify`必須のPRで反映してから再測定する。合格時はコード変更を残さない。
 
 ## 実装完了時に残してはいけないもの
 
