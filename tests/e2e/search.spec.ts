@@ -116,6 +116,9 @@ test('close後に完了した検索を破棄し再open時に古い結果を表�
     .toContain('closed:end');
   await trigger.click();
 
+  await expect(dialog.getByRole('searchbox', { name: '記事を検索' })).toHaveValue('');
+  await expect(dialog.locator('[data-search-summary]')).toHaveText('キーワードを入力してください');
+  await expect(dialog.locator('[data-search-results]')).toBeEmpty();
   await expect(dialog.getByRole('link', { name: 'closed result' })).toHaveCount(0);
 });
 
@@ -135,9 +138,8 @@ test('新入力時点で進行中の旧検索を無効化して結果の上書�
   await expect
     .poll(() => page.evaluate(() => (globalThis as { __fakeSearchEvents?: string[] }).__fakeSearchEvents ?? []))
     .toContain('old:end');
-  await page.waitForTimeout(20);
-  expect(await dialog.getByRole('link', { name: 'old result' }).count()).toBe(0);
   await expect(dialog.getByRole('link', { name: 'new result' })).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'old result' })).toHaveCount(0);
 });
 
 test('close buttonとbackdrop clickで閉じ、focusをtriggerへ戻す', async ({ page }) => {

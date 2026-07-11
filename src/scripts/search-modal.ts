@@ -176,6 +176,9 @@ const initSearchModal = (root: HTMLElement) => {
     window.clearTimeout(debounceTimer);
     debounceTimer = undefined;
     requestId += 1;
+    input.value = '';
+    summary.textContent = 'キーワードを入力してください';
+    results.replaceChildren();
     document.body.classList.remove('search-open');
     trigger.focus({ preventScroll: true });
   });
