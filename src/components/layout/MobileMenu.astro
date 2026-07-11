@@ -1,11 +1,14 @@
 ---
-const links = [
-  { label: 'Home', href: '/' },
-  { label: '記事', href: '/blog/' },
-  { label: 'カテゴリー', href: '/categories/' },
-  { label: 'タグ', href: '/tags/' },
-  { label: 'プロフィール', href: '/about/' },
-];
+interface NavigationLink {
+  readonly label: string;
+  readonly href: string;
+}
+
+interface Props {
+  links: readonly NavigationLink[];
+}
+
+const { links }: Props = Astro.props;
 ---
 
 <div class="mobile-menu" data-mobile-menu>

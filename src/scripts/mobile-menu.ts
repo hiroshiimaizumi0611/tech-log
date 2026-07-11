@@ -4,6 +4,7 @@ const initializeMobileMenus = () => {
 
     const trigger = menu.querySelector<HTMLButtonElement>('[data-mobile-menu-trigger]');
     const panel = menu.querySelector<HTMLElement>('[data-mobile-menu-panel]');
+    const headerBrand = menu.closest('header')?.querySelector<HTMLAnchorElement>('[data-header-brand]');
     if (!trigger || !panel) return;
 
     menu.dataset.initialized = 'true';
@@ -43,7 +44,11 @@ const initializeMobileMenus = () => {
     });
 
     window.matchMedia('(min-width: 48rem)').addEventListener('change', (event) => {
-      if (event.matches) close();
+      if (event.matches) {
+        const shouldMoveFocus = menu.contains(document.activeElement);
+        close();
+        if (shouldMoveFocus) headerBrand?.focus();
+      }
     });
   });
 };

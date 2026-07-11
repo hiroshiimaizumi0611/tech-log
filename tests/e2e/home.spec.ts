@@ -107,6 +107,16 @@ test('モバイルメニューを開閉しフォーカスとスクロールを�
     await expect(mobileNav.getByRole('link', { name: link.name, exact: true })).toHaveAttribute('href', link.href);
   }
 
+  await trigger.click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(mobileNav).toBeHidden();
+  await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden');
+
+  await trigger.click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(mobileNav).toBeVisible();
+  await expect(page.locator('body')).toHaveCSS('overflow', 'hidden');
+
   await page.keyboard.press('Escape');
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
   await expect(mobileNav).toBeHidden();
@@ -121,6 +131,42 @@ test('開いたモバイルメニューに重大なアクセシビリティ違�
 
   await expect(page.getByRole('navigation', { name: 'モバイルナビゲーション' })).toBeVisible();
   await expectNoHighImpactAxeViolations(page);
+});
+
+test('開いたメニューのままデスクトップ幅になると表示中のヘッダー要素へフォーカスを移す', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+
+  const trigger = page.locator('[data-mobile-menu-trigger]');
+  const mobileNav = page.getByRole('navigation', { name: 'モバイルナビゲーション' });
+  const brand = page.locator('header').getByRole('link', { name: 'テックログ', exact: true });
+
+  await trigger.click();
+  await expect(trigger).toBeFocused();
+  await page.setViewportSize({ width: 900, height: 844 });
+
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(trigger).toBeHidden();
+  await expect(mobileNav).toBeHidden();
+  await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden');
+  await expect(brand).toBeFocused();
+});
+
+test('デスクトップ幅への変更時にメニュー外のフォーカスを保つ', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+
+  const trigger = page.locator('[data-mobile-menu-trigger]');
+  const main = page.locator('main#main-content');
+  await trigger.click();
+  await main.focus();
+  await expect(main).toBeFocused();
+
+  await page.setViewportSize({ width: 900, height: 844 });
+
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden');
+  await expect(main).toBeFocused();
 });
 
 test.describe('JavaScriptが無効な場合', () => {

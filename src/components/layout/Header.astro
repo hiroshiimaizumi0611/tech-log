@@ -9,14 +9,14 @@ const links = [
   { label: 'カテゴリー', href: '/categories/' },
   { label: 'タグ', href: '/tags/' },
   { label: 'プロフィール', href: '/about/' },
-];
+] as const;
 
 const hasActions = Astro.slots.has('actions');
 ---
 
 <header class="site-header">
   <Container class="site-header__inner">
-    <a class="brand" href="/" aria-label={SITE.name}>
+    <a class="brand" href="/" aria-label={SITE.name} data-header-brand>
       <span class="brand__mark" aria-hidden="true"><span>&gt;_</span></span>
       <span class="brand__copy">
         <span class="brand__name">{SITE.name}</span>
@@ -43,7 +43,7 @@ const hasActions = Astro.slots.has('actions');
           </div>
         )
       }
-      <MobileMenu />
+      <MobileMenu {links} />
     </div>
   </Container>
 </header>
