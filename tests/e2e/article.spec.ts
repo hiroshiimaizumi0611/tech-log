@@ -64,7 +64,7 @@ test('本文の実IDと一致するH2/H3目次をデスクトップとモバイ�
 test('装飾された見出しもAstroの実IDと目次リンクを一致させる', async ({ page }) => {
   await page.goto('/blog/build-tech-blog-with-astro-2026/');
 
-  for (const name of ['Astro静的生成', 'Content Collections', 'Pagefind']) {
+  for (const name of ['Astro静的生成', 'Content Collections', 'Pagefind', 'Workers']) {
     const heading = page.locator('[data-article-body] h2').filter({ hasText: name });
     const id = await heading.getAttribute('id');
     expect(id).toBeTruthy();

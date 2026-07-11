@@ -31,6 +31,10 @@ function headingLink(headings: Heading[], index: number): string | undefined {
   return link?.type === 'link' ? link.url : undefined;
 }
 
+function headingId(headings: Heading[], index: number): unknown {
+  return headings[index]?.data?.hProperties?.id;
+}
+
 describe('remarkCodeFilename', () => {
   it.each(['title="src/example.ts"', 'filename="src/example.ts"'])('maps quoted %s metadata to a safe AST property', (meta) => {
     const code = parseCode(`\`\`\`ts ${meta}\nexport const answer = 42;\n\`\`\``);
@@ -73,9 +77,24 @@ describe('remarkHeadingLinks', () => {
     expect(headingLink(headings, 0)).toBe('#using-astro-safely-with-links');
   });
 
+  it('ignores inline HTML tags and assigns the same safe ID used by the H2 link', () => {
+    const headings = parseHeadings('## Hello <em>world</em>');
+
+    expect(headingId(headings, 0)).toBe('hello-world');
+    expect(headingLink(headings, 0)).toBe('#hello-world');
+  });
+
+  it('does not concatenate untrusted HTML attributes into generated ID or href properties', () => {
+    const headings = parseHeadings(`## Safe <em data-value='" onmouseover="alert(1)'>heading</em>`);
+
+    expect(headingId(headings, 0)).toBe('safe-heading');
+    expect(headingLink(headings, 0)).toBe('#safe-heading');
+  });
+
   it('includes every heading level in duplicate slug ordering while linking only H2 and H3', () => {
     const headings = parseHeadings('# Same\n\n## Same\n\n#### Same\n\n## Same');
 
+    expect(headings.map((_, index) => headingId(headings, index))).toEqual(['same', 'same-1', 'same-2', 'same-3']);
     expect(headings.map((_, index) => headingLink(headings, index))).toEqual([undefined, '#same-1', undefined, '#same-3']);
   });
 });

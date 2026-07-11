@@ -110,7 +110,7 @@ PagefindはMarkdownそのものではなく、静的サイトジェネレータ�
 
 検索対象を本文に絞りたい場合は、レイアウトの本文要素へ `data-pagefind-body` を付けます。全ページ共通のナビゲーションやフッターが検索語として混ざるのを避けるためです。公式の[インデックス対象設定](https://pagefind.app/docs/indexing/)を参照し、除外範囲もHTML属性で明示します。
 
-## Workers
+## <em>Workers</em>
 
 Cloudflare WorkersはWorkerコードだけでなく、静的アセットのディレクトリもデプロイできます。完全にプリレンダリングされたAstroサイトなら、Cloudflare公式の[Astroデプロイガイド](https://developers.cloudflare.com/workers/framework-guides/web-apps/astro/)は、Astro用アダプターを必須とせず、`dist` を静的アセットとしてアップロードする構成を示しています。
 

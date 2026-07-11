@@ -30,7 +30,9 @@ export function remarkHeadingLinks() {
   return (tree: Root) => {
     const slugger = new GithubSlugger();
     visit(tree, 'heading', (node: Heading) => {
-      const id = slugger.slug(toString(node));
+      const id = slugger.slug(toString(node, { includeHtml: false }));
+      node.data ??= {};
+      node.data.hProperties = { ...(node.data.hProperties ?? {}), id };
       if (node.depth !== 2 && node.depth !== 3) return;
       node.children.push({
         type: 'link',
