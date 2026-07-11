@@ -73,7 +73,7 @@ Workは、指示と資料から文書、表計算、プレゼンテーション�
 - ユーザーが接続先のファイルや操作権限を持つこと
 - 対象のファイル形式と利用面が対応していること
 
-たとえば、対応環境ではGoogle Docs、Sheets、Slidesを扱えますが、関連するGoogle Workspaceアプリの有効化と接続が必要です。デスクトップのMicrosoft Excel対応にも専用アドインが関係し、PowerPointは公開時点の同じデスクトップフローには含まれないと公式ガイドは説明しています。
+たとえば、対応環境ではGoogle Docs、Sheets、Slidesを扱えますが、関連するGoogle Workspaceアプリの有効化と接続が必要です。
 
 ## Planと承認
 
