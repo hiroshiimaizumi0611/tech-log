@@ -84,4 +84,25 @@ describe('production environment validation', () => {
       productionEnvErrors({ SITE_URL: 'http://techlog.example', CLOUDFLARE_ACCOUNT_ID: secret, CLOUDFLARE_API_TOKEN: secret }).join('\n'),
     ).not.toContain(secret);
   });
+
+  it('CLI reports each missing deployment credential and keeps analytics optional', () => {
+    const script = fileURLToPath(new URL('../../scripts/validate-production-env.mjs', import.meta.url));
+    const base = {
+      SITE_URL: 'https://techlog.example',
+      CLOUDFLARE_ACCOUNT_ID: 'account-secret-value',
+      CLOUDFLARE_API_TOKEN: 'api-secret-value',
+      PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN: undefined,
+    };
+    const missingAccount = run(process.execPath, [script], { ...base, CLOUDFLARE_ACCOUNT_ID: undefined });
+    expect(missingAccount.status).toBe(1);
+    expect(missingAccount.stderr).toContain('CLOUDFLARE_ACCOUNT_ID');
+    expect(missingAccount.stderr).not.toContain(base.CLOUDFLARE_API_TOKEN);
+
+    const missingToken = run(process.execPath, [script], { ...base, CLOUDFLARE_API_TOKEN: undefined });
+    expect(missingToken.status).toBe(1);
+    expect(missingToken.stderr).toContain('CLOUDFLARE_API_TOKEN');
+    expect(missingToken.stderr).not.toContain(base.CLOUDFLARE_ACCOUNT_ID);
+
+    expect(run(process.execPath, [script], base).status).toBe(0);
+  });
 });
