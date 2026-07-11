@@ -1,0 +1,120 @@
+---
+import type { CategoryKey } from '@/config/site';
+
+interface Props {
+  category: CategoryKey;
+}
+
+const { category } = Astro.props;
+---
+
+<div class:list={['artwork', `artwork--${category.toLowerCase()}`]} data-category-artwork aria-hidden="true">
+  <svg viewBox="0 0 480 270" role="presentation">
+    <defs>
+      <linearGradient id={`wash-${category}`} x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="currentColor" stop-opacity="0.28"></stop>
+        <stop offset="1" stop-color="currentColor" stop-opacity="0.02"></stop>
+      </linearGradient>
+      <pattern id={`grid-${category}`} width="24" height="24" patternUnits="userSpaceOnUse">
+        <path d="M 24 0 L 0 0 0 24" fill="none" stroke="currentColor" stroke-opacity="0.12" stroke-width="1"></path>
+      </pattern>
+    </defs>
+    <rect width="480" height="270" fill={`url(#wash-${category})`}></rect>
+    <rect width="480" height="270" fill={`url(#grid-${category})`}></rect>
+    {
+      category === 'Cloud' && (
+        <g fill="none" stroke="currentColor" stroke-width="3">
+          <path d="M142 169h198c31 0 44-39 18-55-6-30-43-42-66-22-19-40-79-40-99 0-31-8-55 18-51 48-21 13-12 29 0 29Z" />
+          <path d="M205 134h70m-35-35v70" opacity=".65" />
+        </g>
+      )
+    }
+    {
+      category === 'Backend' && (
+        <g fill="none" stroke="currentColor" stroke-width="3">
+          <ellipse cx="240" cy="76" rx="92" ry="30" />
+          <path d="M148 76v112c0 17 41 30 92 30s92-13 92-30V76M148 132c0 17 41 30 92 30s92-13 92-30" />
+        </g>
+      )
+    }
+    {
+      category === 'Frontend' && (
+        <g fill="none" stroke="currentColor" stroke-width="3">
+          <rect x="125" y="61" width="230" height="148" rx="10" />
+          <path d="M125 98h230M151 80h1m20 0h1m20 0h1M190 132l-34 20 34 20m100-40 34 20-34 20m-24-57-42 74" />
+        </g>
+      )
+    }
+    {
+      category === 'Infrastructure' && (
+        <g fill="none" stroke="currentColor" stroke-width="3">
+          <path d="m240 52 77 44v89l-77 44-77-44V96l77-44Z" />
+          <path d="m163 96 77 45 77-45m-77 45v88m-52-118 52-30 52 30" opacity=".72" />
+        </g>
+      )
+    }
+    {
+      category === 'AI' && (
+        <g fill="none" stroke="currentColor" stroke-width="3">
+          <circle cx="240" cy="135" r="30" />
+          <circle cx="240" cy="57" r="10" />
+          <circle cx="318" cy="135" r="10" />
+          <circle cx="240" cy="213" r="10" />
+          <circle cx="162" cy="135" r="10" />
+          <path d="M240 67v38m68 30h-38m-30 68v-38m-68-30h38M185 80l34 34m76-34-34 34m34 76-34-34m-76 34 34-34" />
+        </g>
+      )
+    }
+    {
+      category === 'Operations' && (
+        <g fill="none" stroke="currentColor" stroke-width="3">
+          <path d="M131 184h44l25-65 42 93 38-118 27 90h42" />
+          <circle cx="240" cy="135" r="94" opacity=".34" />
+          <path d="M240 51v20m0 128v20M156 135h-20m208 0h-20" opacity=".55" />
+        </g>
+      )
+    }
+  </svg>
+</div>
+
+<style>
+  .artwork {
+    --artwork-color: var(--color-accent-soft);
+
+    overflow: hidden;
+    inline-size: 100%;
+    block-size: 100%;
+    color: var(--artwork-color);
+    background:
+      radial-gradient(circle at 70% 25%, color-mix(in srgb, currentColor 16%, transparent), transparent 38%), var(--color-section);
+  }
+
+  .artwork--cloud {
+    --artwork-color: var(--color-accent-soft);
+  }
+
+  .artwork--backend {
+    --artwork-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-text));
+  }
+
+  .artwork--frontend {
+    --artwork-color: color-mix(in srgb, var(--color-accent-soft) 82%, var(--color-text));
+  }
+
+  .artwork--infrastructure {
+    --artwork-color: color-mix(in srgb, var(--color-accent) 72%, var(--color-text-muted));
+  }
+
+  .artwork--ai {
+    --artwork-color: var(--color-accent);
+  }
+
+  .artwork--operations {
+    --artwork-color: color-mix(in srgb, var(--color-accent) 40%, var(--color-text));
+  }
+
+  svg {
+    inline-size: 100%;
+    block-size: 100%;
+  }
+</style>

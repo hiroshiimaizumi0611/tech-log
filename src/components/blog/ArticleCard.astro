@@ -1,0 +1,160 @@
+---
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+
+import CategoryArtwork from '@/components/blog/CategoryArtwork.astro';
+import TagChip from '@/components/common/TagChip.astro';
+import type { CategoryKey } from '@/config/site';
+
+interface Props {
+  href: string;
+  title: string;
+  description: string;
+  publishedDate: string;
+  publishedLabel: string;
+  category: CategoryKey;
+  tags: readonly string[];
+  readingMinutes: number;
+  heroImage?: ImageMetadata;
+}
+
+const { href, title, description, publishedDate, publishedLabel, category, tags, readingMinutes, heroImage } = Astro.props;
+---
+
+<article class="article-card" data-article-card>
+  <a href={href} aria-label={`${title}を読む`}>
+    <div class="artwork-layer">
+      <CategoryArtwork {category} />
+      {
+        heroImage && (
+          <Image
+            class="hero-image"
+            src={heroImage}
+            alt=""
+            widths={[480, 720]}
+            sizes="(min-width: 80rem) 18rem, (min-width: 48rem) 50vw, 100vw"
+          />
+        )
+      }
+    </div>
+    <div class="content">
+      <time datetime={publishedDate}>{publishedLabel}</time>
+      <h3>{title}</h3>
+      <p>{description}</p>
+      <div class="tags" aria-label="タグ">
+        {tags.slice(0, 4).map((tag) => <TagChip label={tag} />)}
+      </div>
+      <span class="reading-time">◷ {readingMinutes}分で読めます</span>
+    </div>
+  </a>
+</article>
+
+<style>
+  .article-card {
+    min-inline-size: 0;
+    block-size: 100%;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    background: var(--color-card);
+    box-shadow: 0 1rem 3rem rgb(0 0 0 / 0.08);
+    transition:
+      border-color var(--transition-fast),
+      transform var(--transition-fast),
+      background-color var(--transition-fast);
+  }
+
+  .article-card:hover,
+  .article-card:focus-within {
+    border-color: color-mix(in srgb, var(--color-accent) 46%, var(--color-border));
+    background: var(--color-card-hover);
+    transform: translateY(-0.25rem);
+  }
+
+  a {
+    display: flex;
+    overflow: hidden;
+    flex-direction: column;
+    block-size: 100%;
+    border-radius: inherit;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  a:hover {
+    color: inherit;
+  }
+
+  a:focus-visible {
+    outline-offset: 4px;
+  }
+
+  .artwork-layer {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 16 / 9;
+    border-block-end: 1px solid var(--color-border);
+    background: var(--color-section);
+  }
+
+  .artwork-layer :global([data-category-artwork]),
+  .artwork-layer :global(.hero-image) {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+  }
+
+  .artwork-layer :global(.hero-image) {
+    object-fit: cover;
+  }
+
+  .content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    padding: var(--space-5);
+  }
+
+  time,
+  .reading-time {
+    color: var(--color-text-muted);
+    font-family: var(--font-ui);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  h3 {
+    display: -webkit-box;
+    overflow: hidden;
+    margin: var(--space-3) 0 0;
+    font-family: var(--font-ui);
+    font-size: 1.05rem;
+    letter-spacing: -0.018em;
+    line-height: 1.55;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  p {
+    display: -webkit-box;
+    overflow: hidden;
+    margin: var(--space-3) 0 0;
+    color: var(--color-text-muted);
+    font-size: 0.82rem;
+    line-height: 1.7;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-block-start: var(--space-4);
+  }
+
+  .reading-time {
+    margin-block-start: auto;
+    padding-block-start: var(--space-5);
+  }
+</style>

@@ -1,0 +1,158 @@
+---
+import type { ImageMetadata } from 'astro';
+
+import FeaturedArticle from '@/components/blog/FeaturedArticle.astro';
+import Container from '@/components/common/Container.astro';
+import type { CategoryKey } from '@/config/site';
+
+interface FeaturedCode {
+  language: string;
+  filename?: string;
+  code: string;
+}
+
+interface Props {
+  siteName: string;
+  tagline: string;
+  description: string;
+  technologies: readonly string[];
+  featured: {
+    href: string;
+    title: string;
+    description: string;
+    publishedDate: string;
+    publishedLabel: string;
+    category: CategoryKey;
+    tags: readonly string[];
+    readingMinutes: number;
+    featuredCode?: FeaturedCode;
+    heroImage?: ImageMetadata;
+  };
+}
+
+const { siteName, tagline, description, technologies, featured } = Astro.props;
+---
+
+<section class="hero" aria-label="サイト紹介">
+  <Container class="hero-inner">
+    <div class="intro">
+      <span class="kicker">TECH BLOG</span>
+      <h1>{siteName}</h1>
+      <p class="tagline">{tagline}</p>
+      <p class="description">{description}</p>
+      <div class="accent-line" aria-hidden="true"></div>
+      <p class="tech-list">{technologies.join(' / ')}</p>
+      <div class="abstract-mark" aria-hidden="true">
+        <span>&lt;</span><span>/</span><span>&gt;</span>
+      </div>
+    </div>
+    <FeaturedArticle {...featured} />
+  </Container>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    overflow: hidden;
+    border-block-end: 1px solid var(--color-border);
+    background:
+      radial-gradient(circle at 68% 24%, color-mix(in srgb, var(--color-accent) 7%, transparent), transparent 34%),
+      color-mix(in srgb, var(--color-background) 93%, transparent);
+  }
+
+  :global(.hero-inner) {
+    display: grid;
+    grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+    gap: clamp(var(--space-8), 6vw, var(--space-16));
+    align-items: center;
+    padding-block: clamp(var(--space-16), 8vw, var(--space-24));
+  }
+
+  .intro {
+    position: relative;
+    min-inline-size: 0;
+  }
+
+  .kicker {
+    color: var(--color-accent-soft);
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.32em;
+  }
+
+  h1 {
+    margin: var(--space-5) 0 0;
+    font-family: var(--font-ui);
+    font-size: clamp(3rem, 6.5vw, 5.75rem);
+    letter-spacing: -0.055em;
+    line-height: 1;
+  }
+
+  .tagline {
+    margin: var(--space-6) 0 0;
+    color: var(--color-text);
+    font-family: var(--font-ui);
+    font-size: clamp(1.1rem, 2vw, 1.4rem);
+    font-weight: 650;
+    letter-spacing: 0.02em;
+  }
+
+  .description {
+    max-inline-size: 34rem;
+    margin: var(--space-3) 0 0;
+    color: var(--color-text-muted);
+    font-size: 0.92rem;
+  }
+
+  .accent-line {
+    inline-size: 2.25rem;
+    block-size: 2px;
+    margin-block-start: var(--space-8);
+    background: var(--color-accent);
+  }
+
+  .tech-list {
+    margin: var(--space-8) 0 0;
+    color: var(--color-text-muted);
+    font-family: var(--font-ui);
+    font-size: clamp(0.7rem, 1.2vw, 0.8rem);
+    font-weight: 600;
+    letter-spacing: 0.015em;
+  }
+
+  .abstract-mark {
+    position: absolute;
+    z-index: -1;
+    inset-block-start: -4rem;
+    inset-inline-start: -4rem;
+    display: flex;
+    gap: 0.15em;
+    color: color-mix(in srgb, var(--color-accent) 9%, transparent);
+    font-family: var(--font-mono);
+    font-size: clamp(6rem, 13vw, 10rem);
+    font-weight: 800;
+    letter-spacing: -0.2em;
+    transform: rotate(-8deg);
+  }
+
+  @media (max-width: 63.99rem) {
+    :global(.hero-inner) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 35rem) {
+    :global(.hero-inner) {
+      padding-block: var(--space-16);
+    }
+
+    .description {
+      font-size: 0.86rem;
+    }
+
+    .tech-list {
+      line-height: 1.8;
+    }
+  }
+</style>

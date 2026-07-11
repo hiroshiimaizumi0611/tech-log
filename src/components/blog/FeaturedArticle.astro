@@ -1,0 +1,189 @@
+---
+import type { ImageMetadata } from 'astro';
+import { Image } from 'astro:assets';
+
+import CategoryArtwork from '@/components/blog/CategoryArtwork.astro';
+import TagChip from '@/components/common/TagChip.astro';
+import type { CategoryKey } from '@/config/site';
+
+interface FeaturedCode {
+  language: string;
+  filename?: string;
+  code: string;
+}
+
+interface Props {
+  href: string;
+  title: string;
+  description: string;
+  publishedDate: string;
+  publishedLabel: string;
+  category: CategoryKey;
+  tags: readonly string[];
+  readingMinutes: number;
+  featuredCode?: FeaturedCode;
+  heroImage?: ImageMetadata;
+}
+
+const { href, title, description, publishedDate, publishedLabel, category, tags, readingMinutes, featuredCode, heroImage } = Astro.props;
+---
+
+<article class="featured" aria-label="注目記事">
+  <div class="topline">
+    <span class="eyebrow">FEATURED</span>
+    <time datetime={publishedDate}>{publishedLabel}</time>
+  </div>
+  <h2>{title}</h2>
+  <p class="description">{description}</p>
+  <div class="tags" aria-label="タグ">
+    {tags.map((tag) => <TagChip label={tag} />)}
+  </div>
+  {
+    featuredCode ? (
+      <div class="code-panel">
+        <div class="code-header">
+          <span>{featuredCode.filename ?? featuredCode.language}</span>
+          <span>{featuredCode.language}</span>
+        </div>
+        <pre>
+          <code class={`language-${featuredCode.language}`}>{featuredCode.code}</code>
+        </pre>
+      </div>
+    ) : (
+      <div class="media-layer">
+        <CategoryArtwork {category} />
+        {heroImage && <Image class="hero-image" src={heroImage} alt="" widths={[720, 1080]} sizes="(min-width: 64rem) 50vw, 100vw" />}
+      </div>
+    )
+  }
+  <div class="footerline">
+    <a href={href}>続きを読む <span aria-hidden="true">→</span></a>
+    <span class="reading-time">◷ {readingMinutes}分で読めます</span>
+  </div>
+</article>
+
+<style>
+  .featured {
+    padding: clamp(var(--space-5), 4vw, var(--space-8));
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card-lg);
+    background: linear-gradient(145deg, color-mix(in srgb, var(--color-card-hover) 82%, transparent), var(--color-card)), var(--color-card);
+    box-shadow: 0 1.5rem 5rem rgb(0 0 0 / 0.28);
+  }
+
+  .topline,
+  .footerline,
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+
+  .eyebrow {
+    padding: 0.12rem 0.45rem;
+    border: 1px solid color-mix(in srgb, var(--color-accent) 65%, var(--color-border));
+    border-radius: var(--radius-sm);
+    color: var(--color-accent-soft);
+    font-family: var(--font-ui);
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+  }
+
+  time,
+  .reading-time,
+  .code-header {
+    color: var(--color-text-muted);
+    font-family: var(--font-ui);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  h2 {
+    margin: var(--space-5) 0 0;
+    font-family: var(--font-ui);
+    font-size: clamp(1.4rem, 2.5vw, 2rem);
+    letter-spacing: -0.03em;
+    line-height: 1.35;
+  }
+
+  .description {
+    margin: var(--space-4) 0 0;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.75;
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-block-start: var(--space-4);
+  }
+
+  .code-panel,
+  .media-layer {
+    overflow: hidden;
+    margin-block-start: var(--space-6);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    background: color-mix(in srgb, var(--color-background) 72%, transparent);
+  }
+
+  .code-header {
+    padding: var(--space-2) var(--space-4);
+    border-block-end: 1px solid var(--color-border);
+    background: var(--color-section);
+  }
+
+  pre {
+    overflow: auto;
+    max-block-size: 14rem;
+    margin: 0;
+    padding: var(--space-4);
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+    line-height: 1.65;
+    tab-size: 2;
+  }
+
+  .media-layer {
+    position: relative;
+    aspect-ratio: 16 / 7;
+  }
+
+  .media-layer :global([data-category-artwork]),
+  .media-layer :global(.hero-image) {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+  }
+
+  .media-layer :global(.hero-image) {
+    object-fit: cover;
+  }
+
+  .footerline {
+    margin-block-start: var(--space-6);
+  }
+
+  a {
+    color: var(--color-accent-soft);
+    font-family: var(--font-ui);
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  a:hover span {
+    display: inline-block;
+    transform: translateX(0.2rem);
+  }
+
+  @media (max-width: 30rem) {
+    .reading-time {
+      font-size: 0.68rem;
+    }
+  }
+</style>

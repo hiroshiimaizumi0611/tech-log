@@ -1,0 +1,48 @@
+---
+interface Props {
+  label: string;
+  href?: string;
+  count?: number;
+}
+
+const { label, href, count } = Astro.props;
+const Element = href ? 'a' : 'span';
+---
+
+<Element class="tag-chip" href={href}>
+  <span>{label}</span>
+  {typeof count === 'number' && <span class="count">{count}件</span>}
+</Element>
+
+<style>
+  .tag-chip {
+    display: inline-flex;
+    gap: var(--space-2);
+    align-items: center;
+    min-block-size: 1.75rem;
+    padding: 0.2rem 0.6rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    background: color-mix(in srgb, var(--color-card) 82%, transparent);
+    font-family: var(--font-ui);
+    font-size: 0.75rem;
+    line-height: 1.2;
+    text-decoration: none;
+    transition:
+      border-color var(--transition-fast),
+      color var(--transition-fast),
+      background-color var(--transition-fast);
+  }
+
+  a.tag-chip:hover {
+    border-color: color-mix(in srgb, var(--color-accent) 58%, var(--color-border));
+    color: var(--color-text);
+    background: var(--color-card-hover);
+  }
+
+  .count {
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

@@ -1,0 +1,45 @@
+---
+import Container from '@/components/common/Container.astro';
+import SectionHeading from '@/components/common/SectionHeading.astro';
+import TagChip from '@/components/common/TagChip.astro';
+
+interface Tag {
+  label: string;
+  count: number;
+  href: string;
+}
+
+interface Props {
+  tags: readonly Tag[];
+}
+
+const { tags } = Astro.props;
+---
+
+<section class="popular-tags" aria-label="人気のタグ">
+  <Container>
+    <SectionHeading title="人気のタグ" />
+    <div class="tag-list">
+      {tags.slice(0, 10).map((tag) => <TagChip {...tag} />)}
+    </div>
+  </Container>
+</section>
+
+<style>
+  .popular-tags {
+    padding-block: var(--space-16);
+    border-block: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-section) 72%, transparent);
+  }
+
+  .tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  .tag-list :global(.tag-chip) {
+    min-block-size: 2.25rem;
+    padding-inline: var(--space-3);
+  }
+</style>

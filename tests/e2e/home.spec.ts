@@ -27,7 +27,7 @@ test('ブランドとランドマークを備えたサイトシェルを表示�
   await expect(page.locator('footer')).toBeVisible();
 
   await expect(page.locator('header').getByRole('link', { name: 'テックログ', exact: true })).toBeVisible();
-  await expect(page.getByText('つくる、動かす、改善する。', { exact: true })).toBeVisible();
+  await expect(page.locator('header').getByText('つくる、動かす、改善する。', { exact: true })).toBeVisible();
   const heading = page.getByRole('heading', { level: 1, name: 'テックログ' });
   await expect(heading).toBeVisible();
 
