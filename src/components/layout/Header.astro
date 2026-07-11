@@ -14,7 +14,7 @@ const links = [
 const hasActions = Astro.slots.has('actions');
 ---
 
-<header class="site-header">
+<header class="site-header" data-pagefind-ignore>
   <Container class="site-header__inner">
     <a class="brand" href="/" aria-label={SITE.name} data-header-brand>
       <span class="brand__mark" aria-hidden="true"><span>&gt;_</span></span>

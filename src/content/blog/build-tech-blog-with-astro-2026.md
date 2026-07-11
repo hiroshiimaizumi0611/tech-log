@@ -46,7 +46,7 @@ featuredCode:
 
 Astroは既定でページをビルド時にプリレンダリングします。公式の[オンデマンドレンダリングガイド](https://docs.astro.build/en/guides/on-demand-rendering/)でも、サイト全体は既定で静的HTMLとして生成され、必要なルートだけをオンデマンド描画へ切り替えられると説明されています。記事詳細のような動的ルートは、静的モードでは `getStaticPaths()` が返したパスごとにHTMLになります。
 
-```astro
+```astro title="src/pages/blog/[slug].astro"
 ---
 import { getCollection, render } from 'astro:content';
 

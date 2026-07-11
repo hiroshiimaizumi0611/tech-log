@@ -1,0 +1,42 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection, render } from 'astro:content';
+
+import ArticleLayout from '@/layouts/ArticleLayout.astro';
+import { toArticleView } from '@/lib/content/listings';
+import { getAdjacentPosts, getPublishedPosts, getRelatedPosts } from '@/lib/content/posts';
+import { readingMinutes } from '@/lib/content/reading-time';
+
+export const getStaticPaths = (async () => {
+  const posts = getPublishedPosts(await getCollection('blog'));
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post, posts } }));
+}) satisfies GetStaticPaths;
+
+const { post, posts } = Astro.props;
+const { Content, headings } = await render(post);
+const adjacent = getAdjacentPosts(post, posts);
+const related = getRelatedPosts(post, posts, 3).map(toArticleView);
+const dateFormatter = new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Tokyo' });
+const publishedDate = post.data.publishedAt.toISOString();
+const updatedDate = post.data.updatedAt?.toISOString();
+const previous = adjacent.previous ? { href: `/blog/${adjacent.previous.id}/`, title: adjacent.previous.data.title } : undefined;
+const next = adjacent.next ? { href: `/blog/${adjacent.next.id}/`, title: adjacent.next.data.title } : undefined;
+---
+
+<ArticleLayout
+  title={post.data.title}
+  description={post.data.description}
+  {publishedDate}
+  publishedLabel={dateFormatter.format(post.data.publishedAt)}
+  {updatedDate}
+  updatedLabel={post.data.updatedAt ? dateFormatter.format(post.data.updatedAt) : undefined}
+  category={post.data.category}
+  tags={post.data.tags}
+  readingMinutes={readingMinutes(post.body ?? '')}
+  {headings}
+  {previous}
+  {next}
+  {related}
+>
+  <Content />
+</ArticleLayout>

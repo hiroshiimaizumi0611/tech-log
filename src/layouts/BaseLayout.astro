@@ -9,9 +9,10 @@ interface Props {
   title?: string;
   description?: string;
   canonical?: URL | string;
+  pageClass?: string;
 }
 
-const { title = SITE.name, description = SITE.description, canonical } = Astro.props;
+const { title = SITE.name, description = SITE.description, canonical, pageClass } = Astro.props;
 const hasHeaderActions = Astro.slots.has('header-actions');
 ---
 
@@ -23,7 +24,7 @@ const hasHeaderActions = Astro.slots.has('header-actions');
     </script>
     <SEOHead {title} {description} {canonical} />
   </head>
-  <body>
+  <body class={pageClass}>
     <a class="skip-link" href="#main-content">本文へスキップ</a>
     {
       hasHeaderActions ? (

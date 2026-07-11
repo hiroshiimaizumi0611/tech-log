@@ -1,0 +1,33 @@
+---
+import ArticleCard from './ArticleCard.astro';
+import type { ArticleView } from '@/lib/content/listings';
+interface Props {
+  articles: ArticleView[];
+}
+const { articles } = Astro.props;
+---
+
+<section class="related" aria-labelledby="related-title" data-related-articles>
+  <h2 id="related-title">関連記事</h2>
+  <div class="related__grid">{articles.map((article) => <ArticleCard {...article} />)}</div>
+</section>
+<style>
+  .related {
+    margin-block-start: var(--space-16);
+  }
+  h2 {
+    margin: 0 0 var(--space-6);
+    font-family: var(--font-ui);
+    font-size: 1.35rem;
+  }
+  .related__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-5);
+  }
+  @media (max-width: 47.99rem) {
+    .related__grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
