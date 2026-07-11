@@ -30,9 +30,21 @@ interface Props {
     base: string;
   };
   emptyMessage?: string;
+  emptyAction?: {
+    label: string;
+    href: string;
+  };
 }
 
-const { title, description, articles, count = articles.length, pagination, emptyMessage = '該当する記事はまだありません。' } = Astro.props;
+const {
+  title,
+  description,
+  articles,
+  count = articles.length,
+  pagination,
+  emptyMessage = '該当する記事はまだありません。',
+  emptyAction = { label: 'すべての記事を見る', href: '/blog/' },
+} = Astro.props;
 ---
 
 <BaseLayout title={`${title} | テックログ`} {description}>
@@ -60,6 +72,7 @@ const { title, description, articles, count = articles.length, pagination, empty
         <div class="empty-state" role="status">
           <span aria-hidden="true">{`{ }`}</span>
           <p>{emptyMessage}</p>
+          <a href={emptyAction.href}>{emptyAction.label}</a>
         </div>
       )
     }
@@ -134,6 +147,25 @@ const { title, description, articles, count = articles.length, pagination, empty
 
   .empty-state p {
     margin: var(--space-3) 0 0;
+  }
+
+  .empty-state a {
+    margin-block-start: var(--space-6);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+    background: var(--color-card);
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .empty-state a:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent-soft);
+    background: var(--color-card-hover);
   }
 
   .sr-only {

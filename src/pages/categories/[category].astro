@@ -43,4 +43,5 @@ const articles = posts.map((entry) => ({
   description={`カテゴリー「${category.label}」の記事です。`}
   {articles}
   count={posts.length}
+  emptyAction={{ label: 'カテゴリー一覧へ戻る', href: '/categories/' }}
 />

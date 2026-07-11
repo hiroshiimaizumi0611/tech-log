@@ -64,6 +64,7 @@ test('カテゴリー一覧は0件を含む6種類を表示し、全詳細ルー
   await page.goto('/categories/cloud/');
   await expect(page.getByRole('heading', { level: 1, name: 'クラウド / AWSの記事' })).toBeVisible();
   await expect(page.getByRole('status')).toContainText('該当する記事はまだありません');
+  await expect(page.getByRole('status').getByRole('link', { name: 'カテゴリー一覧へ戻る' })).toHaveAttribute('href', '/categories/');
 });
 
 test('未知のタグ・カテゴリーと無効な記事ページは404を返す', async ({ request }) => {
