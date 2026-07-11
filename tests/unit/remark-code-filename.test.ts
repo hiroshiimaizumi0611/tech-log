@@ -1,10 +1,10 @@
-import type { Code, Root } from 'mdast';
+import type { Code, Heading, Root } from 'mdast';
 import remarkParse from 'remark-parse';
 import { unified } from 'unified';
 import { visit } from 'unist-util-visit';
 import { describe, expect, it } from 'vitest';
 
-import remarkCodeFilename from '../../src/lib/remark-code-filename';
+import remarkCodeFilename, { remarkHeadingLinks } from '../../src/lib/remark-code-filename';
 
 function parseCode(markdown: string): Code {
   const tree = unified().use(remarkParse).use(remarkCodeFilename).runSync(unified().use(remarkParse).parse(markdown)) as Root;
@@ -14,6 +14,21 @@ function parseCode(markdown: string): Code {
   });
   if (!code) throw new Error('code node not found');
   return code;
+}
+
+function parseHeadings(markdown: string): Heading[] {
+  const processor = unified().use(remarkParse).use(remarkHeadingLinks);
+  const tree = processor.runSync(processor.parse(markdown)) as Root;
+  const headings: Heading[] = [];
+  visit(tree, 'heading', (node) => headings.push(node));
+  return headings;
+}
+
+function headingLink(headings: Heading[], index: number): string | undefined {
+  const link = headings[index]?.children.find(
+    (child) => child.type === 'link' && child.data?.hProperties?.ariaLabel === 'この見出しへのリンク',
+  );
+  return link?.type === 'link' ? link.url : undefined;
 }
 
 describe('remarkCodeFilename', () => {
@@ -48,5 +63,19 @@ describe('remarkCodeFilename', () => {
 
     expect(code.data?.hProperties).toEqual({ 'data-filename': 'src/<unsafe>&example.ts' });
     expect(code.data?.hName).toBeUndefined();
+  });
+});
+
+describe('remarkHeadingLinks', () => {
+  it('uses the complete visible text from emphasis, inline code, and links', () => {
+    const headings = parseHeadings('## Using **Astro** `safely` with [links](https://example.com)');
+
+    expect(headingLink(headings, 0)).toBe('#using-astro-safely-with-links');
+  });
+
+  it('includes every heading level in duplicate slug ordering while linking only H2 and H3', () => {
+    const headings = parseHeadings('# Same\n\n## Same\n\n#### Same\n\n## Same');
+
+    expect(headings.map((_, index) => headingLink(headings, index))).toEqual([undefined, '#same-1', undefined, '#same-3']);
   });
 });

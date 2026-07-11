@@ -1,5 +1,6 @@
 import GithubSlugger from 'github-slugger';
 import type { Code, Heading, Root } from 'mdast';
+import { toString } from 'mdast-util-to-string';
 import { visit } from 'unist-util-visit';
 
 const FILENAME_META = /(?:^|\s)(?:title|filename)="([^"]+)"(?:\s|$)/u;
@@ -29,9 +30,8 @@ export function remarkHeadingLinks() {
   return (tree: Root) => {
     const slugger = new GithubSlugger();
     visit(tree, 'heading', (node: Heading) => {
+      const id = slugger.slug(toString(node));
       if (node.depth !== 2 && node.depth !== 3) return;
-      const label = node.children.map((child) => ('value' in child ? child.value : '')).join('');
-      const id = slugger.slug(label);
       node.children.push({
         type: 'link',
         url: `#${id}`,

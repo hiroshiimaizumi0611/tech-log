@@ -61,6 +61,18 @@ test('本文の実IDと一致するH2/H3目次をデスクトップとモバイ�
   await expect(mobileToc.getByRole('link', { name: '3モデルの位置付け', exact: true })).toHaveAttribute('href', '#3モデルの位置付け');
 });
 
+test('装飾された見出しもAstroの実IDと目次リンクを一致させる', async ({ page }) => {
+  await page.goto('/blog/build-tech-blog-with-astro-2026/');
+
+  for (const name of ['Astro静的生成', 'Content Collections', 'Pagefind']) {
+    const heading = page.locator('[data-article-body] h2').filter({ hasText: name });
+    const id = await heading.getAttribute('id');
+    expect(id).toBeTruthy();
+    await expect(heading.getByRole('link', { name: 'この見出しへのリンク' })).toHaveAttribute('href', `#${id}`);
+    await expect(page.locator('[data-desktop-toc]').getByRole('link', { name, exact: true })).toHaveAttribute('href', `#${id}`);
+  }
+});
+
 test('本文幅を制限しコード以外でページ全体の横スクロールを発生させない', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/blog/build-tech-blog-with-astro-2026/');

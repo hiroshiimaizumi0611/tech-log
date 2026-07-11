@@ -42,7 +42,7 @@ featuredCode:
 
 この分離により、実行時のデータベースや検索サーバーを前提にせず、記事追加時はMarkdownとビルドの検証に集中できます。一方、ログイン状態に応じた表示やリクエスト時に変わる内容が必要なら、静的生成だけで要件を満たせるかを別途検討します。
 
-## Astro静的生成
+## **Astro**静的生成
 
 Astroは既定でページをビルド時にプリレンダリングします。公式の[オンデマンドレンダリングガイド](https://docs.astro.build/en/guides/on-demand-rendering/)でも、サイト全体は既定で静的HTMLとして生成され、必要なルートだけをオンデマンド描画へ切り替えられると説明されています。記事詳細のような動的ルートは、静的モードでは `getStaticPaths()` が返したパスごとにHTMLになります。
 
@@ -67,7 +67,7 @@ const { Content } = await render(post);
 
 ビルド時に記事一覧とルートが確定するので、Content Collectionsのschema違反、`getStaticPaths()` のルート生成エラー、記事の描画・buildエラーを公開前に検出できます。外部リンクの到達性はAstro buildの検査対象ではないため、必要なら別工程で検査します。更新を反映するには再ビルドが必要ですが、記事中心のサイトではその境界が明確です。ルーティングの詳細はAstro公式の[ルーティングガイド](https://docs.astro.build/en/guides/routing/)も確認してください。
 
-## Content Collections
+## Content `Collections`
 
 ファイルが読めることと、記事として正しいことは別問題です。Content Collectionsでは、loaderで記事を集め、schemaでタイトル、日付、カテゴリ、タグなどを検証できます。Astro公式の[Content Collectionsガイド](https://docs.astro.build/en/guides/content-collections/)と[`glob()` loaderリファレンス](https://docs.astro.build/en/reference/content-loader-reference/#glob-loader)に沿う最小構成は次の形です。
 
@@ -92,7 +92,7 @@ schemaを一か所に置けば、frontmatterのキー漏れや不正な値をビ
 
 Tailwind CSS v4はAstroが利用するViteへプラグインとして組み込めます。公式の[Vite導入手順](https://tailwindcss.com/docs/installation/using-vite)どおり `tailwindcss` と `@tailwindcss/vite` を導入し、Astro設定の `vite.plugins` に `tailwindcss()` を追加します。CSS側では `@import "tailwindcss";` を読み込みます。古い統合方法の記事をそのまま転用せず、利用中のメジャーバージョンに対応する公式手順を基準にします。
 
-## Pagefind
+## [Pagefind](https://pagefind.app/)
 
 PagefindはMarkdownそのものではなく、静的サイトジェネレーターが出力したHTMLを索引化します。公式の[Getting Started](https://pagefind.app/docs/)では、サイトのビルド後、デプロイ前に毎回Pagefindを実行する流れが示されています。Astroの既定出力先が `dist` なら、スクリプトは次のように直列化できます。
 
