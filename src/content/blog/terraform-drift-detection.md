@@ -33,28 +33,43 @@ driftを見つけたら、まず次を記録します。
 通常の `terraform plan` は、実環境を読み取る暗黙のrefreshを行い、その結果と設定コードを比較します。ここで表示される変更は「設定コードに実環境を戻すための案」です。最初はplanを保存して、人と機械の両方で確認できる形にします。
 
 ```sh
-terraform init
-terraform validate
-terraform plan -out=tfplan
-terraform show tfplan
+umask 077
+PLAN_FILE=$(mktemp "${TMPDIR:-/tmp}/terraform-plan.XXXXXX") || exit 1
+trap 'rm -f "$PLAN_FILE"' 0
+trap 'exit 1' 1 2 15
+
+terraform init || exit 1
+terraform validate || exit 1
+terraform plan -out="$PLAN_FILE" || exit 1
+terraform show "$PLAN_FILE" || exit 1
+# この時点ではapplyせず、レビュー終了後にplanを削除する
+rm -f "$PLAN_FILE" || exit 1
+trap - 0 1 2 15
 ```
 
 HashiCorpの[`terraform plan` リファレンス](https://developer.hashicorp.com/terraform/cli/commands/plan)では、通常モードとrefresh-onlyモードの目的が区別されています。`-refresh=false` は外部変更を無視して不完全なplanになり得るため、drift調査の最初には使いません。また、`-target` も日常的なdrift解消の近道として使うと全体の差を見落とすため、限定理由なしには使いません。
 
-この時点ではapplyしません。planに置換、削除、アクセス制御の緩和、出力値の変更が含まれるなら、対象リソースだけでなく依存先も調べます。保存済みplanにも機密情報が含まれ得るので、安全な保存場所と削除方針を決めます。
+この時点ではapplyしません。planに置換、削除、アクセス制御の緩和、出力値の変更が含まれるなら、対象リソースだけでなく依存先も調べます。保存済みplanには機密値が平文で含まれ得るため、`umask 077` と `mktemp` で他ユーザーから読めない一時ファイルを作り、trapで失敗・中断時にも削除します。レビュー後は保持せず削除します。
 
 ## コードへ戻す
 
 手動変更が誤操作、暫定対応の終了、または組織の標準から外れた変更なら、設定コードを正として実環境を戻します。たとえばAWSセキュリティグループへ一時的に追加されたルールを取り消す場合、コードを勝手にそのルールへ合わせず、通常planが示す差をレビューします。
 
 ```sh
-terraform plan -out=reconcile.tfplan
-terraform show reconcile.tfplan
+umask 077
+PLAN_FILE=$(mktemp "${TMPDIR:-/tmp}/terraform-plan.XXXXXX") || exit 1
+trap 'rm -f "$PLAN_FILE"' 0
+trap 'exit 1' 1 2 15
+
+terraform plan -out="$PLAN_FILE" || exit 1
+terraform show "$PLAN_FILE" || exit 1
 # 変更理由、置換・削除、依存先をチームでレビューする
-terraform apply reconcile.tfplan
+terraform apply "$PLAN_FILE" || exit 1
+rm -f "$PLAN_FILE" || exit 1
+trap - 0 1 2 15
 ```
 
-保存したplanをapplyすれば、レビュー対象と適用対象を対応させやすくなります。ただし、plan作成後に環境が変わればapplyが失敗したり、再計画が必要になったりします。承認済みという理由だけで古いplanを使い続けず、実行直前の状態とロック状況を確認します。
+保存したplanをapplyすれば、レビュー対象と適用対象を対応させやすくなります。ただし、plan作成後に環境が変わればapplyが失敗したり、再計画が必要になったりします。承認済みという理由だけで古いplanを使い続けず、実行直前の状態とロック状況を確認します。applyが失敗した場合は `exit 1` により後続処理へ進まず、trapが機密情報を含み得るplanを削除します。
 
 ## 実環境を正とする
 
@@ -77,15 +92,35 @@ stateへ現在の実環境だけを記録する必要がある場合は、`-refr
 
 ```sh
 umask 077
-terraform state pull > "terraform.tfstate.backup-$(date +%Y%m%d-%H%M%S)"
-terraform plan -refresh-only -out=refresh.tfplan
-terraform show refresh.tfplan
+BACKUP_DIR=${BACKUP_DIR:-.} # アクセス制限された既存ディレクトリを指定する
+BACKUP_FILE="$BACKUP_DIR/terraform.tfstate.backup-$(date +%Y%m%d-%H%M%S)"
+STATE_TMP=$(mktemp "$BACKUP_DIR/.terraform-state.XXXXXX") || exit 1
+PLAN_FILE=$(mktemp "${TMPDIR:-/tmp}/terraform-plan.XXXXXX") || {
+  rm -f "$STATE_TMP"
+  exit 1
+}
+trap 'rm -f "$STATE_TMP" "$PLAN_FILE"' 0
+trap 'exit 1' 1 2 15
+
+if ! terraform state pull > "$STATE_TMP" || [ ! -s "$STATE_TMP" ]; then
+  rm -f "$STATE_TMP"
+  exit 1
+fi
+mv "$STATE_TMP" "$BACKUP_FILE" || exit 1
+
+terraform plan -refresh-only -out="$PLAN_FILE" || exit 1
+terraform show "$PLAN_FILE" || exit 1
 # バックアップ、plan内容、下流outputへの影響をチームでレビューする
-terraform apply refresh.tfplan
-terraform plan
+terraform apply "$PLAN_FILE" || exit 1
+rm -f "$PLAN_FILE" || exit 1
+trap - 0 1 2 15
+
+terraform plan || exit 1
 ```
 
-`terraform apply -refresh-only` を無条件に実行してはいけません。誤った認証情報やregion設定では、存在するリソースを「消えた」と誤認し、stateから対応関係を落とす計画になる場合があります。バックアップを取得し、refresh-only planをレビューし、チーム承認を得た場合だけ適用します。非推奨の `terraform refresh` は自動承認相当であり、公式の[`terraform refresh` リファレンス](https://developer.hashicorp.com/terraform/cli/commands/refresh)もreview可能なrefresh-only plan/applyを推奨しています。
+`terraform apply -refresh-only` を無条件に実行してはいけません。誤った認証情報やregion設定では、存在するリソースを「消えた」と誤認し、stateから対応関係を落とす計画になる場合があります。バックアップを取得し、refresh-only planをレビューし、チーム承認を得た場合だけ適用します。上の例では `state pull` の終了状態とファイルが空でないことを確認し、失敗時は一時ファイルを削除して中止します。成功した一時ファイルだけを同じディレクトリ内で最終名へ原子的にrenameするため、不完全な出力をバックアップとして残しません。
+
+state backupと保存済みplanはいずれも機密値を平文で含み得ます。backupは暗号化・アクセス制御された場所で復旧に必要な期間だけ保持し、保持期限後は組織の安全な削除手順に従います。planはレビュー・適用後すぐ削除します。非推奨の `terraform refresh` は自動承認相当であり、公式の[`terraform refresh` リファレンス](https://developer.hashicorp.com/terraform/cli/commands/refresh)もreview可能なrefresh-only plan/applyを推奨しています。
 
 ## import・state操作の注意
 
@@ -114,7 +149,7 @@ HashiCorp公式の[import概要](https://developer.hashicorp.com/terraform/langu
 - planとstate変更の影響をチームでレビューする
 - 復旧担当者とバックアップから戻す手順を決める
 
-stateには機密値が含まれ得ます。バックアップをGitへ追加せず、暗号化、アクセス制御、保存期限を組織の規定に合わせます。チーム利用では、共有とロックを提供するremote stateを選ぶ考え方が公式の[Remote Stateガイド](https://developer.hashicorp.com/terraform/language/state/remote)に示されています。
+stateには機密値が含まれ得ます。バックアップをGitへ追加せず、暗号化、アクセス制御、保存期限と安全な削除方法を組織の規定に合わせます。チーム利用では、共有とロックを提供するremote stateを選ぶ考え方が公式の[Remote Stateガイド](https://developer.hashicorp.com/terraform/language/state/remote)に示されています。
 
 ## 事故を避ける確認手順
 

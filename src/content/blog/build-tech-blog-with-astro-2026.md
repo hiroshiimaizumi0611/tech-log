@@ -26,13 +26,13 @@ featuredCode:
     }) satisfies GetStaticPaths;
 ---
 
-技術ブログでは、記事を書く作業と、公開時の安全性・検索性・保守性を両立させる必要があります。ここでは、MarkdownをGitで管理し、ビルド時にHTMLと検索インデックスを作り、生成物を静的アセットとして配信する構成を扱います。特定サイトの性能値や運用実績を示すものではなく、各ツールの公式仕様をつないだ実装ガイドです。
+このブログプロジェクトでは、MarkdownをGitで管理し、ビルド時にHTMLと検索インデックスを作り、生成物を静的アセットとして配信する構成を採用しました。この記事は、その構成を各ツールの公式仕様に照らして説明する実装ガイドです。性能値や本番運用の実績を示すものではありません。
 
 > 先に「記事を静的HTMLへ変換する工程」と「生成済みHTMLを配信する工程」を分けると、構成を判断しやすくなります。
 
 ## 採用構成
 
-役割は次のように分けます。
+このプロジェクトで採用した役割分担は次のとおりです。
 
 - Astro: Markdownからページを静的生成する
 - Content Collections: frontmatterを検証し、記事データへ型を付ける
@@ -65,15 +65,16 @@ const { Content } = await render(post);
 </article>
 ```
 
-ビルド時に記事一覧が確定するので、公開前にリンク切れや描画エラーを検出できます。更新を反映するには再ビルドが必要ですが、記事中心のサイトではその境界が明確です。ルーティングの詳細はAstro公式の[ルーティングガイド](https://docs.astro.build/en/guides/routing/)も確認してください。
+ビルド時に記事一覧とルートが確定するので、Content Collectionsのschema違反、`getStaticPaths()` のルート生成エラー、記事の描画・buildエラーを公開前に検出できます。外部リンクの到達性はAstro buildの検査対象ではないため、必要なら別工程で検査します。更新を反映するには再ビルドが必要ですが、記事中心のサイトではその境界が明確です。ルーティングの詳細はAstro公式の[ルーティングガイド](https://docs.astro.build/en/guides/routing/)も確認してください。
 
 ## Content Collections
 
 ファイルが読めることと、記事として正しいことは別問題です。Content Collectionsでは、loaderで記事を集め、schemaでタイトル、日付、カテゴリ、タグなどを検証できます。Astro公式の[Content Collectionsガイド](https://docs.astro.build/en/guides/content-collections/)と[`glob()` loaderリファレンス](https://docs.astro.build/en/reference/content-loader-reference/#glob-loader)に沿う最小構成は次の形です。
 
 ```ts
-import { defineCollection, z } from 'astro:content';
+import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
+import { z } from 'astro/zod';
 
 const blog = defineCollection({
   loader: glob({ base: './src/content/blog', pattern: '**/*.{md,mdx}' }),

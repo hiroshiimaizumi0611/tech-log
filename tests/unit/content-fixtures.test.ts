@@ -22,24 +22,53 @@ async function readArticle(id: string): Promise<string> {
   return readFile(articleUrl, 'utf8');
 }
 
-function bodyOf(markdown: string): string {
-  return markdown.replace(/^---\n[\s\S]*?\n---\n/, '');
+function splitArticle(markdown: string): { frontmatter: string; body: string } {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(markdown);
+
+  if (!match) {
+    throw new Error('Article must start with frontmatter enclosed by --- delimiters');
+  }
+
+  return { frontmatter: match[1], body: markdown.slice(match[0].length) };
+}
+
+function featuredValue(frontmatter: string): boolean {
+  const match = /^featured:\s*(true|false)\s*$/m.exec(frontmatter);
+  return match?.[1] === 'true';
+}
+
+function markdownLinkDestinations(body: string): URL[] {
+  return [...body.matchAll(/\[[^\]]+\]\(([^\s)]+)\)/g)].map(([, destination]) => new URL(destination));
 }
 
 describe('initial production article fixtures', () => {
-  it('contains the exact requested article IDs and only features the Astro article', async () => {
-    const articles = await Promise.all(articleFixtures.map(async ({ id }) => ({ id, source: await readArticle(id) })));
+  it('rejects missing or unclosed frontmatter delimiters', () => {
+    expect(() => splitArticle('title: missing delimiters\n\nBody')).toThrow(/frontmatter enclosed/i);
+    expect(() => splitArticle('---\ntitle: missing closing delimiter\n\nBody')).toThrow(/frontmatter enclosed/i);
+  });
+
+  it('contains the exact requested article IDs with their expected featured values', async () => {
+    const articles = await Promise.all(
+      articleFixtures.map(async ({ id, featured }) => ({
+        id,
+        expectedFeatured: featured,
+        ...splitArticle(await readArticle(id)),
+      })),
+    );
 
     expect(articles.map(({ id }) => id)).toEqual(['build-tech-blog-with-astro-2026', 'terraform-drift-detection']);
-    expect(articles.filter(({ source }) => /^featured: true$/m.test(source)).map(({ id }) => id)).toEqual([
-      'build-tech-blog-with-astro-2026',
-    ]);
+    for (const article of articles) {
+      expect(featuredValue(article.frontmatter), article.id).toBe(article.expectedFeatured);
+    }
+    expect(featuredValue('title: featured defaults to false')).toBe(false);
   });
 
   it.each(articleFixtures)('$id is a substantial, structured article backed by primary references', async (fixture) => {
     const source = await readArticle(fixture.id);
-    const body = bodyOf(source);
+    const { body } = splitArticle(source);
     const contentCharacters = body.replace(/[\s#>`*_[\](){}|+-]/g, '').length;
+    const linkDestinations = markdownLinkDestinations(body);
+    const approvedHosts = new Set<string>(fixture.referenceHosts);
 
     expect(contentCharacters).toBeGreaterThanOrEqual(600);
     expect(body).toMatch(/^##\s+\S+/m);
@@ -47,8 +76,46 @@ describe('initial production article fixtures', () => {
     expect(body).toMatch(/^[-*]\s+\S+/m);
     expect(body).toMatch(/^>\s+\S+/m);
 
+    expect(linkDestinations.length).toBeGreaterThan(0);
+    expect(linkDestinations.every(({ protocol }) => protocol === 'https:')).toBe(true);
+    expect(linkDestinations.every(({ hostname }) => approvedHosts.has(hostname))).toBe(true);
+
     for (const host of fixture.referenceHosts) {
-      expect(body).toContain(`https://${host}/`);
+      expect(
+        linkDestinations.some(({ hostname }) => hostname === host),
+        host,
+      ).toBe(true);
     }
+  });
+
+  it('uses the Astro 7 content collection imports and makes only supported build claims', async () => {
+    const source = await readArticle('build-tech-blog-with-astro-2026');
+    const { body } = splitArticle(source);
+
+    expect(body).toContain("import { defineCollection } from 'astro:content';");
+    expect(body).toContain("import { z } from 'astro/zod';");
+    expect(body).not.toContain("import { defineCollection, z } from 'astro:content';");
+    expect(body).not.toContain('リンク切れ');
+  });
+
+  it('protects every saved Terraform plan and state backup artifact', async () => {
+    const source = await readArticle('terraform-drift-detection');
+    const { body } = splitArticle(source);
+    const shellBlocks = [...body.matchAll(/```sh\n([\s\S]*?)```/g)].map(([, commands]) => commands);
+    const savedPlanBlocks = shellBlocks.filter((commands) => commands.includes('terraform plan') && commands.includes('-out='));
+    const stateBackupBlock = shellBlocks.find((commands) => commands.includes('terraform state pull'));
+
+    expect(savedPlanBlocks.length).toBeGreaterThan(0);
+    for (const commands of savedPlanBlocks) {
+      expect(commands).toContain('umask 077');
+      expect(commands).toMatch(/PLAN_FILE=/);
+      expect(commands).toMatch(/trap ['"]rm -f/);
+      expect(commands).toMatch(/rm -f "\$PLAN_FILE"/);
+    }
+
+    expect(stateBackupBlock).toMatch(/STATE_TMP=.*mktemp/);
+    expect(stateBackupBlock).toMatch(/if ! terraform state pull > "\$STATE_TMP"/);
+    expect(stateBackupBlock).toMatch(/\[ ! -s "\$STATE_TMP" \]/);
+    expect(stateBackupBlock).toMatch(/mv "\$STATE_TMP" "\$BACKUP_FILE"/);
   });
 });
