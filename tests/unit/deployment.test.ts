@@ -1,5 +1,7 @@
 import { spawnSync } from 'node:child_process';
-import { access, readFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse as parseJsonc } from 'jsonc-parser';
 import { describe, expect, it } from 'vitest';
@@ -11,7 +13,14 @@ const artifactUrls = {
   ci: new URL('../../.github/workflows/ci.yml', import.meta.url),
   deploy: new URL('../../.github/workflows/deploy.yml', import.meta.url),
   smoke: new URL('../../scripts/smoke-production.mjs', import.meta.url),
+  productionBuild: new URL('../../scripts/verify-production-build.mjs', import.meta.url),
 };
+
+const ACTIONS = {
+  checkout: 'actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5',
+  setupNode: 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020',
+  wrangler: 'cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd',
+} as const;
 
 describe('deployment artifacts', () => {
   it('creates every required deployment artifact', async () => {
@@ -36,13 +45,17 @@ describe('deployment artifacts', () => {
     expect(workflow.on).toEqual({ pull_request: {} });
     expect(Object.keys(workflow.jobs)).toEqual(['verify']);
     expect(workflow.jobs.verify.name).toBe('verify');
+    expect(workflow.jobs.verify['timeout-minutes']).toBe(20);
     const steps = workflow.jobs.verify.steps as any[];
-    expect(steps.some(({ uses }) => uses === 'actions/checkout@v4')).toBe(true);
-    expect(steps.some(({ uses, with: input }) => uses === 'actions/setup-node@v4' && input?.['node-version'] === 24)).toBe(true);
+    expect(steps.some(({ uses }) => uses === ACTIONS.checkout)).toBe(true);
+    expect(steps.some(({ uses, with: input }) => uses === ACTIONS.setupNode && input?.['node-version'] === 24)).toBe(true);
     expect(steps.some(({ run }) => run === 'npm ci')).toBe(true);
     expect(steps.some(({ run }) => run === 'npx playwright install --with-deps chromium')).toBe(true);
     expect(steps.some(({ run }) => run === 'SITE_URL=https://example.invalid npm run verify')).toBe(true);
     expect(source).not.toMatch(/\b(?:secrets|vars)\./);
+    expect(source).toMatch(new RegExp(`uses: ${ACTIONS.checkout.replace('/', '\\/')} # v4\\.3\\.1`));
+    expect(source).toMatch(new RegExp(`uses: ${ACTIONS.setupNode.replace('/', '\\/')} # v4\\.4\\.0`));
+    expect(source).not.toMatch(/uses:\s+[^\s]+@v\d/);
   });
 
   it('parses deploy YAML and orders verify, deploy action, then mandatory smoke', async () => {
@@ -50,16 +63,24 @@ describe('deployment artifacts', () => {
     const workflow = parse(source) as any;
     expect(workflow.name).toBe('Deploy');
     expect(workflow.on).toEqual({ push: { branches: ['main'] } });
+    expect(workflow.concurrency).toEqual({ group: 'tech-log-production', 'cancel-in-progress': true });
+    expect(workflow.jobs.deploy['timeout-minutes']).toBe(25);
     const steps = workflow.jobs.deploy.steps as any[];
-    expect(steps.some(({ uses }) => uses === 'actions/checkout@v4')).toBe(true);
-    expect(steps.some(({ uses, with: input }) => uses === 'actions/setup-node@v4' && input?.['node-version'] === 24)).toBe(true);
+    expect(steps.some(({ uses }) => uses === ACTIONS.checkout)).toBe(true);
+    expect(steps.some(({ uses, with: input }) => uses === ACTIONS.setupNode && input?.['node-version'] === 24)).toBe(true);
     expect(steps.some(({ run }) => run === 'npm ci')).toBe(true);
     expect(steps.some(({ run }) => run === 'npx playwright install --with-deps chromium')).toBe(true);
     const verifyIndex = steps.findIndex(({ run }) => run === 'npm run verify');
-    const deployIndex = steps.findIndex(({ uses }) => uses === 'cloudflare/wrangler-action@v3');
+    const validationIndex = steps.findIndex(({ run }) => run === 'npm run validate:production');
+    const productionBuildIndex = steps.findIndex(({ run }) => run === 'npm run build');
+    const buildCheckIndex = steps.findIndex(({ run }) => run === 'node scripts/verify-production-build.mjs');
+    const deployIndex = steps.findIndex(({ uses }) => uses === ACTIONS.wrangler);
     const smokeIndex = steps.findIndex(({ run }) => run === 'node scripts/smoke-production.mjs');
     expect(verifyIndex).toBeGreaterThan(-1);
-    expect(deployIndex).toBeGreaterThan(verifyIndex);
+    expect(validationIndex).toBeGreaterThan(verifyIndex);
+    expect(productionBuildIndex).toBeGreaterThan(validationIndex);
+    expect(buildCheckIndex).toBeGreaterThan(productionBuildIndex);
+    expect(deployIndex).toBeGreaterThan(buildCheckIndex);
     expect(smokeIndex).toBeGreaterThan(deployIndex);
     expect(steps[deployIndex].with).toMatchObject({
       apiToken: '${{ secrets.CLOUDFLARE_API_TOKEN }}',
@@ -73,6 +94,42 @@ describe('deployment artifacts', () => {
       SITE_URL: '${{ vars.SITE_URL }}',
       PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN: '${{ vars.PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN }}',
     });
+    expect(source).toMatch(new RegExp(`uses: ${ACTIONS.checkout.replace('/', '\\/')} # v4\\.3\\.1`));
+    expect(source).toMatch(new RegExp(`uses: ${ACTIONS.setupNode.replace('/', '\\/')} # v4\\.4\\.0`));
+    expect(source).toMatch(new RegExp(`uses: ${ACTIONS.wrangler.replace('/', '\\/')} # v3\\.15\\.0`));
+    expect(source).not.toMatch(/uses:\s+[^\s]+@v\d/);
+  });
+});
+
+describe('production build origin verification', () => {
+  it('accepts canonical, OGP, RSS, and sitemap output only from SITE_URL', async () => {
+    const { productionBuildErrors } = await import('../../scripts/verify-production-build.mjs');
+    const origin = 'https://techlog.example';
+    const distDir = await mkdtemp(join(tmpdir(), 'tech-log-production-build-'));
+    try {
+      await mkdir(join(distDir, 'blog/build-tech-blog-with-astro-2026'), { recursive: true });
+      await mkdir(join(distDir, 'about'), { recursive: true });
+      await writeFile(
+        join(distDir, 'index.html'),
+        `<link rel="canonical" href="${origin}/"><meta property="og:url" content="${origin}/"><meta property="og:image" content="${origin}/og-default.png">`,
+      );
+      await writeFile(
+        join(distDir, 'blog/build-tech-blog-with-astro-2026/index.html'),
+        `<link rel="canonical" href="${origin}/blog/build-tech-blog-with-astro-2026/"><meta property="og:url" content="${origin}/blog/build-tech-blog-with-astro-2026/">`,
+      );
+      await writeFile(join(distDir, 'rss.xml'), `<link>${origin}/</link><link>${origin}/blog/build-tech-blog-with-astro-2026/</link>`);
+      await writeFile(join(distDir, 'sitemap-index.xml'), `<loc>${origin}/sitemap-0.xml</loc>`);
+      await writeFile(join(distDir, 'sitemap-0.xml'), `<loc>${origin}/</loc>`);
+      await writeFile(join(distDir, 'about/index.html'), `<link rel="canonical" href="${origin}/about/">`);
+      await expect(productionBuildErrors({ siteUrl: origin, distDir })).resolves.toEqual([]);
+
+      await writeFile(join(distDir, 'about/index.html'), '<link href="https://example.invalid/about/"><secret>body-must-not-leak</secret>');
+      const errors = await productionBuildErrors({ siteUrl: origin, distDir });
+      expect(errors.join('\n')).toMatch(/about[/\\]index\.html/);
+      expect(errors.join('\n')).not.toContain('body-must-not-leak');
+    } finally {
+      await rm(distDir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -80,7 +137,8 @@ describe('post-deploy smoke checks', () => {
   it('checks four public resources as 2xx and a missing resource as 404 without reading bodies', async () => {
     const { smokeProduction, SMOKE_PATHS } = await import('../../scripts/smoke-production.mjs');
     const requested: string[] = [];
-    const fetchImpl: typeof fetch = async (input) => {
+    const fetchImpl: typeof fetch = async (input, init) => {
+      expect(init?.redirect).toBe('manual');
       const url = input instanceof Request ? input.url : String(input);
       const pathname = new URL(url).pathname;
       requested.push(url);
@@ -118,6 +176,29 @@ describe('post-deploy smoke checks', () => {
         },
       }),
     ).rejects.toThrow(/request failed.*\//i);
+  });
+
+  it.each([
+    [301, 'https://techlog.example/other'],
+    [302, 'https://attacker.invalid/collect'],
+  ])('rejects direct-path redirect %s without following or logging its location', async (status, location) => {
+    const { smokeProduction } = await import('../../scripts/smoke-production.mjs');
+    let error: unknown;
+    try {
+      await smokeProduction({
+        siteUrl: 'https://techlog.example',
+        fetchImpl: async (_input, init) => {
+          expect(init?.redirect).toBe('manual');
+          return new Response(null, { status, headers: { location } });
+        },
+      });
+    } catch (caught) {
+      error = caught;
+    }
+    expect(error).toBeInstanceOf(Error);
+    const message = error instanceof Error ? error.message : '';
+    expect(message).toMatch(/expected 2xx.*received 30[12]/i);
+    expect(message).not.toContain(location);
   });
 
   it('rejects invalid origins and exposes an executable CLI guard', async () => {

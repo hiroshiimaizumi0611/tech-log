@@ -19,7 +19,7 @@ export async function smokeProduction({ siteUrl = process.env.SITE_URL, fetchImp
     let response;
     try {
       response = await fetchImpl(new URL(path, siteUrl), {
-        redirect: 'follow',
+        redirect: 'manual',
         signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (error) {
