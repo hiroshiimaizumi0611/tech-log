@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readdir } from 'node:fs/promises';
 
 const reducedMotionSearchModule = `
 export const init = async () => {};
@@ -21,6 +22,11 @@ const viewports = [
 
 const routes = ['/', '/blog/', '/tags/', '/categories/', '/about/', '/privacy/', '/blog/build-tech-blog-with-astro-2026/'] as const;
 
+test('visual goldensをplatform非依存名で管理する', async () => {
+  const files = await readdir(new URL('./visual.spec.ts-snapshots/', import.meta.url));
+  expect(files.sort()).toEqual(['home-desktop.png', 'home-mobile.png', 'home-tablet.png']);
+});
+
 async function expectNoPageOverflow(page: Page) {
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 }
@@ -33,6 +39,7 @@ for (const viewport of viewports) {
     await expect(page).toHaveScreenshot(`home-${viewport.name}.png`, {
       animations: 'disabled',
       fullPage: true,
+      maxDiffPixelRatio: 0.01,
     });
   });
 
@@ -90,6 +97,36 @@ test('390pxではコードだけが内部スクロールを受け持つ', async 
   await expect(codeBlocks.first()).toHaveCSS('overflow-x', 'auto');
 });
 
+test('Featuredの長い英数字を1024pxと390pxでカード内に折り返す', async ({ page }) => {
+  const longText = 'ExtremelyLongUnbrokenTechnicalIdentifier'.repeat(12);
+  for (const viewport of [
+    { width: 1024, height: 900 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto('/');
+
+    const targets = [
+      page.locator('.featured h2'),
+      page.locator('.featured .description'),
+      page.locator('.featured .code-header span').first(),
+    ];
+    for (const target of targets) {
+      await target.evaluate((element, text) => {
+        element.textContent = text;
+      }, longText);
+      await expect(target).toBeVisible();
+      const size = await target.evaluate((element) => ({ client: element.clientWidth, scroll: element.scrollWidth }));
+      expect(size.scroll).toBeLessThanOrEqual(size.client);
+    }
+
+    const featured = page.locator('.featured');
+    const featuredSize = await featured.evaluate((element) => ({ client: element.clientWidth, scroll: element.scrollWidth }));
+    expect(featuredSize.scroll).toBeLessThanOrEqual(featuredSize.client);
+    await expectNoPageOverflow(page);
+  }
+});
+
 test('reduced motionでは全hover移動とtransitionを停止する', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.route('**/pagefind/pagefind.js', (route) =>
@@ -126,4 +163,15 @@ test('reduced motionでは全hover移動とtransitionを停止する', async ({ 
     });
     expect(durations.every((value) => Number.parseFloat(value) <= 0.001)).toBe(true);
   }
+
+  await page.keyboard.press('Escape');
+  await page.goto('/categories/');
+  const categoryCard = page.locator('.category-index > a').first();
+  await categoryCard.hover();
+  await expect(categoryCard).toHaveCSS('transform', 'none');
+  const categoryDurations = await categoryCard.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return [...style.transitionDuration.split(','), ...style.animationDuration.split(',')];
+  });
+  expect(categoryDurations.every((value) => Number.parseFloat(value) <= 0.001)).toBe(true);
 });

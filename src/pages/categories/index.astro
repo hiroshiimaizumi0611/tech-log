@@ -98,6 +98,12 @@ const categories = CATEGORY_KEYS.map((key) => ({
     transform: translateY(-0.25rem);
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    .category-index > a:hover {
+      transform: none;
+    }
+  }
+
   .artwork {
     display: block;
     aspect-ratio: 16 / 7;
