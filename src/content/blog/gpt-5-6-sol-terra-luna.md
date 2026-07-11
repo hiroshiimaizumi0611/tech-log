@@ -10,7 +10,7 @@ tags:
   - AI
 ---
 
-GPT-5.6は、ひとつのモデル名ではなく、Sol・Terra・Lunaという3つの能力階層を持つモデルファミリーです。選ぶときは「常に最上位」ではなく、必要な品質、待ち時間、APIコスト、利用する製品を分けて考える必要があります。
+GPT-5.6は、Sol・Terra・Lunaという3つの能力階層を持つ世代・モデルファミリーです。一方、APIで接尾辞のないモデル識別子（alias）`gpt-5.6`を指定するとSolへルーティングされると、公式の[GPT-5.6 Solモデルページ](https://developers.openai.com/api/docs/models/gpt-5.6-sol)に明記されています。選ぶときは「常に最上位」ではなく、必要な品質、待ち時間、APIコスト、利用する製品を分けて考える必要があります。
 
 > 料金、対象プラン、ロールアウト状況は2026-07-11時点の情報です。
 
@@ -30,7 +30,7 @@ OpenAIは、モデル名の数字を世代、Sol・Terra・Lunaを独立した�
 
 ## Sol
 
-SolはGPT-5.6のフラッグシップです。OpenAIは、コーディング、知識労働、サイバーセキュリティ、科学、コンピューター操作、デザインを含む複雑な仕事向けと説明しています。通常のChatGPTでMedium以上の推論を選んだときに使われるGPT-5.6もSolです。
+SolはGPT-5.6のフラッグシップです。OpenAIは、コーディング、知識労働、サイバーセキュリティ、科学、コンピューター操作、デザインを含む複雑な仕事向けと説明しています。通常のChatGPTでは、Medium・High・Extra HighがGPT-5.6 Sol、ProがGPT-5.6 Sol Proを使います。選べる項目はプランによって異なります。
 
 本記事では、次の条件に当てはまるときSolを第一候補にします。
 
@@ -58,30 +58,31 @@ LunaはGPT-5.6ファミリーで最速、かつAPI単価が最も低い階層で
 
 ## 料金表
 
-2026-07-11時点のOpenAI API料金は、100万トークンあたり次のとおりです。ChatGPTの月額プラン料金ではありません。
+2026-07-11時点のOpenAI APIにおける標準・短文脈の基本料金は、100万テキストトークンあたり次のとおりです。単位は米ドルで、ChatGPTの月額プラン料金ではありません。
 
-| モデル        |  入力 |   出力 | キャッシュ書き込み |  キャッシュ読み取り |
-| ------------- | ----: | -----: | -----------------: | ------------------: |
-| GPT-5.6 Sol   | $5.00 | $30.00 |   通常入力の1.25倍 | 通常入力から90%割引 |
-| GPT-5.6 Terra | $2.50 | $15.00 |   通常入力の1.25倍 | 通常入力から90%割引 |
-| GPT-5.6 Luna  | $1.00 |  $6.00 |   通常入力の1.25倍 | 通常入力から90%割引 |
+| モデル                                                                       |  入力 | Cached input | Cache write |   出力 |
+| ---------------------------------------------------------------------------- | ----: | -----------: | ----------: | -----: |
+| [GPT-5.6 Sol](https://developers.openai.com/api/docs/models/gpt-5.6-sol)     | $5.00 |        $0.50 |       $6.25 | $30.00 |
+| [GPT-5.6 Terra](https://developers.openai.com/api/docs/models/gpt-5.6-terra) | $2.50 |        $0.25 |      $3.125 | $15.00 |
+| [GPT-5.6 Luna](https://developers.openai.com/api/docs/models/gpt-5.6-luna)   | $1.00 |        $0.10 |       $1.25 |  $6.00 |
 
-料金の直接の出典は[GPT-5.6発表のAvailability and pricing](https://openai.com/index/gpt-5-6/)です。実際の請求では入力・出力トークン数、キャッシュ利用、再試行などが影響します。公開後に料金が変わり得るため、導入時には同ページの最新表示を再確認してください。
+この数値は公式の[API料金ページ](https://developers.openai.com/api/docs/pricing)にあるStandard・Short contextの基本料金です。入力が272Kトークンを**超える**プロンプトは、リクエスト全体に入力2倍・出力1.5倍の長文脈料金が適用されます。公式料金表では長文脈のcached inputとcache writeも短文脈の2倍です。実際の請求では処理方式、入力・出力トークン数、キャッシュ利用、再試行などが影響します。公開後に料金が変わり得るため、導入時には料金ページを再確認してください。
 
 ## ChatGPT・Work・Codex・APIでの提供差
 
-2026-07-11時点では、製品ごとに選べるモデルが異なります。ロールアウト中のため、対象プランでもアカウントにまだ表示されない場合があります。
+2026-07-11時点では、製品画面を利用できることと、その中で各GPT-5.6モデルを選べることは別です。ロールアウト中のため、対象プランでもアカウントにまだ表示されない場合があります。
 
-| 利用面       | GPT-5.6の提供状況                                                                                         |
-| ------------ | --------------------------------------------------------------------------------------------------------- |
-| 標準Chat     | PlusはSolのMedium・High。Pro、Business、EnterpriseはSolのMedium・High・Extra High・Pro。Free・GoはSolなし |
-| ChatGPT Work | Plus、Pro、Business、EnterpriseでSol・Terra・Luna。発表上、Free・GoはTerra                                |
-| Codex        | Free・GoはTerra。Plus、Pro、Business、EnterpriseはSol・Terra・Luna                                        |
-| OpenAI API   | Sol・Terra・Luna                                                                                          |
+| 利用面             | 画面の提供                                                         | GPT-5.6のモデル権利                                                                                                                                 |
+| ------------------ | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 標準Chat           | 対象のChatGPTプラン                                                | PlusはSolのMedium・High。Pro、Business、EnterpriseはSolのMedium・High・Extra High・Pro。Free・GoはSolなし                                           |
+| Workデスクトップ   | [Work製品ページ](https://openai.com/chatgpt-work/)では全プラン向け | 発表上、Free・GoはTerra。Plus、Pro、Business、EnterpriseはSol・Terra・Luna                                                                          |
+| Work Web・モバイル | Plus、Pro、Business、Enterprise、Eduへ段階的提供。Free・Goは対象外 | 公式のGPT-5.6権利表はPlus、Pro、Business、EnterpriseにSol・Terra・Lunaを明記。Eduのモデル階層は同表で未記載のため、ワークスペースと管理者設定を確認 |
+| Codex              | 対象プランのCodex                                                  | Free・GoはTerra。Plus、Pro、Business、EnterpriseはSol・Terra・Luna                                                                                  |
+| OpenAI API         | API                                                                | Sol・Terra・Luna                                                                                                                                    |
 
 特に、**TerraとLunaは標準ChatGPTの会話では選択できません**。標準ChatではGPT-5.5 Instantが日常応答の既定で、GPT-5.6 Solは対象プランの推論設定から使います。Work・Codex・APIとの違いは[GPT-5.6 in ChatGPTの提供表](https://help.openai.com/en/articles/20001354-gpt-56-in-chatgpt)で明記されています。
 
-また、WorkやCodexを利用できることと、すべてのモデル・推論設定を選べることは同義ではありません。プラン、管理ワークスペースの設定、アプリのバージョン、段階的ロールアウトを確認します。
+Workの画面提供は[Work製品ページ](https://openai.com/chatgpt-work/)、モデル権利は[GPT-5.6 in ChatGPTの提供表](https://help.openai.com/en/articles/20001354-gpt-56-in-chatgpt)と[GPT-5.6発表](https://openai.com/index/gpt-5-6/)を分けて参照しています。WorkやCodexを利用できることと、すべてのモデル・推論設定を選べることは同義ではありません。プラン、管理ワークスペースの設定、アプリのバージョン、段階的ロールアウトを確認します。
 
 ## 用途別選択
 
