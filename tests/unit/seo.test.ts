@@ -22,8 +22,32 @@ describe('SEO metadata', () => {
     });
   });
 
-  it('describes the site as Blog and an article as BlogPosting by the same Person', () => {
+  it('describes only the homepage as the stable site Blog', () => {
     const blog = buildJsonLd({ ...base, pathname: '/', title: 'テックログ', pageType: 'website' });
+    expect(blog).toMatchObject({
+      '@type': 'Blog',
+      '@id': 'https://example.invalid/#blog',
+      author: { '@type': 'Person', '@id': 'https://example.invalid/#person', name: 'Hiroshi Imaizumi' },
+      publisher: { '@id': 'https://example.invalid/#person' },
+    });
+  });
+
+  it('describes normal routes as WebPage within the stable site Blog', () => {
+    const page = buildJsonLd({ ...base, pathname: '/privacy/', title: 'プライバシーポリシー', pageType: 'website' });
+    expect(page).toMatchObject({
+      '@type': 'WebPage',
+      '@id': 'https://example.invalid/privacy/#webpage',
+      url: 'https://example.invalid/privacy/',
+      isPartOf: {
+        '@type': 'Blog',
+        '@id': 'https://example.invalid/#blog',
+        author: { '@type': 'Person', '@id': 'https://example.invalid/#person' },
+        publisher: { '@id': 'https://example.invalid/#person' },
+      },
+    });
+  });
+
+  it('describes an article as BlogPosting linked to the same Blog and Person', () => {
     const article = buildJsonLd({
       ...base,
       pageType: 'article',
@@ -31,14 +55,15 @@ describe('SEO metadata', () => {
       updatedAt: '2026-07-12T00:00:00.000Z',
     });
 
-    expect(blog['@type']).toBe('Blog');
-    expect(blog.author).toMatchObject({ '@type': 'Person', name: 'Hiroshi Imaizumi' });
     expect(article).toMatchObject({
       '@type': 'BlogPosting',
+      '@id': 'https://example.invalid/blog/example/#article',
       headline: '記事タイトル',
       datePublished: '2026-07-11T00:00:00.000Z',
       dateModified: '2026-07-12T00:00:00.000Z',
-      author: { '@type': 'Person', name: 'Hiroshi Imaizumi' },
+      author: { '@id': 'https://example.invalid/#person' },
+      publisher: { '@id': 'https://example.invalid/#person' },
+      isPartOf: { '@type': 'Blog', '@id': 'https://example.invalid/#blog' },
     });
   });
 

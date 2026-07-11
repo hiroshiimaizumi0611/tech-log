@@ -44,39 +44,54 @@ export function buildSeo(input: SeoInput) {
 
 export function buildJsonLd(input: SeoInput): Record<string, unknown> {
   const seo = buildSeo(input);
-  const author = {
+  const siteRoot = absoluteUrl('/', input.siteUrl);
+  const personId = `${siteRoot}#person`;
+  const blogId = `${siteRoot}#blog`;
+  const person = {
     '@type': 'Person',
+    '@id': personId,
     name: SITE.author,
+  };
+  const personReference = { '@id': personId };
+  const blog = {
+    '@type': 'Blog',
+    '@id': blogId,
+    name: SITE.name,
+    description: SITE.description,
+    url: siteRoot,
+    author: person,
+    publisher: personReference,
   };
 
   if (input.pageType === 'article') {
     return {
       '@context': 'https://schema.org',
       '@type': 'BlogPosting',
+      '@id': `${seo.canonical}#article`,
       headline: input.title,
       description: input.description,
       url: seo.canonical,
       image: seo.image,
       ...(input.publishedAt ? { datePublished: input.publishedAt } : {}),
       ...(input.updatedAt ? { dateModified: input.updatedAt } : {}),
-      author,
-      publisher: author,
-      isPartOf: {
-        '@type': 'Blog',
-        name: SITE.name,
-        url: absoluteUrl('/', input.siteUrl),
-      },
+      author: personReference,
+      publisher: personReference,
+      isPartOf: blog,
     };
+  }
+
+  if (new URL(input.pathname, siteRoot).pathname === '/') {
+    return { '@context': 'https://schema.org', ...blog };
   }
 
   return {
     '@context': 'https://schema.org',
-    '@type': 'Blog',
-    name: SITE.name,
-    headline: input.title,
+    '@type': 'WebPage',
+    '@id': `${seo.canonical}#webpage`,
+    name: input.title,
     description: input.description,
     url: seo.canonical,
-    author,
+    isPartOf: blog,
   };
 }
 

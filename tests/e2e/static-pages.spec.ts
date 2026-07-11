@@ -19,6 +19,22 @@ test('About、Privacy、404に必要な内容と復帰導線がある', async ({
 });
 
 test('canonical、OGP、Twitter Card、favicon、JSON-LDを出力する', async ({ page }) => {
+  await page.goto('/');
+  const homeData = JSON.parse((await page.locator('script[type="application/ld+json"]').textContent()) ?? '{}');
+  expect(homeData).toMatchObject({
+    '@type': 'Blog',
+    '@id': 'https://example.invalid/#blog',
+    author: { '@id': 'https://example.invalid/#person' },
+  });
+
+  await page.goto('/privacy/');
+  const privacyData = JSON.parse((await page.locator('script[type="application/ld+json"]').textContent()) ?? '{}');
+  expect(privacyData).toMatchObject({
+    '@type': 'WebPage',
+    '@id': 'https://example.invalid/privacy/#webpage',
+    isPartOf: { '@id': 'https://example.invalid/#blog' },
+  });
+
   await page.goto('/blog/build-tech-blog-with-astro-2026/');
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     'href',
@@ -30,8 +46,12 @@ test('canonical、OGP、Twitter Card、favicon、JSON-LDを出力する', async 
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon.svg');
 
   const structuredData = JSON.parse((await page.locator('script[type="application/ld+json"]').textContent()) ?? '{}');
-  expect(structuredData['@type']).toBe('BlogPosting');
-  expect(structuredData.author).toMatchObject({ '@type': 'Person', name: 'Hiroshi Imaizumi' });
+  expect(structuredData).toMatchObject({
+    '@type': 'BlogPosting',
+    '@id': 'https://example.invalid/blog/build-tech-blog-with-astro-2026/#article',
+    author: { '@id': 'https://example.invalid/#person' },
+    isPartOf: { '@id': 'https://example.invalid/#blog' },
+  });
 });
 
 test('RSS、sitemap、robotsは公開記事だけを案内する', async ({ request }) => {

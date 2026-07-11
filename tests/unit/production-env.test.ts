@@ -1,7 +1,21 @@
+import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { productionEnvErrors } from '../../scripts/validate-production-env.mjs';
 import { siteUrlError } from '../../scripts/validate-site-url.mjs';
+
+const projectRoot = fileURLToPath(new URL('../..', import.meta.url));
+
+function run(command: string, args: string[], overrides: Record<string, string | undefined> = {}) {
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value === undefined) delete env[key];
+    else env[key] = value;
+  }
+  return spawnSync(command, args, { cwd: projectRoot, env, encoding: 'utf8' });
+}
 
 describe('SITE_URL validation', () => {
   it('accepts only a valid HTTPS origin without credentials, query, or hash', () => {
@@ -12,6 +26,40 @@ describe('SITE_URL validation', () => {
     expect(siteUrlError('https://user:pass@techlog.example')).toMatch(/origin/);
     expect(siteUrlError('https://techlog.example/path')).toMatch(/origin/);
   });
+
+  it('runs its CLI main guard and returns the correct exit code', () => {
+    const script = fileURLToPath(new URL('../../scripts/validate-site-url.mjs', import.meta.url));
+    expect(run(process.execPath, [script], { SITE_URL: undefined }).status).toBe(1);
+    expect(run(process.execPath, [script], { SITE_URL: 'http://techlog.example' }).status).toBe(1);
+    expect(run(process.execPath, [script], { SITE_URL: 'https://techlog.example' }).status).toBe(0);
+  });
+
+  it('connects validation to npm prebuild and renders one safe analytics beacon', () => {
+    expect(run('npm', ['run', 'build'], { SITE_URL: undefined }).status).toBe(1);
+    expect(run('npm', ['run', 'build'], { SITE_URL: 'http://techlog.example' }).status).toBe(1);
+
+    const token = 'automated-public-analytics-token';
+    const built = run('npm', ['run', 'build'], {
+      NODE_ENV: 'production',
+      DEV: undefined,
+      MODE: undefined,
+      PROD: undefined,
+      VITEST: undefined,
+      VITEST_MODE: undefined,
+      VITEST_POOL_ID: undefined,
+      VITEST_WORKER_ID: undefined,
+      SITE_URL: 'https://example.invalid',
+      PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN: token,
+    });
+    expect(built.status, `${built.stdout}\n${built.stderr}`).toBe(0);
+    expect(`${built.stdout}\n${built.stderr}`).not.toContain(token);
+
+    const html = readFileSync(new URL('../../dist/index.html', import.meta.url), 'utf8');
+    expect(html.match(/static\.cloudflareinsights\.com\/beacon\.min\.js/g)).toHaveLength(1);
+    const encoded = /data-cf-beacon="([^"]+)"/.exec(html)?.[1];
+    expect(encoded).toBeDefined();
+    expect(JSON.parse(encoded!.replaceAll('&quot;', '"'))).toEqual({ token });
+  }, 30_000);
 });
 
 describe('production environment validation', () => {
