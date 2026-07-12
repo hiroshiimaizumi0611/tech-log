@@ -64,7 +64,7 @@ test('デスクトップナビゲーションに主要リンクだけを表示�
   await expect(page.getByRole('button', { name: '検索を開く' })).toHaveCount(1);
 });
 
-test('フッターに説明と必須リンクを表示し空のSNSリンクは描画しない', async ({ page }) => {
+test('フッターに説明、公開連絡先、必須リンクを表示し未設定SNSは描画しない', async ({ page }) => {
   await page.goto('/');
 
   const footer = page.locator('footer');
@@ -81,7 +81,9 @@ test('フッターに説明と必須リンクを表示し空のSNSリンクは�
   await expect(footer.getByRole('link', { name: 'RSS', exact: true })).toHaveAttribute('href', '/rss.xml');
   await expect(footer.getByText(`© ${new Date().getFullYear()} Hiroshi Imaizumi`, { exact: true })).toBeVisible();
   await expect(footer.locator('a[href=""]')).toHaveCount(0);
-  await expect(footer.getByRole('link', { name: /GitHub|X|Zenn|メール/ })).toHaveCount(0);
+  await expect(footer.getByRole('link', { name: 'GitHub', exact: true })).toHaveAttribute('href', 'https://github.com/hiroshiimaizumi0611');
+  await expect(footer.getByRole('link', { name: 'メール', exact: true })).toHaveAttribute('href', 'mailto:hiroshiimaizumi0611@gmail.com');
+  await expect(footer.getByRole('link', { name: /X|Zenn/ })).toHaveCount(0);
 });
 
 test('モバイルメニューを開閉しフォーカスとスクロールを復元する', async ({ page }) => {

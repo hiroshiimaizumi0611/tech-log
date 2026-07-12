@@ -6,6 +6,15 @@ test('About、Privacy、404に必要な内容と復帰導線がある', async ({
   await expect(page.getByRole('heading', { level: 1, name: 'このブログについて' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '得意分野' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '技術スタック' })).toBeVisible();
+  const aboutMain = page.locator('#main-content');
+  await expect(aboutMain.getByRole('link', { name: 'GitHub', exact: true })).toHaveAttribute(
+    'href',
+    'https://github.com/hiroshiimaizumi0611',
+  );
+  await expect(aboutMain.getByRole('link', { name: 'メールで問い合わせる' })).toHaveAttribute(
+    'href',
+    'mailto:hiroshiimaizumi0611@gmail.com',
+  );
 
   await page.goto('/privacy/');
   await expect(page.getByRole('heading', { level: 1, name: 'プライバシーポリシー' })).toBeVisible();

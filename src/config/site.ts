@@ -16,8 +16,8 @@ export const SITE = {
   author: 'Hiroshi Imaizumi',
   tagline: 'つくる、動かす、改善する。',
   description: 'クラウド、バックエンド、フロントエンド、IaC、AI、運用まで。現場で得た技術の実践知を、わかりやすく発信します。',
-  email: '',
-  github: '',
+  email: 'hiroshiimaizumi0611@gmail.com',
+  github: 'https://github.com/hiroshiimaizumi0611',
   x: '',
   zenn: '',
 } as const;
