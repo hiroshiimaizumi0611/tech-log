@@ -43,6 +43,17 @@ describe('README authoring and publishing guide', () => {
     expect(readme).toMatch(/検索.+npm run build/is);
   });
 
+  it('keeps the minimal frontmatter copyable and explains optional local images without inventing assets', async () => {
+    const readme = await readProjectFile('README.md');
+    const minimalExample = readme.match(/最小例です。\s*```yaml\s*([\s\S]*?)```/)?.[1];
+
+    expect(minimalExample).toBeDefined();
+    expect(minimalExample).not.toMatch(/^(?:heroImage|ogImage):/m);
+    expect(readme).toContain('`src/assets/blog/` に画像ファイルを先に追加');
+    expect(readme).toContain('`src/content/blog/` の記事から `../../assets/blog/<ファイル名>`');
+    expect(readme).toMatch(/`heroImage`.+`ogImage`.+任意.+省略/is);
+  });
+
   it('documents exact deployment settings and keeps external publication conditional', async () => {
     const readme = await readProjectFile('README.md');
 

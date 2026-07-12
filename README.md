@@ -53,8 +53,6 @@ updatedAt: '2026-07-12'
 category: Frontend
 tags:
   - Astro
-heroImage: ../../assets/blog/example.svg
-ogImage: ../../assets/blog/example-og.png
 draft: true
 ---
 ```
@@ -69,7 +67,7 @@ draft: true
 - `ogImage`: 任意。SNS共有用画像。省略時は `heroImage`、さらに未設定なら既定画像を使用。
 - `draft`: 任意。安全のため執筆中は `true` にする。
 
-画像ファイルは `src/assets/blog/` へ置きます。著作権と公開可否を確認した素材だけを追加してください。
+`heroImage` と `ogImage` は任意で、画像を使わない場合は省略します。使う場合は `src/assets/blog/` に画像ファイルを先に追加し、`src/content/blog/` の記事から `../../assets/blog/<ファイル名>` の形式で指定します。これは現在のcontent schemaの `image()` が検証・importできる、記事ファイル基準の相対パスです。著作権と公開可否を確認した実在ファイルだけを指定してください。
 
 ## テスト
 
