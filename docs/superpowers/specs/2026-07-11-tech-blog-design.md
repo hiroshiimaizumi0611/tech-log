@@ -12,6 +12,15 @@
 
 初期版の完了条件は、Cloudflare Workersの`*.workers.dev` URLで公開可能かつ実際に閲覧できる状態である。独自ドメイン接続は初期版の対象外とする。
 
+### 1.1 要件の優先順位
+
+この設計書は、ユーザー提供の`tech-blog-implementation-spec.md`を対話で更新し、承認された最新版である。両者が競合する場合はこの設計書を優先する。特に次は意図的な変更であり、元仕様へ戻さない。
+
+- Pagefind全文検索を後回しから初期リリース必須へ変更する。
+- 初期記事3と4を、GPT-5.6 Sol・Terra・LunaおよびChatGPT Workの記事へ変更する。
+- 初期4記事を表示確認用ダミーではなく、公開可能な実用記事として作成する。
+- 初期版はダークテーマだけとし、ライトテーマ切り替えは実装しない。
+
 ## 2. ブランドとコンテンツ方針
 
 ### 2.1 ブランド
@@ -153,7 +162,7 @@ GitHubリポジトリはPublicとし、サイト実装自体もポートフォ�
 ### 6.2 共通UI
 
 - `Header`: ロゴ、ホーム、記事、カテゴリー、タグ、プロフィール、検索、モバイルメニュー
-- `Footer`: ロゴ、説明、メニュー、カテゴリー、Privacy、RSS、設定済みSNS
+- `Footer`: ロゴ、説明、メニュー、カテゴリー、Privacy、問い合わせ用`mailto:`、RSS、設定済みSNS、Copyright
 - `Container`: 最大幅と左右余白
 - `SectionHeading`: セクション見出しと任意リンク
 - `TagChip`: タグリンク、件数、Hover、可視フォーカス
@@ -325,6 +334,7 @@ Pagefindのモーダル検索を採用する。ヘッダーの検索ボタンか
 - 記事タイトルは`記事タイトル | テックログ`とする。
 - Blog、BlogPosting、PersonのJSON-LDを適用する。
 - OGPとTwitter Cardを設定する。
+- テックログのブランドに合わせたfaviconを設定する。
 - 本番URLは環境変数で一元管理し、Production buildでは未設定をエラーにする。
 - RSS、sitemap、Pagefindには公開記事だけを含める。
 
@@ -442,7 +452,8 @@ Cloudflare Web AnalyticsはProductionだけで有効化する。`PUBLIC_CLOUDFLA
 - `draft: true`はProductionの全導線と索引から除外される。
 - 注目記事、関連記事、前後記事が規則どおり生成される。
 - Pagefindモーダル、モバイルメニュー、コードコピーをキーボードで操作できる。
-- 404、RSS、sitemap、OGP、構造化データが存在する。
+- 404、RSS、sitemap、OGP、構造化データ、faviconが存在する。
+- Footerに問い合わせ、Copyright、RSS、設定済みSNSへの導線が存在する。
 - 初期4記事が実用的な内容で公開される。
 - GitHub ActionsのPRチェックが機能する。
 - `main`マージ後にCloudflare Workersへ公開され、スモークテストが成功する。
