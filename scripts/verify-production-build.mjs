@@ -20,32 +20,33 @@ async function textArtifacts(directory, prefix = '') {
 export async function productionBuildErrors({ siteUrl = process.env.SITE_URL, distDir = resolve('dist') } = {}) {
   const validationError = siteUrlError(siteUrl);
   if (validationError) return [validationError];
+  const origin = new URL(siteUrl).origin;
 
   const checks = [
     {
       file: 'index.html',
       expected: [
-        [`rel="canonical" href="${siteUrl}/"`, 'canonical'],
-        [`property="og:url" content="${siteUrl}/"`, 'OG URL'],
-        [`property="og:image" content="${siteUrl}/og-default.png"`, 'OG image'],
+        [`rel="canonical" href="${origin}/"`, 'canonical'],
+        [`property="og:url" content="${origin}/"`, 'OG URL'],
+        [`property="og:image" content="${origin}/og-default.png"`, 'OG image'],
       ],
     },
     {
       file: `blog${ARTICLE_PATH.slice('/blog'.length)}index.html`,
       expected: [
-        [`rel="canonical" href="${siteUrl}${ARTICLE_PATH}"`, 'article canonical'],
-        [`property="og:url" content="${siteUrl}${ARTICLE_PATH}"`, 'article OG URL'],
+        [`rel="canonical" href="${origin}${ARTICLE_PATH}"`, 'article canonical'],
+        [`property="og:url" content="${origin}${ARTICLE_PATH}"`, 'article OG URL'],
       ],
     },
     {
       file: 'rss.xml',
       expected: [
-        [`<link>${siteUrl}/</link>`, 'RSS site link'],
-        [`${siteUrl}${ARTICLE_PATH}`, 'RSS article link'],
+        [`<link>${origin}/</link>`, 'RSS site link'],
+        [`${origin}${ARTICLE_PATH}`, 'RSS article link'],
       ],
     },
-    { file: 'sitemap-index.xml', expected: [[`${siteUrl}/sitemap-0.xml`, 'sitemap index origin']] },
-    { file: 'sitemap-0.xml', expected: [[`<loc>${siteUrl}/</loc>`, 'sitemap URL origin']] },
+    { file: 'sitemap-index.xml', expected: [[`${origin}/sitemap-0.xml`, 'sitemap index origin']] },
+    { file: 'sitemap-0.xml', expected: [[`<loc>${origin}/</loc>`, 'sitemap URL origin']] },
   ];
 
   const errors = new Set();

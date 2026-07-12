@@ -121,7 +121,20 @@ describe('production build origin verification', () => {
       await writeFile(join(distDir, 'sitemap-index.xml'), `<loc>${origin}/sitemap-0.xml</loc>`);
       await writeFile(join(distDir, 'sitemap-0.xml'), `<loc>${origin}/</loc>`);
       await writeFile(join(distDir, 'about/index.html'), `<link rel="canonical" href="${origin}/about/">`);
-      await expect(productionBuildErrors({ siteUrl: origin, distDir })).resolves.toEqual([]);
+      for (const siteUrl of [origin, `${origin}/`]) {
+        await expect(productionBuildErrors({ siteUrl, distDir })).resolves.toEqual([]);
+      }
+
+      for (const invalidSiteUrl of [
+        `${origin}/path`,
+        `${origin}/?query=value`,
+        `${origin}/#fragment`,
+        'https://user:password@techlog.example/',
+      ]) {
+        const validationErrors = await productionBuildErrors({ siteUrl: invalidSiteUrl, distDir });
+        expect(validationErrors.join('\n')).toMatch(/origin without credentials, a path, query, or fragment/i);
+        expect(validationErrors.join('\n')).not.toContain('password');
+      }
 
       await writeFile(join(distDir, 'about/index.html'), '<link href="https://example.invalid/about/"><secret>body-must-not-leak</secret>');
       const errors = await productionBuildErrors({ siteUrl: origin, distDir });
