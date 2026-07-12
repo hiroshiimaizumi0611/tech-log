@@ -1,7 +1,17 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
+import { blogMetadataSchema } from '../../src/lib/content/schema';
+
 const readProjectFile = (path: string) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
+const shellCommands = (source: string) =>
+  [...source.matchAll(/```sh\s*([\s\S]*?)```/g)].flatMap((match) =>
+    match[1]
+      .trim()
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean),
+  );
 
 describe('README authoring and publishing guide', () => {
   it('documents every required beginner-facing section and local command', async () => {
@@ -25,8 +35,19 @@ describe('README authoring and publishing guide', () => {
     }
 
     expect(readme).toMatch(/Node\.js 24/);
-    for (const command of ['npm ci', 'npm run dev', 'npm run check', 'npm test', 'npm run build', 'npm run verify']) {
-      expect(readme).toContain(command);
+    const commands = shellCommands(readme);
+    for (const command of [
+      'npm ci',
+      'npx playwright install chromium',
+      'npx playwright install --with-deps chromium',
+      'npm run dev',
+      'npm run check',
+      'npm test',
+      'SITE_URL=https://example.invalid npm run build',
+      'npm run preview',
+      'SITE_URL=https://example.invalid npm run verify',
+    ]) {
+      expect(commands).toContain(command);
     }
     expect(readme).toMatch(/SITE_URL.+HTTPS.+origin/is);
     expect(readme.indexOf('Astro build')).toBeLessThan(readme.indexOf('Pagefindで'));
@@ -34,13 +55,61 @@ describe('README authoring and publishing guide', () => {
 
   it('explains article metadata, drafts, publication, and search indexing', async () => {
     const readme = await readProjectFile('README.md');
+    const frontmatterSection = readme.match(/## frontmatter\s*([\s\S]*?)(?=\n## )/)?.[1] ?? '';
+    const documentedFields = [...frontmatterSection.matchAll(/^- `([A-Za-z]+)`:/gm)].map((match) => match[1]);
+    const schemaFields = Object.keys(blogMetadataSchema.shape);
+    const requiredFields = ['title', 'description', 'publishedAt', 'category', 'tags'] as const;
+    const optionalFields = ['updatedAt', 'draft', 'featured', 'featuredCode', 'heroImage', 'ogImage'] as const;
 
-    for (const field of ['title', 'description', 'publishedAt', 'updatedAt', 'category', 'tags', 'heroImage', 'ogImage', 'draft']) {
-      expect(readme).toContain(`\`${field}\``);
+    expect(new Set(documentedFields)).toEqual(new Set([...schemaFields, 'heroImage', 'ogImage']));
+    const validMetadata = {
+      title: '記事',
+      description: '説明',
+      publishedAt: '2026-07-12',
+      category: 'Frontend',
+      tags: [],
+    } as const;
+    for (const field of requiredFields) {
+      const withoutField = { ...validMetadata } as Record<string, unknown>;
+      delete withoutField[field];
+      expect(blogMetadataSchema.safeParse(withoutField).success, field).toBe(false);
+      expect(frontmatterSection).toMatch(new RegExp('^- `' + field + '`: 必須', 'm'));
     }
+    for (const field of optionalFields) expect(frontmatterSection).toMatch(new RegExp('^- `' + field + '`: 任意', 'm'));
+
+    const parsedDefaults = blogMetadataSchema.parse(validMetadata);
+    expect(parsedDefaults).toMatchObject({ draft: false, featured: false });
+    expect(frontmatterSection).toMatch(/`draft`.+省略.+`false`.+公開対象/is);
+    expect(frontmatterSection).toMatch(/`featured`.+省略.+`false`/is);
+    expect(frontmatterSection).toMatch(/`featuredCode`.+`language`.+`filename`.+`code`/is);
+    expect(frontmatterSection).toMatch(/複数.+featured.+公開日.+新しい.+ID.+昇順/is);
+    expect(frontmatterSection).toMatch(/`ogImage`.+`heroImage`.+既定画像/is);
+    expect(frontmatterSection).toMatch(/`heroImage`.+記事カード.+注目記事/is);
     expect(readme).toMatch(/draft: true.+公開.+除外/is);
-    expect(readme).toMatch(/draft: false.+公開/is);
     expect(readme).toMatch(/検索.+npm run build/is);
+  });
+
+  it('explains Playwright installation and production preview boundaries in the relevant sections', async () => {
+    const readme = await readProjectFile('README.md');
+    const installSection = readme.match(/## インストール\s*([\s\S]*?)(?=\n## )/)?.[1] ?? '';
+    const buildSection = readme.match(/## ビルド\s*([\s\S]*?)(?=\n## )/)?.[1] ?? '';
+    const localSection = readme.match(/## ローカル開発\s*([\s\S]*?)(?=\n## )/)?.[1] ?? '';
+
+    expect(installSection).toContain('npx playwright install chromium');
+    expect(installSection).toContain('npx playwright install --with-deps chromium');
+    expect(installSection).toMatch(/npm ci.+ブラウザー.+インストールしません/is);
+    expect(buildSection).toContain('npm run preview');
+    expect(buildSection).toMatch(/表示された.+URL.+検索.+RSS.+sitemap/is);
+    expect(localSection).toMatch(/npm run dev.+Production.+Pagefind.+確認できません/is);
+  });
+
+  it('mentions only npm run scripts that exist in package.json', async () => {
+    const readme = await readProjectFile('README.md');
+    const packageJson = JSON.parse(await readProjectFile('package.json')) as { scripts: Record<string, string> };
+    const documentedScripts = [...readme.matchAll(/\bnpm run ([a-z0-9:-]+)/gi)].map((match) => match[1]);
+
+    expect(documentedScripts.length).toBeGreaterThan(0);
+    for (const script of documentedScripts) expect(packageJson.scripts).toHaveProperty(script);
   });
 
   it('keeps the minimal frontmatter copyable and explains optional local images without inventing assets', async () => {

@@ -16,9 +16,16 @@ node --version
 
 ```sh
 npm ci
+npx playwright install chromium
 ```
 
-依存関係を意図的に更新するときだけ `npm install` を使い、`package-lock.json` の差分も確認してください。
+`npm ci` はNode.jsの依存packageを入れますが、Playwrightのブラウザーはインストールしません。LinuxまたはCIでOS依存packageも必要な場合は、ブラウザーの導入に次を使います。
+
+```sh
+npx playwright install --with-deps chromium
+```
+
+依存packageを意図的に更新するときだけ `npm install` を使い、`package-lock.json` の差分も確認してください。
 
 ## ローカル開発
 
@@ -30,13 +37,15 @@ npm run dev
 
 表示されたローカルURLを開きます。終了は `Ctrl+C` です。canonical URL、RSS、sitemapを生成するため、ビルド時の `SITE_URL` には公開先のHTTPS origin（パス、query、fragment、資格情報なし）が必要です。
 
+`npm run dev` は執筆中の表示確認用です。Production build後のPagefind索引は生成しないため、Productionと同じ検索は確認できません。検索を含む成果物は後述のbuildとpreviewで確認します。
+
 ## 記事を追加する
 
 1. `src/content/blog/` に、URLに使う名前で `.md` または `.mdx` を追加します。
 2. 後述のfrontmatterと本文を書きます。
-3. 下書き中は `draft: true`、公開するときは `draft: false` にします。
+3. 下書き中は `draft: true`、公開するときは `draft` を削除するか `draft: false` にします。
 4. `npm run check`、`npm test`、`SITE_URL=https://example.invalid npm run build` を実行します。
-5. 記事ページ、一覧、タグ、カテゴリー、RSS、sitemap、検索をローカルで確認します。
+5. `npm run preview` を起動し、記事ページ、一覧、タグ、カテゴリー、RSS、sitemap、検索を表示URLから確認します。
 
 `draft: true` の記事はProductionのページ、一覧、RSS、sitemap、検索から除外されます。`draft: false` は公開対象になるため、内容・日付・リンクを確認してから変更してください。
 
@@ -63,11 +72,18 @@ draft: true
 - `updatedAt`: 任意。公開日以降の更新日。
 - `category`: 必須。`Cloud`、`Backend`、`Frontend`、`Infrastructure`、`AI`、`Operations` のいずれか。
 - `tags`: 必須。空配列も可。表記の重複に注意。
-- `heroImage`: 任意。記事カード・本文用画像。記事からの相対パスで指定。
-- `ogImage`: 任意。SNS共有用画像。省略時は `heroImage`、さらに未設定なら既定画像を使用。
-- `draft`: 任意。安全のため執筆中は `true` にする。
+- `draft`: 任意。省略時は `false` になり公開対象。下書き中は明示的に `true` にする。
+- `featured`: 任意。省略時は `false`。`true` の公開記事をホームの注目記事候補にする。
+- `featuredCode`: 任意。注目記事にコードパネルを表示する設定。
+  - `language`: 必須。シンタックスハイライトに使う空でない言語名。
+  - `filename`: 任意。コードパネルのファイル名。省略時は `language` を表示。
+  - `code`: 必須。空白だけではないコード本文。
+- `heroImage`: 任意。記事カードと注目記事の画像に使用し、`ogImage` がない場合はOG画像にも使用。記事本文には自動表示しない。
+- `ogImage`: 任意。OG画像として最優先。画像の選択順は `ogImage`、`heroImage`、サイトの既定画像。
 
 `heroImage` と `ogImage` は任意で、画像を使わない場合は省略します。使う場合は `src/assets/blog/` に画像ファイルを先に追加し、`src/content/blog/` の記事から `../../assets/blog/<ファイル名>` の形式で指定します。これは現在のcontent schemaの `image()` が検証・importできる、記事ファイル基準の相対パスです。著作権と公開可否を確認した実在ファイルだけを指定してください。
+
+注目記事は下書きを除く公開記事から選びます。複数の記事が `featured: true` の場合は、公開日が新しい順、同じ公開日ならIDの昇順で最初の記事を選びます。候補がなければ最新の公開記事を使います。選ばれた記事に `featuredCode` があれば注目記事ではコードパネルを優先し、`heroImage` はそのパネルの代わりには表示しません（通常の記事カードでは使用します）。
 
 ## テスト
 
@@ -86,9 +102,10 @@ SITE_URL=https://example.invalid npm run verify
 
 ```sh
 SITE_URL=https://example.invalid npm run build
+npm run preview
 ```
 
-`npm run build` は最初にAstro buildで静的ファイルを `dist/` に生成し、その完了後に検索処理と成果物検査を実行します。Productionでは `SITE_URL` を実際の公開HTTPS originへ置き換えてください。
+`npm run build` は最初にAstro buildで静的ファイルを `dist/` に生成し、その完了後に検索処理と成果物検査を実行します。続けて `npm run preview` を起動し、表示されたローカルURLで記事と検索を操作し、`/rss.xml` と `/sitemap-index.xml` も確認します。Productionでは `SITE_URL` を実際の公開HTTPS originへ置き換えてください。
 
 ## Pagefind
 
