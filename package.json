@@ -1,0 +1,56 @@
+{
+  "name": "tech-log",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "prebuild": "node scripts/validate-site-url.mjs",
+    "build:astro": "astro build",
+    "build:search": "pagefind --site dist",
+    "build": "npm run build:astro && npm run build:search && node scripts/verify-build.mjs",
+    "preview": "astro preview",
+    "check": "astro check",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:fixture": "astro build --config tests/e2e/fixtures/astro.config.mjs && astro preview --config tests/e2e/fixtures/astro.config.mjs --host 127.0.0.1 --port 4322",
+    "verify": "npm run format:check && npm run check && npm test && npm run build && npm run test:e2e",
+    "validate:production": "node scripts/validate-production-env.mjs",
+    "generate:og": "node scripts/generate-og.mjs",
+    "deploy": "npm run validate:production && npm run build && wrangler deploy"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "1.61",
+    "jsonc-parser": "^3.3.1",
+    "mdast-util-to-string": "^4.0.0",
+    "pagefind": "^1.5.2",
+    "prettier": "^3.9.5",
+    "prettier-plugin-astro": "^0.14.1",
+    "remark-parse": "^11.0.0",
+    "sharp": "^0.35.3",
+    "typescript": "^5.9.3",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.1.0",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.110.0",
+    "yaml": "^2.9.0"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.9",
+    "@astrojs/mdx": "^7.0.2",
+    "@astrojs/react": "^6.0.1",
+    "@astrojs/sitemap": "^3.7.3",
+    "@tailwindcss/vite": "^4.3.2",
+    "astro": "^7.0.7",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "shiki": "^4.3.1",
+    "tailwindcss": "^4.3.2"
+  }
+}

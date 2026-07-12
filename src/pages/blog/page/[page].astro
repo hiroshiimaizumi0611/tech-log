@@ -1,0 +1,26 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+
+import ListingLayout from '@/layouts/ListingLayout.astro';
+import { buildBlogListingPages, toArticleView } from '@/lib/content/listings';
+
+export const getStaticPaths = (async () => {
+  const listingPages = buildBlogListingPages(await getCollection('blog'));
+  return listingPages.slice(1).map((listingPage) => ({
+    params: { page: String(listingPage.page) },
+    props: { listingPage },
+  }));
+}) satisfies GetStaticPaths;
+
+const { listingPage } = Astro.props;
+const articles = listingPage.posts.map(toArticleView);
+---
+
+<ListingLayout
+  title={`記事一覧 — ${listingPage.page}ページ目`}
+  description="現場で得た技術の実践知を、新しい記事から順にまとめています。"
+  {articles}
+  count={listingPage.count}
+  pagination={listingPage.pagination}
+/>

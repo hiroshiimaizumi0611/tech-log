@@ -1,0 +1,255 @@
+.article-page {
+  overflow-x: clip;
+}
+.article-page .article-shell {
+  padding-block: clamp(var(--space-10), 7vw, var(--space-20));
+}
+.article-header {
+  max-inline-size: var(--prose-max);
+  margin-inline: auto;
+  padding-block-end: var(--space-10);
+  border-block-end: 1px solid var(--color-border);
+}
+.article-header__eyebrow {
+  margin: 0;
+  color: var(--color-accent-soft);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.article-header h1 {
+  margin: var(--space-4) 0 0;
+  font-family: var(--font-ui);
+  font-size: clamp(2rem, 6vw, 3.6rem);
+  letter-spacing: -0.045em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+.article-header__description {
+  margin: var(--space-5) 0 var(--space-6);
+  color: var(--color-text-muted);
+  font-size: clamp(1rem, 2vw, 1.12rem);
+  line-height: 1.8;
+}
+.article-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 47.5rem) minmax(12rem, 16rem);
+  gap: clamp(var(--space-10), 6vw, var(--space-20));
+  justify-content: center;
+  margin-block-start: var(--space-12);
+}
+.article-grid > aside {
+  min-inline-size: 0;
+}
+.article-grid > .article-body {
+  min-inline-size: 0;
+  max-inline-size: 47.5rem;
+  font-size: 1rem;
+  line-height: 1.8;
+}
+.article-layout > .toc--mobile {
+  display: none;
+}
+.article-body > :first-child {
+  margin-block-start: 0;
+}
+.article-body h2,
+.article-body h3 {
+  position: relative;
+  scroll-margin-block-start: var(--space-6);
+  font-family: var(--font-ui);
+  letter-spacing: -0.025em;
+  line-height: 1.45;
+}
+.article-body h2 {
+  margin: var(--space-16) 0 var(--space-5);
+  padding-block-end: var(--space-3);
+  border-block-end: 1px solid var(--color-border);
+  font-size: clamp(1.5rem, 4vw, 2rem);
+}
+.article-body h3 {
+  margin: var(--space-10) 0 var(--space-4);
+  font-size: 1.3rem;
+}
+.article-body .heading-link {
+  position: absolute;
+  inset-inline-start: -1.4em;
+  color: var(--color-text-weak);
+  text-decoration: none;
+}
+.article-body .heading-link::before {
+  content: '#';
+}
+.article-body p,
+.article-body ul,
+.article-body ol,
+.article-body blockquote,
+.article-body table,
+.article-body pre {
+  margin-block: var(--space-5);
+}
+.article-body a[href^='http']::after {
+  content: ' ↗';
+  color: var(--color-accent-soft);
+  font-family: var(--font-ui);
+  font-size: 0.72em;
+}
+.article-body img {
+  block-size: auto;
+  margin-inline: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+.article-body blockquote {
+  margin-inline: 0;
+  padding: var(--space-4) var(--space-5);
+  border-inline-start: 3px solid var(--color-accent);
+  color: var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-accent) 5%, var(--color-card));
+}
+.article-body table {
+  inline-size: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+.article-body th,
+.article-body td {
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--color-border);
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+.article-body th {
+  background: var(--color-card);
+}
+.article-body pre {
+  position: relative;
+  overflow-x: auto;
+  max-inline-size: 100%;
+  padding: 3.2rem var(--space-5) var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+.article-body :not(pre) > code {
+  padding: 0.12em 0.35em;
+  border: 1px solid var(--color-border);
+  border-radius: 0.25rem;
+  background: var(--color-card);
+  font-size: 0.9em;
+}
+.code-toolbar {
+  position: absolute;
+  inset: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-block-size: 2.4rem;
+  padding-inline: var(--space-3);
+  border-block-end: 1px solid color-mix(in srgb, var(--color-border) 76%, transparent);
+  background: color-mix(in srgb, var(--color-section) 92%, transparent);
+}
+[data-code-filename] {
+  overflow: hidden;
+  margin-inline-end: auto;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-code-copy] {
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  background: var(--color-card);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+.adjacent {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  max-inline-size: var(--prose-max);
+  margin: var(--space-16) auto 0;
+}
+.adjacent > div:last-child {
+  text-align: end;
+}
+.adjacent a {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  text-decoration: none;
+}
+.adjacent span {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+}
+.article-author {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-5);
+  align-items: center;
+  max-inline-size: var(--prose-max);
+  margin: var(--space-12) auto 0;
+  padding: var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-card);
+}
+.article-author__mark {
+  display: grid;
+  place-items: center;
+  inline-size: 4rem;
+  aspect-ratio: 1;
+  border: 1px solid var(--color-accent);
+  border-radius: 50%;
+  color: var(--color-accent-soft);
+  font-family: var(--font-mono);
+}
+.article-author p,
+.article-author h2 {
+  margin: 0;
+}
+.article-author p {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+.article-author h2 {
+  font-size: 1.15rem;
+}
+@media (max-width: 63.99rem) {
+  .article-grid {
+    display: block;
+  }
+  .article-grid > aside {
+    display: none;
+  }
+  .article-grid > .article-body {
+    margin-inline: auto;
+  }
+  .article-header + .toc--mobile {
+    display: block;
+    max-inline-size: var(--prose-max);
+    margin-inline: auto;
+  }
+}
+@media (max-width: 39.99rem) {
+  .adjacent {
+    grid-template-columns: 1fr;
+  }
+  .adjacent > div:last-child {
+    text-align: start;
+  }
+  .article-body .heading-link {
+    position: static;
+    margin-inline-start: 0.45em;
+  }
+  .article-author {
+    grid-template-columns: 1fr;
+  }
+}

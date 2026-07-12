@@ -1,0 +1,71 @@
+---
+import TagChip from '@/components/common/TagChip.astro';
+import type { CategoryKey } from '@/config/site';
+import { CATEGORIES } from '@/config/site';
+import { tagToHref } from '@/lib/content/tags';
+
+interface Props {
+  publishedDate: string;
+  publishedLabel: string;
+  updatedDate?: string;
+  updatedLabel?: string;
+  category: CategoryKey;
+  tags: readonly string[];
+  readingMinutes: number;
+}
+
+const { publishedDate, publishedLabel, updatedDate, updatedLabel, category, tags, readingMinutes } = Astro.props;
+---
+
+<div class="article-meta" aria-label="記事情報">
+  <div class="article-meta__dates">
+    <time datetime={publishedDate}>公開日 {publishedLabel}</time>
+    {updatedDate && updatedLabel && <time datetime={updatedDate}>更新日 {updatedLabel}</time>}
+  </div>
+  <div class="article-meta__taxonomy">
+    <a class="category" href={`/categories/${CATEGORIES[category].slug}/`} data-pagefind-filter="category">{category}</a>
+    <div class="tags" aria-label="タグ">
+      {
+        tags.map((tag) => (
+          <span data-pagefind-filter="tag">
+            <TagChip label={tag} href={tagToHref(tag)} />
+          </span>
+        ))
+      }
+    </div>
+    <span class="reading-time">{readingMinutes}分で読めます</span>
+  </div>
+</div>
+
+<style>
+  .article-meta,
+  .article-meta__dates,
+  .article-meta__taxonomy,
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .article-meta {
+    gap: var(--space-4) var(--space-8);
+    justify-content: space-between;
+    color: var(--color-text-muted);
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+  }
+  .article-meta__dates,
+  .article-meta__taxonomy,
+  .tags {
+    gap: var(--space-3);
+  }
+  .category {
+    padding: 0.2rem 0.6rem;
+    border: 1px solid color-mix(in srgb, var(--color-accent) 52%, var(--color-border));
+    border-radius: var(--radius-sm);
+    color: var(--color-accent-soft);
+    text-decoration: none;
+  }
+  .reading-time {
+    white-space: nowrap;
+  }
+</style>

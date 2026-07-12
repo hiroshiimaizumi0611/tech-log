@@ -1,0 +1,71 @@
+---
+import SEOHead from '@/components/common/SEOHead.astro';
+import Footer from '@/components/layout/Footer.astro';
+import Header from '@/components/layout/Header.astro';
+import { SITE } from '@/config/site';
+import '@/styles/global.css';
+import '@/styles/pagefind.css';
+import type { ImageMetadata } from 'astro';
+
+interface Props {
+  title?: string;
+  description?: string;
+  canonical?: URL | string;
+  pageClass?: string;
+  pageType?: 'website' | 'article';
+  ogImage?: string | ImageMetadata;
+  heroImage?: string | ImageMetadata;
+  publishedAt?: string;
+  updatedAt?: string;
+}
+
+const {
+  title = SITE.name,
+  description = SITE.description,
+  canonical,
+  pageClass,
+  pageType,
+  ogImage,
+  heroImage,
+  publishedAt,
+  updatedAt,
+} = Astro.props;
+const hasHeaderActions = Astro.slots.has('header-actions');
+const analyticsToken = import.meta.env.PROD ? import.meta.env.PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN : undefined;
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <script is:inline>
+      document.documentElement.classList.add('js');
+    </script>
+    <SEOHead {title} {description} {canonical} {pageType} {ogImage} {heroImage} {publishedAt} {updatedAt} />
+  </head>
+  <body class={pageClass}>
+    <a class="skip-link" href="#main-content">本文へスキップ</a>
+    {
+      hasHeaderActions ? (
+        <Header>
+          <slot name="header-actions" slot="actions" />
+        </Header>
+      ) : (
+        <Header />
+      )
+    }
+    <main id="main-content" tabindex="-1">
+      <slot />
+    </main>
+    <Footer />
+    {
+      analyticsToken && (
+        <script
+          is:inline
+          defer
+          src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon={JSON.stringify({ token: analyticsToken })}
+        />
+      )
+    }
+  </body>
+</html>

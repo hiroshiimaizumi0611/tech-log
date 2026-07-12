@@ -1,0 +1,17 @@
+---
+import { getCollection } from 'astro:content';
+
+import ListingLayout from '@/layouts/ListingLayout.astro';
+import { buildBlogListingPages, toArticleView } from '@/lib/content/listings';
+
+const listingPage = buildBlogListingPages(await getCollection('blog'))[0];
+const articles = listingPage.posts.map(toArticleView);
+---
+
+<ListingLayout
+  title="記事一覧"
+  description="現場で得た技術の実践知を、新しい記事から順にまとめています。"
+  {articles}
+  count={listingPage.count}
+  pagination={listingPage.pagination}
+/>

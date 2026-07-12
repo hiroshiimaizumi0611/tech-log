@@ -1,0 +1,101 @@
+---
+import type { PaginationModel } from '@/lib/content/pagination';
+
+type Props = PaginationModel;
+
+const { current, total, previousHref, nextHref } = Astro.props;
+---
+
+{
+  total > 1 && (
+    <nav class="pagination" aria-label="ページネーション">
+      <div>
+        {previousHref ? (
+          <a href={previousHref} rel="prev">
+            ← 前のページ
+          </a>
+        ) : (
+          <span aria-hidden="true" />
+        )}
+        <p aria-live="polite">
+          <span class="sr-only">現在のページ: </span>
+          {current} / {total}
+        </p>
+        {nextHref ? (
+          <a href={nextHref} rel="next">
+            次のページ →
+          </a>
+        ) : (
+          <span aria-hidden="true" />
+        )}
+      </div>
+    </nav>
+  )
+}
+
+<style>
+  .pagination {
+    margin-block-start: var(--space-12);
+    border-block-start: 1px solid var(--color-border);
+    padding-block-start: var(--space-6);
+  }
+
+  .pagination div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: var(--space-4);
+    align-items: center;
+  }
+
+  a {
+    inline-size: fit-content;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+    background: var(--color-card);
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  a:last-child {
+    justify-self: end;
+  }
+
+  a:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent-soft);
+    background: var(--color-card-hover);
+  }
+
+  p {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sr-only {
+    position: absolute;
+    overflow: hidden;
+    inline-size: 1px;
+    block-size: 1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 35rem) {
+    .pagination div {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    p {
+      grid-column: 1 / -1;
+      grid-row: 1;
+      justify-self: center;
+    }
+  }
+</style>

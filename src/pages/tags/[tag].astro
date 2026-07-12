@@ -1,0 +1,26 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+
+import ListingLayout from '@/layouts/ListingLayout.astro';
+import { toArticleView } from '@/lib/content/listings';
+import { buildTagPages } from '@/lib/content/tags';
+
+export const getStaticPaths = (async () => {
+  const tagPages = buildTagPages(await getCollection('blog'));
+  return tagPages.map((tagPage) => ({
+    params: { tag: tagPage.segment },
+    props: { tagPage },
+  }));
+}) satisfies GetStaticPaths;
+
+const { tagPage } = Astro.props;
+const articles = tagPage.posts.map(toArticleView);
+---
+
+<ListingLayout
+  title={`${tagPage.label}の記事`}
+  description={`タグ「${tagPage.label}」が付いた記事です。`}
+  {articles}
+  count={tagPage.count}
+/>

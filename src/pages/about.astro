@@ -1,0 +1,96 @@
+---
+import Container from '@/components/common/Container.astro';
+import { SITE } from '@/config/site';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+
+const externalLinks = [
+  { label: 'GitHub', href: SITE.github },
+  { label: 'X', href: SITE.x },
+  { label: 'Zenn', href: SITE.zenn },
+].filter((link) => link.href);
+---
+
+<BaseLayout title="このブログについて" description="テックログと運営者 Hiroshi Imaizumi について紹介します。" pageClass="static-page">
+  <Container class="static-page__container">
+    <header class="static-page__header">
+      <p>ABOUT</p>
+      <h1>このブログについて</h1>
+      <p>{SITE.tagline}</p>
+    </header>
+
+    <section>
+      <h2>運営者</h2>
+      <p><strong>{SITE.author}</strong> が、実装と運用で得た知見を記録しています。</p>
+      <p>{SITE.description}</p>
+    </section>
+
+    <section>
+      <h2>得意分野</h2>
+      <ul>
+        <li>クラウドとバックエンド</li><li>フロントエンドとTypeScript</li><li>Infrastructure as Code</li><li>AI活用と運用・障害調査</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>技術スタック</h2>
+      <p>AWS、Astro、React、TypeScript、Terraformを中心に、設計から公開後の改善まで扱います。</p>
+    </section>
+
+    <section>
+      <h2>ブログの目的</h2>
+      <p>調査中のエンジニアが、判断の根拠と再現できる手順を短時間でつかめる記事を目指します。</p>
+    </section>
+
+    {
+      (externalLinks.length > 0 || SITE.email) && (
+        <section>
+          <h2>リンクと問い合わせ</h2>
+          <ul>
+            {externalLinks.map((link) => (
+              <li>
+                <a href={link.href}>{link.label}</a>
+              </li>
+            ))}
+            {SITE.email && (
+              <li>
+                <a href={`mailto:${SITE.email}`}>メールで問い合わせる</a>
+              </li>
+            )}
+          </ul>
+        </section>
+      )
+    }
+  </Container>
+</BaseLayout>
+
+<style>
+  .static-page__container {
+    max-inline-size: 52rem;
+    padding-block: clamp(var(--space-12), 8vw, var(--space-24));
+  }
+  .static-page__header {
+    padding-block-end: var(--space-10);
+    border-block-end: 1px solid var(--color-border);
+  }
+  .static-page__header > p:first-child {
+    color: var(--color-accent-soft);
+    font-family: var(--font-mono);
+    letter-spacing: 0.18em;
+  }
+  h1 {
+    margin: var(--space-3) 0;
+    font-size: clamp(2rem, 5vw, 3.6rem);
+  }
+  section {
+    padding-block: var(--space-8);
+    border-block-end: 1px solid var(--color-border);
+  }
+  h2 {
+    margin-block-start: 0;
+  }
+  p,
+  li {
+    color: var(--color-text-muted);
+    line-height: 1.85;
+  }
+</style>

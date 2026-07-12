@@ -1,0 +1,174 @@
+---
+import ArticleCard from '@/components/blog/ArticleCard.astro';
+import Container from '@/components/common/Container.astro';
+import Pagination from '@/components/common/Pagination.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import type { ArticleView } from '@/lib/content/listings';
+import type { PaginationModel } from '@/lib/content/pagination';
+
+interface Props {
+  title: string;
+  description: string;
+  articles: readonly ArticleView[];
+  count?: number;
+  pagination?: PaginationModel;
+  emptyMessage?: string;
+  emptyAction?: {
+    label: string;
+    href: string;
+  };
+}
+
+const {
+  title,
+  description,
+  articles,
+  count = articles.length,
+  pagination,
+  emptyMessage = '該当する記事はまだありません。',
+  emptyAction = { label: 'すべての記事を見る', href: '/blog/' },
+} = Astro.props;
+---
+
+<BaseLayout title={`${title} | テックログ`} {description}>
+  <Container class="listing-shell">
+    <header class="listing-header">
+      <p class="eyebrow">INDEX</p>
+      <h1>{title}</h1>
+      <p class="description">{description}</p>
+      <p class="count">{count}件の記事</p>
+    </header>
+
+    {
+      articles.length > 0 ? (
+        <section aria-labelledby="listing-articles-heading">
+          <h2 id="listing-articles-heading" class="sr-only">
+            記事
+          </h2>
+          <div class="article-grid">
+            {articles.map((article) => (
+              <ArticleCard {...article} />
+            ))}
+          </div>
+        </section>
+      ) : (
+        <div class="empty-state" role="status">
+          <span aria-hidden="true">{`{ }`}</span>
+          <p>{emptyMessage}</p>
+          <a href={emptyAction.href}>{emptyAction.label}</a>
+        </div>
+      )
+    }
+
+    {pagination && <Pagination {...pagination} />}
+  </Container>
+</BaseLayout>
+
+<style>
+  :global(.listing-shell) {
+    padding-block: clamp(var(--space-16), 8vw, var(--space-24));
+  }
+
+  .listing-header {
+    max-inline-size: 48rem;
+    margin-block-end: var(--space-12);
+  }
+
+  .eyebrow {
+    margin: 0 0 var(--space-3);
+    color: var(--color-accent);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+  }
+
+  h1 {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: clamp(2rem, 5vw, 3.75rem);
+    letter-spacing: -0.045em;
+    line-height: 1.12;
+  }
+
+  .description {
+    max-inline-size: 42rem;
+    margin: var(--space-5) 0 0;
+    color: var(--color-text-muted);
+  }
+
+  .count {
+    margin: var(--space-6) 0 0;
+    color: var(--color-text-weak);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+  }
+
+  .article-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-6);
+  }
+
+  .empty-state {
+    display: grid;
+    place-items: center;
+    min-block-size: 18rem;
+    padding: var(--space-12);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-card);
+    color: var(--color-text-muted);
+    background: color-mix(in srgb, var(--color-card) 72%, transparent);
+    text-align: center;
+  }
+
+  .empty-state span {
+    color: var(--color-text-weak);
+    font-family: var(--font-mono);
+    font-size: 2rem;
+  }
+
+  .empty-state p {
+    margin: var(--space-3) 0 0;
+  }
+
+  .empty-state a {
+    margin-block-start: var(--space-6);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+    background: var(--color-card);
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .empty-state a:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent-soft);
+    background: var(--color-card-hover);
+  }
+
+  .sr-only {
+    position: absolute;
+    overflow: hidden;
+    inline-size: 1px;
+    block-size: 1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 64rem) {
+    .article-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 38rem) {
+    .article-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

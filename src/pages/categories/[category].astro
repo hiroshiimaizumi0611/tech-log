@@ -1,0 +1,31 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+
+import { CATEGORIES, CATEGORY_KEYS } from '@/config/site';
+import ListingLayout from '@/layouts/ListingLayout.astro';
+import { toArticleView } from '@/lib/content/listings';
+import { getPublishedPosts } from '@/lib/content/posts';
+
+export const getStaticPaths = (async () => {
+  const published = getPublishedPosts(await getCollection('blog'));
+  return CATEGORY_KEYS.map((key) => ({
+    params: { category: CATEGORIES[key].slug },
+    props: {
+      category: CATEGORIES[key],
+      posts: published.filter(({ data }) => data.category === key),
+    },
+  }));
+}) satisfies GetStaticPaths;
+
+const { category, posts } = Astro.props;
+const articles = posts.map(toArticleView);
+---
+
+<ListingLayout
+  title={`${category.label}の記事`}
+  description={`カテゴリー「${category.label}」の記事です。`}
+  {articles}
+  count={posts.length}
+  emptyAction={{ label: 'カテゴリー一覧へ戻る', href: '/categories/' }}
+/>

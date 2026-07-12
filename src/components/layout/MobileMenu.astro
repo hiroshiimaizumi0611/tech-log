@@ -1,0 +1,141 @@
+---
+interface NavigationLink {
+  readonly label: string;
+  readonly href: string;
+}
+
+interface Props {
+  links: readonly NavigationLink[];
+}
+
+const { links }: Props = Astro.props;
+---
+
+<div class="mobile-menu" data-mobile-menu>
+  <button
+    class="mobile-menu__trigger"
+    type="button"
+    aria-expanded="false"
+    aria-controls="mobile-menu-panel"
+    aria-label="メニューを開く"
+    data-mobile-menu-trigger
+  >
+    <span aria-hidden="true"></span>
+    <span aria-hidden="true"></span>
+    <span aria-hidden="true"></span>
+  </button>
+
+  <div class="mobile-menu__panel" id="mobile-menu-panel" data-mobile-menu-panel>
+    <nav aria-label="モバイルナビゲーション">
+      <ul>
+        {
+          links.map((link) => (
+            <li>
+              <a href={link.href}>{link.label}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+  </div>
+</div>
+
+<script>
+  import '@/scripts/mobile-menu';
+</script>
+
+<style>
+  .mobile-menu {
+    display: none;
+  }
+
+  .mobile-menu__trigger {
+    display: none;
+    place-content: center;
+    gap: 5px;
+    inline-size: 2.75rem;
+    block-size: 2.75rem;
+    padding: 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-card);
+    cursor: pointer;
+  }
+
+  .mobile-menu__trigger span {
+    inline-size: 1.125rem;
+    block-size: 1px;
+    background: var(--color-text);
+    transition:
+      transform var(--transition-fast),
+      opacity var(--transition-fast);
+  }
+
+  .mobile-menu__trigger[aria-expanded='true'] span:first-child {
+    transform: translateY(6px) rotate(45deg);
+  }
+
+  .mobile-menu__trigger[aria-expanded='true'] span:nth-child(2) {
+    opacity: 0;
+  }
+
+  .mobile-menu__trigger[aria-expanded='true'] span:last-child {
+    transform: translateY(-6px) rotate(-45deg);
+  }
+
+  .mobile-menu__panel {
+    border-block-end: 1px solid var(--color-border);
+    background: var(--color-section);
+  }
+
+  :global(.js) .mobile-menu__panel {
+    position: fixed;
+    z-index: 20;
+    inset-block-start: var(--header-height);
+    inset-inline: 0;
+  }
+
+  .mobile-menu__panel[hidden] {
+    display: none;
+  }
+
+  :global(.js) .mobile-menu__panel:not([data-open]) {
+    display: none;
+  }
+
+  ul {
+    max-inline-size: var(--container-max);
+    margin: 0 auto;
+    padding: var(--space-3) var(--container-gutter) var(--space-5);
+    list-style: none;
+  }
+
+  a {
+    display: block;
+    padding-block: var(--space-3);
+    border-block-end: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    font-family: var(--font-ui);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  a:hover {
+    color: var(--color-accent-soft);
+  }
+
+  @media (max-width: 47.99rem) {
+    .mobile-menu {
+      display: block;
+    }
+
+    :global(html:not(.js)) .mobile-menu {
+      inline-size: 100%;
+    }
+
+    :global(.js) .mobile-menu__trigger {
+      display: grid;
+    }
+  }
+</style>

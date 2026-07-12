@@ -1,0 +1,87 @@
+---
+import Container from '@/components/common/Container.astro';
+
+interface Props {
+  name: string;
+}
+
+const { name } = Astro.props;
+---
+
+<section class="author" aria-label="著者プロフィール">
+  <Container>
+    <div class="profile-card">
+      <div class="avatar" aria-hidden="true">
+        <span>HI</span>
+      </div>
+      <div>
+        <p class="eyebrow">AUTHOR PROFILE</p>
+        <h2>{name}</h2>
+        <p class="bio">クラウド、バックエンド、フロントエンド、IaC、AI、運用の実践から得た知見を、技術ブログとして記録しています。</p>
+      </div>
+    </div>
+  </Container>
+</section>
+
+<style>
+  .author {
+    padding-block: clamp(var(--space-8), 4vw, var(--space-12));
+  }
+
+  .profile-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: clamp(var(--space-5), 4vw, var(--space-8));
+    align-items: center;
+    padding: clamp(var(--space-5), 3vw, var(--space-8));
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card-lg);
+    background: linear-gradient(110deg, var(--color-card), color-mix(in srgb, var(--color-accent) 5%, var(--color-section)));
+  }
+
+  .avatar {
+    display: grid;
+    place-items: center;
+    inline-size: clamp(5rem, 10vw, 7rem);
+    aspect-ratio: 1;
+    border: 1px solid color-mix(in srgb, var(--color-accent) 38%, var(--color-border));
+    border-radius: 50%;
+    color: var(--color-accent-soft);
+    background:
+      linear-gradient(135deg, transparent 45%, color-mix(in srgb, var(--color-accent) 12%, transparent) 45% 55%, transparent 55%),
+      var(--color-section);
+    font-family: var(--font-mono);
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+
+  .eyebrow {
+    margin: 0;
+    color: var(--color-accent-soft);
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+  }
+
+  h2 {
+    margin: var(--space-2) 0 0;
+    font-family: var(--font-ui);
+    font-size: clamp(1.4rem, 2vw, 1.75rem);
+    letter-spacing: -0.02em;
+  }
+
+  .bio {
+    max-inline-size: 48rem;
+    margin: var(--space-3) 0 0;
+    color: var(--color-text-muted);
+    font-size: 0.88rem;
+  }
+
+  @media (max-width: 34rem) {
+    .profile-card {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
