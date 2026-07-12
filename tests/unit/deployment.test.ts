@@ -167,11 +167,60 @@ describe('post-deploy smoke checks', () => {
     ]);
   });
 
+  it('retries transient 404 and 5xx responses while Workers assets propagate', async () => {
+    const { smokeProduction, SMOKE_PATHS } = await import('../../scripts/smoke-production.mjs');
+    const transientStatuses = [404, 503, 204];
+    const sleepCalls: number[] = [];
+    let rootAttempts = 0;
+    const fetchImpl: typeof fetch = async (input) => {
+      const pathname = new URL(input instanceof Request ? input.url : String(input)).pathname;
+      if (pathname === '/') return new Response(null, { status: transientStatuses[rootAttempts++] ?? 204 });
+      return new Response(null, { status: pathname === SMOKE_PATHS.missing ? 404 : 204 });
+    };
+
+    await expect(
+      smokeProduction({
+        siteUrl: 'https://techlog.example',
+        fetchImpl,
+        sleepImpl: async (delayMs: number) => {
+          sleepCalls.push(delayMs);
+        },
+      }),
+    ).resolves.toBeUndefined();
+    expect(rootAttempts).toBe(3);
+    expect(sleepCalls).toEqual([5_000, 5_000]);
+  });
+
+  it('stops retrying a transient public-resource failure after a 30 second delay budget', async () => {
+    const { smokeProduction } = await import('../../scripts/smoke-production.mjs');
+    const sleepCalls: number[] = [];
+    let attempts = 0;
+
+    await expect(
+      smokeProduction({
+        siteUrl: 'https://techlog.example',
+        fetchImpl: async () => {
+          attempts += 1;
+          return new Response(null, { status: 404 });
+        },
+        sleepImpl: async (delayMs: number) => {
+          sleepCalls.push(delayMs);
+        },
+      }),
+    ).rejects.toThrow(/expected 2xx, received 404/i);
+    expect(attempts).toBe(7);
+    expect(sleepCalls).toEqual(Array(6).fill(5_000));
+  });
+
   it('reports status, timeout, and network failures clearly without leaking a response body', async () => {
     const { smokeProduction } = await import('../../scripts/smoke-production.mjs');
     const bodySecret = 'response-body-must-not-be-logged';
     await expect(
-      smokeProduction({ siteUrl: 'https://techlog.example/', fetchImpl: async () => new Response(bodySecret, { status: 500 }) }),
+      smokeProduction({
+        siteUrl: 'https://techlog.example/',
+        fetchImpl: async () => new Response(bodySecret, { status: 500 }),
+        maxRetries: 0,
+      }),
     ).rejects.not.toThrow(bodySecret);
     await expect(
       smokeProduction({
