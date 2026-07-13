@@ -14,7 +14,7 @@
       <circle cx="112" cy="141" r="28" fill="#4ea1ff" />
       <text x="112" y="155" text-anchor="middle" fill="#07090d" font-size="40" font-weight="850">1</text>
       <text x="174" y="155" fill="#f5f7fa" font-size="40" font-weight="750">@ Plugin選択</text>
-      <text x="1080" y="154" text-anchor="end" fill="#a6afbc" font-size="32">+ → More からも選択可</text>
+      <text x="1080" y="154" text-anchor="end" fill="#a6afbc" font-size="40">+ → More からも選択可</text>
     </g>
     <path d="m100 190 12 12 12-12" fill="none" stroke="#8cc5ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
     <g>
@@ -22,7 +22,7 @@
       <circle cx="112" cy="245" r="28" fill="#0b0f14" stroke="#4ea1ff" stroke-width="4" />
       <text x="112" y="259" text-anchor="middle" fill="#8cc5ff" font-size="40" font-weight="850">2</text>
       <text x="174" y="259" fill="#f5f7fa" font-size="40" font-weight="750">対象を限定</text>
-      <text x="1080" y="258" text-anchor="end" fill="#a6afbc" font-size="32">公開リポジトリを指定</text>
+      <text x="1080" y="258" text-anchor="end" fill="#a6afbc" font-size="40">公開リポジトリを指定</text>
     </g>
     <path d="m100 294 12 12 12-12" fill="none" stroke="#8cc5ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
     <g>
@@ -30,7 +30,7 @@
       <circle cx="112" cy="349" r="28" fill="#0b0f14" stroke="#4ea1ff" stroke-width="4" />
       <text x="112" y="363" text-anchor="middle" fill="#8cc5ff" font-size="40" font-weight="850">3</text>
       <text x="174" y="363" fill="#f5f7fa" font-size="40" font-weight="750">読取依頼</text>
-      <text x="1080" y="362" text-anchor="end" fill="#a6afbc" font-size="32">要約だけを依頼</text>
+      <text x="1080" y="362" text-anchor="end" fill="#a6afbc" font-size="40">要約だけを依頼</text>
     </g>
     <path d="m100 398 12 12 12-12" fill="none" stroke="#8cc5ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
     <g>
@@ -38,7 +38,7 @@
       <circle cx="112" cy="453" r="28" fill="#0b0f14" stroke="#4ea1ff" stroke-width="4" />
       <text x="112" y="467" text-anchor="middle" fill="#8cc5ff" font-size="40" font-weight="850">4</text>
       <text x="174" y="467" fill="#f5f7fa" font-size="40" font-weight="750">結果確認</text>
-      <text x="1080" y="466" text-anchor="end" fill="#a6afbc" font-size="32">参照範囲も確認</text>
+      <text x="1080" y="466" text-anchor="end" fill="#a6afbc" font-size="40">参照範囲も確認</text>
     </g>
 
     <rect x="60" y="534" width="1080" height="92" rx="22" fill="#101824" stroke="#4ea1ff" stroke-width="2" stroke-dasharray="10 10" />

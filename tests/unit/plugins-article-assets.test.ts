@@ -72,11 +72,33 @@ describe('plugins article visuals', () => {
   it.each([
     [
       'chatgpt-plugin-directory-flow.svg',
-      ['操作フロー図', 'Plugin Directory', 'Plugin詳細', '必須App確認', 'Connect', '読み取り専用デモ・書き込み操作なし'],
+      [
+        '操作フロー図',
+        'Plugin Directory',
+        '一覧から探す',
+        'Plugin詳細',
+        '説明と提供元を確認',
+        '必須App確認',
+        '必要な接続先を確認',
+        'Connect',
+        '接続設定へ進む',
+        '読み取り専用デモ・書き込み操作なし',
+      ],
     ],
     [
       'chatgpt-plugin-selection-flow.svg',
-      ['操作フロー図', '@ Plugin選択', '対象を限定', '読取依頼', '結果確認', '読み取り専用デモ・書き込み操作なし'],
+      [
+        '操作フロー図',
+        '@ Plugin選択',
+        '+ → More からも選択可',
+        '対象を限定',
+        '公開リポジトリを指定',
+        '読取依頼',
+        '要約だけを依頼',
+        '結果確認',
+        '参照範囲も確認',
+        '読み取り専用デモ・書き込み操作なし',
+      ],
     ],
   ])('%s is a readable 1200x675 walkthrough flow', async (name, labels) => {
     const source = await readFile(asset(name), 'utf8');
