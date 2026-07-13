@@ -6,6 +6,21 @@ import { describe, expect, it } from 'vitest';
 
 const asset = (name: string) => fileURLToPath(new URL(`../../src/assets/blog/${name}`, import.meta.url));
 
+const expectReadableLabels = (source: string, labels: string[]) => {
+  const textElements = [...source.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)].map((match) => ({
+    fontSize: Number(match[1].match(/font-size="(\d+)"/)?.[1] ?? 0),
+    text: match[2].replace(/<[^>]+>/g, '').replace(/\s+/g, ''),
+  }));
+
+  for (const label of labels) {
+    const normalizedLabel = label.replace(/\s+/g, '');
+    const element = textElements.find(({ text }) => text.includes(normalizedLabel));
+
+    expect(element, `${label} must be contained in one scalable text element`).toBeDefined();
+    expect(element?.fontSize, `${label} must use a source font size of at least 40px`).toBeGreaterThanOrEqual(40);
+  }
+};
+
 describe('plugins article visuals', () => {
   it('builds a 1200x630 PNG without the misleading equality claim', async () => {
     const metadata = await sharp(asset('chatgpt-codex-plugins-og.png')).metadata();
@@ -25,5 +40,26 @@ describe('plugins article visuals', () => {
 
     expect(source).toMatch(/<svg[^>]+viewBox=/);
     for (const label of labels) expect(source).toContain(label);
+  });
+
+  it.each([
+    [
+      'chatgpt-codex-plugins-roles.svg',
+      [
+        '仕事に必要な機能をまとめる',
+        'Skill: 手順を教える',
+        'App: 外部サービスにつなぐ',
+        'App Template: Workspace固有の設定を作る雛形',
+        'すべてを含める必要はありません',
+      ],
+    ],
+    [
+      'chatgpt-codex-plugins-permissions.svg',
+      ['Pluginの導入方針', 'AppのWorkspace・Role設定', 'ユーザー認証', '接続先サービスの元権限', '操作確認'],
+    ],
+  ])('%s keeps required labels readable at mobile width', async (name, labels) => {
+    const source = await readFile(asset(name), 'utf8');
+
+    expectReadableLabels(source, labels);
   });
 });
