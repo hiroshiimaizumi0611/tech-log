@@ -90,9 +90,9 @@ describe('deployment artifacts', () => {
     expect(steps[smokeIndex]).toMatchObject({ env: { SITE_URL: '${{ vars.SITE_URL }}' } });
     expect(steps[smokeIndex]).not.toHaveProperty('if');
     expect(steps[smokeIndex]).not.toHaveProperty('continue-on-error');
-    expect(workflow.jobs.deploy.env).toMatchObject({
-      SITE_URL: '${{ vars.SITE_URL }}',
-      PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN: '${{ vars.PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN }}',
+    expect(workflow.jobs.deploy.env).toEqual({ SITE_URL: '${{ vars.SITE_URL }}' });
+    expect(steps[productionBuildIndex]).toMatchObject({
+      env: { PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN: '${{ secrets.CLOUDFLARE_WEB_ANALYTICS_TOKEN }}' },
     });
     expect(source).toMatch(new RegExp(`uses: ${ACTIONS.checkout.replace('/', '\\/')} # v4\\.3\\.1`));
     expect(source).toMatch(new RegExp(`uses: ${ACTIONS.setupNode.replace('/', '\\/')} # v4\\.4\\.0`));
