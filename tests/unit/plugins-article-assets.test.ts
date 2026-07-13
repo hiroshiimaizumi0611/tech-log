@@ -1,10 +1,14 @@
+import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 
+import { chromium } from '@playwright/test';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 
 const asset = (name: string) => fileURLToPath(new URL(`../../src/assets/blog/${name}`, import.meta.url));
+const execFileAsync = promisify(execFile);
 
 const expectReadableLabels = (source: string, labels: string[]) => {
   const textElements = [...source.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)].map((match) => ({
@@ -37,8 +41,12 @@ describe('plugins article visuals', () => {
     ['chatgpt-codex-plugins-permissions.svg', ['Plugin', 'App', '接続先', '確認']],
   ])('%s exposes the required labels and scalable viewBox', async (name, labels) => {
     const source = await readFile(asset(name), 'utf8');
+    const rootAttributes = source.match(/<svg\b([^>]*)>/)?.[1];
+    const attribute = (key: string) => rootAttributes?.match(new RegExp(`\\b${key}="([^"]+)"`))?.[1];
 
-    expect(source).toMatch(/<svg[^>]+viewBox=/);
+    expect(attribute('width')).toBe('1200');
+    expect(attribute('height')).toBe('675');
+    expect(attribute('viewBox')).toBe('0 0 1200 675');
     for (const label of labels) expect(source).toContain(label);
   });
 
@@ -61,5 +69,69 @@ describe('plugins article visuals', () => {
     const source = await readFile(asset(name), 'utf8');
 
     expectReadableLabels(source, labels);
+  });
+
+  it('keeps rendered text inside the 390px canvas without overlaps', async () => {
+    const browser = await chromium.launch({ headless: true });
+
+    try {
+      const page = await browser.newPage({ viewport: { width: 390, height: 300 } });
+
+      for (const name of ['chatgpt-codex-plugins-roles.svg', 'chatgpt-codex-plugins-permissions.svg']) {
+        const source = await readFile(asset(name), 'utf8');
+        await page.setContent(`<style>body{margin:0}svg{display:block;width:390px;height:auto}</style>${source}`);
+
+        const result = await page.evaluate(() => {
+          const svg = document.querySelector('svg');
+          if (!svg) throw new Error('SVG root is missing');
+
+          const canvas = svg.getBoundingClientRect();
+          const texts = [...svg.querySelectorAll('text')].map((element) => {
+            const bounds = element.getBoundingClientRect();
+            return {
+              bounds: { bottom: bounds.bottom, left: bounds.left, right: bounds.right, top: bounds.top },
+              label: element.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+            };
+          });
+          const clipped = texts.filter(
+            ({ bounds }) =>
+              bounds.left < canvas.left - 0.5 ||
+              bounds.top < canvas.top - 0.5 ||
+              bounds.right > canvas.right + 0.5 ||
+              bounds.bottom > canvas.bottom + 0.5,
+          );
+          const overlaps = texts.flatMap((text, index) =>
+            texts.slice(index + 1).flatMap((other) => {
+              const horizontal = Math.min(text.bounds.right, other.bounds.right) - Math.max(text.bounds.left, other.bounds.left);
+              const vertical = Math.min(text.bounds.bottom, other.bounds.bottom) - Math.max(text.bounds.top, other.bounds.top);
+              return horizontal > 0.5 && vertical > 0.5 ? [[text.label, other.label]] : [];
+            }),
+          );
+
+          return { clipped: clipped.map(({ label }) => label), overlaps };
+        });
+
+        expect(result.clipped, `${name} has clipped or off-canvas text`).toEqual([]);
+        expect(result.overlaps, `${name} has overlapping text`).toEqual([]);
+      }
+    } finally {
+      await browser.close();
+    }
+  });
+
+  it('fails OG generation clearly when the configured Japanese font is unavailable', async () => {
+    const generator = fileURLToPath(new URL('../../scripts/generate-og.mjs', import.meta.url));
+
+    await expect(
+      execFileAsync(process.execPath, [generator], {
+        env: {
+          ...process.env,
+          OG_JAPANESE_FONT_FAMILY: 'Missing Test Font',
+          OG_JAPANESE_FONT_PATH: '/definitely/missing/japanese-font.ttf',
+        },
+      }),
+    ).rejects.toMatchObject({
+      stderr: expect.stringContaining('Japanese font unavailable'),
+    });
   });
 });

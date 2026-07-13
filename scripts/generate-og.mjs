@@ -1,10 +1,64 @@
+import { access } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import sharp from 'sharp';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const fontFamily = `'Hiragino Sans', 'Yu Gothic', 'Noto Sans JP', system-ui, sans-serif`;
+
+const knownJapaneseFonts = {
+  darwin: [
+    {
+      family: 'Hiragino Sans',
+      path: '/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc',
+    },
+  ],
+  linux: [
+    {
+      family: 'Noto Sans CJK JP',
+      path: '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
+    },
+    {
+      family: 'Noto Sans JP',
+      path: '/usr/share/fonts/opentype/noto/NotoSansJP-Regular.otf',
+    },
+  ],
+  win32: [
+    {
+      family: 'Yu Gothic',
+      path: resolve(process.env.WINDIR ?? 'C:\\Windows', 'Fonts/YuGothR.ttc'),
+    },
+  ],
+};
+
+const selectJapaneseFont = async () => {
+  const configuredPath = process.env.OG_JAPANESE_FONT_PATH;
+  const configuredFamily = process.env.OG_JAPANESE_FONT_FAMILY;
+  const platformCandidates = knownJapaneseFonts[process.platform] ?? [];
+  const candidates = configuredPath ? [{ family: configuredFamily ?? '', path: configuredPath }] : platformCandidates;
+
+  if (configuredPath && !configuredFamily) {
+    throw new Error('[generate-og] Japanese font unavailable: OG_JAPANESE_FONT_FAMILY is required when OG_JAPANESE_FONT_PATH is set.');
+  }
+
+  for (const candidate of candidates) {
+    try {
+      await access(candidate.path);
+      return candidate;
+    } catch {
+      // Try the next known font file.
+    }
+  }
+
+  const checked = candidates.map(({ path }) => path).join(', ') || `no known paths for ${process.platform}`;
+  throw new Error(
+    `[generate-og] Japanese font unavailable. Checked: ${checked}. ` +
+      'Install a known Japanese font or set OG_JAPANESE_FONT_PATH and OG_JAPANESE_FONT_FAMILY.',
+  );
+};
+
+const japaneseFont = await selectJapaneseFont();
+const fontFamily = `'${japaneseFont.family}', sans-serif`;
 
 const defaultOg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
