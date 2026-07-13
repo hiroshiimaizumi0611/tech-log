@@ -1,5 +1,6 @@
-import { readFile, writeFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+import { access, copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { chromium } from '@playwright/test';
 import sharp from 'sharp';
@@ -117,24 +118,34 @@ describe('plugins article visuals', () => {
   });
 
   it('does not write generated PNGs when the generator module is imported', async () => {
-    const paths = [fileURLToPath(new URL('../../public/og-default.png', import.meta.url)), asset('chatgpt-codex-plugins-og.png')];
-    const originals = await Promise.all(paths.map((path) => readFile(path)));
-    const sentinels = paths.map((_, index) => Buffer.from(`import-only-sentinel-${index}`));
+    const projectRoot = fileURLToPath(new URL('../../', import.meta.url));
+    const temporaryRoot = await mkdtemp(resolve(projectRoot, '.tmp-generate-og-import-'));
+    const temporaryGenerator = resolve(temporaryRoot, 'scripts/generate-og.mjs');
+    const outputPaths = [
+      resolve(temporaryRoot, 'public/og-default.png'),
+      resolve(temporaryRoot, 'src/assets/blog/chatgpt-codex-plugins-og.png'),
+    ];
+    const sentinels = outputPaths.map((_, index) => Buffer.from(`import-only-sentinel-${index}`));
 
     try {
-      await Promise.all(paths.map((path, index) => writeFile(path, sentinels[index])));
+      await Promise.all(outputPaths.map((path) => mkdir(dirname(path), { recursive: true })));
+      await mkdir(dirname(temporaryGenerator), { recursive: true });
+      await copyFile(resolve(projectRoot, 'scripts/generate-og.mjs'), temporaryGenerator);
+      await Promise.all(outputPaths.map((path, index) => writeFile(path, sentinels[index])));
 
-      const generatorUrl = new URL('../../scripts/generate-og.mjs', import.meta.url);
+      const generatorUrl = pathToFileURL(temporaryGenerator);
       generatorUrl.searchParams.set('import-only', crypto.randomUUID());
       await import(generatorUrl.href);
 
-      const afterImport = await Promise.all(paths.map((path) => readFile(path)));
+      const afterImport = await Promise.all(outputPaths.map((path) => readFile(path)));
       for (const [index, content] of afterImport.entries()) {
-        expect(Buffer.compare(content, sentinels[index]), `${paths[index]} was rewritten during import`).toBe(0);
+        expect(Buffer.compare(content, sentinels[index]), `${outputPaths[index]} was rewritten during import`).toBe(0);
       }
     } finally {
-      await Promise.all(paths.map((path, index) => writeFile(path, originals[index])));
+      await rm(temporaryRoot, { force: true, recursive: true });
     }
+
+    await expect(access(temporaryRoot)).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
   it.each([
