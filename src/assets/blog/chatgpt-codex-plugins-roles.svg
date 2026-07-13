@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title description">
+  <title id="title">Pluginを構成できる機能の役割</title>
+  <desc id="description">Pluginは仕事に必要な機能をまとめる。Skill、App、App Templateは用途に応じて含められる。</desc>
+  <rect width="1200" height="675" fill="#07090d" />
+  <text
+    x="60"
+    y="72"
+    fill="#f5f7fa"
+    font-family="'Hiragino Sans', 'Yu Gothic', 'Noto Sans JP', system-ui, sans-serif"
+    font-size="48"
+    font-weight="750"
+  >
+    Pluginと各機能の役割
+  </text>
+  <text x="60" y="116" fill="#a6afbc" font-family="'Hiragino Sans', 'Yu Gothic', 'Noto Sans JP', system-ui, sans-serif" font-size="26">
+    用途に応じて、必要な機能を選んで含めます
+  </text>
+
+  <rect x="60" y="158" width="360" height="450" rx="28" fill="#0b0f14" stroke="#4ea1ff" stroke-width="3" />
+  <rect x="92" y="194" width="132" height="48" rx="24" fill="#4ea1ff" />
+  <text x="158" y="229" text-anchor="middle" fill="#07090d" font-family="system-ui, sans-serif" font-size="30" font-weight="800">
+    Plugin
+  </text>
+  <path d="M122 316h82v-46h84v46h70v172H122z" fill="none" stroke="#8cc5ff" stroke-width="10" stroke-linejoin="round" />
+  <text
+    x="240"
+    y="536"
+    text-anchor="middle"
+    fill="#f5f7fa"
+    font-family="'Hiragino Sans', 'Yu Gothic', 'Noto Sans JP', system-ui, sans-serif"
+    font-size="36"
+    font-weight="700"
+  >
+    仕事に必要な機能を
+  </text>
+  <text
+    x="240"
+    y="582"
+    text-anchor="middle"
+    fill="#8cc5ff"
+    font-family="'Hiragino Sans', 'Yu Gothic', 'Noto Sans JP', system-ui, sans-serif"
+    font-size="40"
+    font-weight="750"
+  >
+    まとめる
+  </text>
+
+  <path d="M444 383h42" stroke="#4ea1ff" stroke-width="4" stroke-linecap="round" />
+  <path d="m474 371 12 12-12 12" fill="none" stroke="#4ea1ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+
+  <g font-family="'Hiragino Sans', 'Yu Gothic', 'Noto Sans JP', system-ui, sans-serif">
+    <rect x="510" y="158" width="630" height="100" rx="20" fill="#0b0f14" stroke="#202936" stroke-width="2" />
+    <text x="542" y="205" fill="#8cc5ff" font-size="40" font-weight="750">Skill</text>
+    <text x="700" y="205" fill="#f5f7fa" font-size="36" font-weight="650">手順を教える</text>
+    <text x="542" y="239" fill="#a6afbc" font-size="23">必要なときに選択</text>
+
+    <rect x="510" y="276" width="630" height="100" rx="20" fill="#0b0f14" stroke="#202936" stroke-width="2" />
+    <text x="542" y="323" fill="#8cc5ff" font-size="40" font-weight="750">App</text>
+    <text x="700" y="323" fill="#f5f7fa" font-size="36" font-weight="650">外部サービスにつなぐ</text>
+    <text x="542" y="357" fill="#a6afbc" font-size="23">必要なときに選択</text>
+
+    <rect x="510" y="394" width="630" height="100" rx="20" fill="#0b0f14" stroke="#202936" stroke-width="2" />
+    <text x="542" y="441" fill="#8cc5ff" font-size="36" font-weight="750">App Template</text>
+    <text x="542" y="477" fill="#f5f7fa" font-size="30" font-weight="650">Workspace固有の設定を作る雛形</text>
+
+    <rect x="510" y="512" width="630" height="96" rx="20" fill="#101824" stroke="#4ea1ff" stroke-width="2" stroke-dasharray="10 10" />
+    <text x="825" y="570" text-anchor="middle" fill="#a6afbc" font-size="30" font-weight="650">すべてを含める必要はありません</text>
+  </g>
+</svg>
