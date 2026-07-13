@@ -1,4 +1,5 @@
-import { access } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { access, stat } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -26,35 +27,24 @@ const knownJapaneseFonts = {
   win32: [
     {
       family: 'Yu Gothic',
-      path: resolve(process.env.WINDIR ?? 'C:\\Windows', 'Fonts/YuGothR.ttc'),
+      path: 'C:\\Windows\\Fonts\\YuGothR.ttc',
     },
   ],
 };
 
-const selectJapaneseFont = async () => {
-  const configuredPath = process.env.OG_JAPANESE_FONT_PATH;
-  const configuredFamily = process.env.OG_JAPANESE_FONT_FAMILY;
-  const platformCandidates = knownJapaneseFonts[process.platform] ?? [];
-  const candidates = configuredPath ? [{ family: configuredFamily ?? '', path: configuredPath }] : platformCandidates;
-
-  if (configuredPath && !configuredFamily) {
-    throw new Error('[generate-og] Japanese font unavailable: OG_JAPANESE_FONT_FAMILY is required when OG_JAPANESE_FONT_PATH is set.');
-  }
-
+export const selectJapaneseFont = async (candidates = knownJapaneseFonts[process.platform] ?? []) => {
   for (const candidate of candidates) {
     try {
-      await access(candidate.path);
-      return candidate;
+      await access(candidate.path, constants.R_OK);
+      const metadata = await stat(candidate.path);
+      if (metadata.isFile()) return candidate;
     } catch {
       // Try the next known font file.
     }
   }
 
-  const checked = candidates.map(({ path }) => path).join(', ') || `no known paths for ${process.platform}`;
-  throw new Error(
-    `[generate-og] Japanese font unavailable. Checked: ${checked}. ` +
-      'Install a known Japanese font or set OG_JAPANESE_FONT_PATH and OG_JAPANESE_FONT_FAMILY.',
-  );
+  const expected = candidates.map(({ family, path }) => `${family} at ${path}`).join(', ') || `no known font path for ${process.platform}`;
+  throw new Error(`[generate-og] Japanese font unavailable. Expected a readable regular font file: ${expected}.`);
 };
 
 const japaneseFont = await selectJapaneseFont();

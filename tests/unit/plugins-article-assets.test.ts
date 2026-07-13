@@ -1,14 +1,11 @@
-import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
 
 import { chromium } from '@playwright/test';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 
 const asset = (name: string) => fileURLToPath(new URL(`../../src/assets/blog/${name}`, import.meta.url));
-const execFileAsync = promisify(execFile);
 
 const expectReadableLabels = (source: string, labels: string[]) => {
   const textElements = [...source.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)].map((match) => ({
@@ -119,19 +116,14 @@ describe('plugins article visuals', () => {
     }
   });
 
-  it('fails OG generation clearly when the configured Japanese font is unavailable', async () => {
-    const generator = fileURLToPath(new URL('../../scripts/generate-og.mjs', import.meta.url));
+  it.each([
+    ['a missing file', { family: 'Missing Test Font', path: '/definitely/missing/japanese-font.ttf' }],
+    ['a directory', { family: 'Directory Test Font', path: fileURLToPath(new URL('../../scripts', import.meta.url)) }],
+  ])('rejects %s as a Japanese font candidate', async (_description, candidate) => {
+    const { selectJapaneseFont } = await import('../../scripts/generate-og.mjs');
 
-    await expect(
-      execFileAsync(process.execPath, [generator], {
-        env: {
-          ...process.env,
-          OG_JAPANESE_FONT_FAMILY: 'Missing Test Font',
-          OG_JAPANESE_FONT_PATH: '/definitely/missing/japanese-font.ttf',
-        },
-      }),
-    ).rejects.toMatchObject({
-      stderr: expect.stringContaining('Japanese font unavailable'),
-    });
+    await expect(selectJapaneseFont([candidate])).rejects.toThrow(
+      new RegExp(`Japanese font unavailable.*${candidate.family}.*${candidate.path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`),
+    );
   });
 });
