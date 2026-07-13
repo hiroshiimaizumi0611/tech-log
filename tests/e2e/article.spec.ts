@@ -88,7 +88,7 @@ test('Plugins記事のSEO、本文構成、画像と安全なGitHubプロンプ�
       width: Number(element.getAttribute('width')),
     })),
   );
-  expect(imageMetadata.every(({ alt, height, width }) => alt.length > 0 && height > 0 && width > 0)).toBe(true);
+  expect(imageMetadata.every(({ alt, height, width }) => alt.trim().length > 0 && height > 0 && width > 0)).toBe(true);
   expect(new Set(imageMetadata.map(({ alt }) => alt)).size).toBe(5);
   const captions = body.locator('.article-image-caption');
   await expect(captions).toHaveCount(5);
@@ -96,21 +96,33 @@ test('Plugins記事のSEO、本文構成、画像と安全なGitHubプロンプ�
   await expectNoHighImpactAxeViolations(page);
 });
 
-test('Plugins記事を390pxで画像、キャプション、表をはみ出さず表示する', async ({ page }) => {
+test('Plugins記事を390pxで本文と各画像、キャプション、表をはみ出さず表示する', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(pluginsArticlePath);
 
   const body = page.locator('[data-article-body]');
-  const bodyWidth = (await body.boundingBox())!.width;
+  const bodyBox = (await body.boundingBox())!;
+  expect(await body.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-  for (const image of await body.locator('img').all()) {
-    expect((await image.boundingBox())!.width).toBeLessThanOrEqual(bodyWidth);
+
+  const images = body.locator('img');
+  const captions = body.locator('.article-image-caption');
+  const tables = body.locator('table');
+  await expect(images).toHaveCount(5);
+  await expect(captions).toHaveCount(5);
+  await expect(tables).toHaveCount(2);
+  for (const element of await body.locator('img, .article-image-caption, table').all()) {
+    const box = (await element.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(bodyBox.x - 1);
+    expect(box.x + box.width).toBeLessThanOrEqual(bodyBox.x + bodyBox.width + 1);
   }
-  for (const caption of await body.locator('.article-image-caption').all()) {
+  for (const caption of await captions.all()) {
     await expect(caption).toBeVisible();
     expect(await caption.evaluate((element) => getComputedStyle(element).color)).not.toBe('rgba(0, 0, 0, 0)');
   }
-  await expect(body.locator('table')).toHaveCount(2);
+  for (const table of await tables.all()) {
+    expect(await table.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
 

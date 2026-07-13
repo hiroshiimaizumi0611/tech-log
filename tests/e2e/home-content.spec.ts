@@ -67,37 +67,46 @@ test('記事画像をカテゴリーアート上の装飾レイヤーとして�
   await expect(page.locator('script[data-image-fallback]')).toHaveCount(0);
 });
 
-test('記事画像の取得失敗時も固定比率のカテゴリーアートとカードリンクを利用できる', async ({ page }) => {
+test('Featuredと記事カードの画像取得失敗時も固定比率のカテゴリーアートとリンクを利用できる', async ({ page }) => {
+  const initialFeatured = page.getByRole('region', { name: 'サイト紹介' }).getByRole('article', { name: '注目記事' });
   const initialCard = page
     .getByRole('region', { name: '最新の記事' })
     .locator('[data-article-card]')
     .filter({ hasText: latestArticleTitles[0] });
-  const optimizedImageUrl = await backgroundImageUrl(initialCard.locator('[data-custom-hero]'));
-  let abortedRequests = 0;
-  await page.route(optimizedImageUrl, async (route) => {
-    abortedRequests += 1;
+  const featuredImageUrl = await backgroundImageUrl(initialFeatured.locator('[data-custom-hero]'));
+  const cardImageUrl = await backgroundImageUrl(initialCard.locator('[data-custom-hero]'));
+  expect(featuredImageUrl).not.toBe(cardImageUrl);
+  const abortedRequests = { card: 0, featured: 0 };
+  await page.route(featuredImageUrl, async (route) => {
+    abortedRequests.featured += 1;
+    await route.abort('failed');
+  });
+  await page.route(cardImageUrl, async (route) => {
+    abortedRequests.card += 1;
     await route.abort('failed');
   });
   await page.goto('/?hero-image=failure');
 
+  const featured = page.getByRole('region', { name: 'サイト紹介' }).getByRole('article', { name: '注目記事' });
   const pluginsCard = page
     .getByRole('region', { name: '最新の記事' })
     .locator('[data-article-card]')
     .filter({ hasText: latestArticleTitles[0] });
-  const fallback = pluginsCard.locator('[data-category-artwork]');
-  const customArtwork = pluginsCard.locator('[data-custom-hero]');
-
-  expect(await backgroundImageUrl(customArtwork)).toBe(optimizedImageUrl);
-  await expect(fallback).toBeVisible();
-  expect(abortedRequests).toBeGreaterThan(0);
-
-  const fallbackBox = await fallback.boundingBox();
-  const customBox = await customArtwork.boundingBox();
-  expect(fallbackBox).not.toBeNull();
-  expect(customBox).not.toBeNull();
-  expect(customBox).toEqual(fallbackBox);
-  await expect(pluginsCard.getByRole('link')).toHaveAttribute('href', '/blog/chatgpt-codex-plugins-guide/');
-  await expect(pluginsCard.getByRole('heading', { name: latestArticleTitles[0] })).toBeVisible();
+  for (const { imageUrl, region } of [
+    { imageUrl: featuredImageUrl, region: featured },
+    { imageUrl: cardImageUrl, region: pluginsCard },
+  ]) {
+    const fallback = region.locator('[data-category-artwork]');
+    const customArtwork = region.locator('[data-custom-hero]');
+    expect(await backgroundImageUrl(customArtwork)).toBe(imageUrl);
+    await expect(fallback).toBeVisible();
+    await expect(customArtwork).toBeVisible();
+    expect(await customArtwork.boundingBox()).toEqual(await fallback.boundingBox());
+    await expect(region.getByRole('heading', { name: latestArticleTitles[0] })).toBeVisible();
+    await expect(region.getByRole('link')).toHaveAttribute('href', '/blog/chatgpt-codex-plugins-guide/');
+  }
+  expect(abortedRequests.featured).toBeGreaterThan(0);
+  expect(abortedRequests.card).toBeGreaterThan(0);
   await expect(page.locator('script[data-image-fallback], [onerror]')).toHaveCount(0);
 });
 
