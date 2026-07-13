@@ -27,6 +27,11 @@ const articleFixtures = [
     featured: false,
     referenceHosts: ['openai.com', 'help.openai.com'],
   },
+  {
+    id: 'chatgpt-codex-plugins-guide',
+    featured: true,
+    referenceHosts: ['help.openai.com'],
+  },
 ] as const;
 
 async function readArticle(id: string): Promise<string> {
@@ -223,6 +228,7 @@ describe('initial production article fixtures', () => {
       'terraform-drift-detection',
       'gpt-5-6-sol-terra-luna',
       'chatgpt-work-guide',
+      'chatgpt-codex-plugins-guide',
     ]);
     for (const article of articles) {
       expect(featuredValue(article.frontmatter), article.id).toBe(article.expectedFeatured);
@@ -267,6 +273,21 @@ describe('initial production article fixtures', () => {
     expect(body).toContain("import { defineCollection } from 'astro:content';");
     expect(body).toContain("import { z } from 'astro/zod';");
     expect(body).not.toContain("import { defineCollection, z } from 'astro:content';");
+  });
+
+  it('plugins guide uses five accessible visuals and a read-only GitHub example', async () => {
+    const source = await readArticle('chatgpt-codex-plugins-guide');
+    const { frontmatter, body } = splitArticle(source);
+    const images = [...body.matchAll(/!\[([^\]]+)\]\(([^)]+)\)/g)];
+
+    expect(frontmatter).toContain('featured: true');
+    expect(frontmatter).toMatch(/heroImage:\s+\.\.\/\.\.\/assets\/blog\/chatgpt-codex-plugins-og\.png/);
+    expect(frontmatter).toMatch(/ogImage:\s+\.\.\/\.\.\/assets\/blog\/chatgpt-codex-plugins-og\.png/);
+    expect(images).toHaveLength(5);
+    expect(images.every(([, alt]) => alt.trim().length > 0)).toBe(true);
+    expect(new Set(images.map(([, alt]) => alt)).size).toBe(5);
+    expect(body).toContain('Issueの作成・更新・コメント・クローズは行わないでください');
+    expect(body).not.toMatch(/Plugin\s*=\s*Skill/);
   });
 
   it('protects every saved Terraform plan and state backup artifact', async () => {
