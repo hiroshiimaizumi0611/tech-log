@@ -64,7 +64,7 @@ Pluginの「Available（利用可能）」は対象となる利用者が自分�
 ## 接続前に見る4つの権限
 
 ![Pluginから接続先サービスまで五段階で権限を確認する図](../../assets/blog/chatgpt-codex-plugins-permissions.svg)
-<span class="article-image-caption">図4：Plugin導入方針から接続先の元権限まで、段階を追って確認する権限フロー図。</span>
+<span class="article-image-caption">図4：Plugin導入方針から接続先の元権限と操作確認まで、段階を追って確認する権限フロー図。</span>
 
 接続画面では、少なくとも次の4点を確認します。
 
