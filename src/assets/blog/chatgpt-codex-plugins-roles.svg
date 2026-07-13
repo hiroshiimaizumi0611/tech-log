@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title description">
+  <title id="title">Pluginを構成できる機能の役割</title>
+  <desc id="description">Pluginは仕事に必要な機能をまとめる。Skill、App、App Templateは用途に応じて含められる。</desc>
+  <rect width="1200" height="675" fill="#07090d" />
+  <text
+    x="60"
+    y="70"
+    fill="#f5f7fa"
+    font-family="'Hiragino Sans', 'Yu Gothic', 'Noto Sans JP', system-ui, sans-serif"
+    font-size="48"
+    font-weight="750"
+  >
+    Pluginと各機能の役割
+  </text>
+
+  <rect x="60" y="108" width="1080" height="112" rx="24" fill="#0b0f14" stroke="#4ea1ff" stroke-width="3" />
+  <text
+    x="100"
+    y="177"
+    fill="#f5f7fa"
+    font-family="'Hiragino Sans', 'Yu Gothic', 'Noto Sans JP', system-ui, sans-serif"
+    font-size="42"
+    font-weight="700"
+  >
+    <tspan fill="#8cc5ff" font-weight="800">Plugin:</tspan>
+    <tspan>仕事に必要な機能をまとめる</tspan>
+  </text>
+
+  <rect x="60" y="246" width="1080" height="88" rx="20" fill="#0b0f14" stroke="#202936" stroke-width="2" />
+  <text
+    x="100"
+    y="303"
+    fill="#f5f7fa"
+    font-family="'Hiragino Sans', 'Yu Gothic', 'Noto Sans JP', system-ui, sans-serif"
+    font-size="40"
+    font-weight="700"
+  >
+    <tspan fill="#8cc5ff" font-weight="800">Skill:</tspan>
+    <tspan>手順を教える</tspan>
+  </text>
+
+  <rect x="60" y="354" width="1080" height="88" rx="20" fill="#0b0f14" stroke="#202936" stroke-width="2" />
+  <text
+    x="100"
+    y="411"
+    fill="#f5f7fa"
+    font-family="'Hiragino Sans', 'Yu Gothic', 'Noto Sans JP', system-ui, sans-serif"
+    font-size="40"
+    font-weight="700"
+  >
+    <tspan fill="#8cc5ff" font-weight="800">App:</tspan>
+    <tspan>外部サービスにつなぐ</tspan>
+  </text>
+
+  <rect x="60" y="462" width="1080" height="88" rx="20" fill="#0b0f14" stroke="#202936" stroke-width="2" />
+  <text
+    x="100"
+    y="519"
+    fill="#f5f7fa"
+    font-family="'Hiragino Sans', 'Yu Gothic', 'Noto Sans JP', system-ui, sans-serif"
+    font-size="40"
+    font-weight="700"
+  >
+    <tspan fill="#8cc5ff" font-weight="800">App Template:</tspan>
+    <tspan>Workspace固有の設定を作る雛形</tspan>
+  </text>
+
+  <rect x="60" y="578" width="1080" height="64" rx="20" fill="#101824" stroke="#4ea1ff" stroke-width="2" stroke-dasharray="10 10" />
+  <text
+    x="600"
+    y="622"
+    text-anchor="middle"
+    fill="#a6afbc"
+    font-family="'Hiragino Sans', 'Yu Gothic', 'Noto Sans JP', system-ui, sans-serif"
+    font-size="40"
+    font-weight="700"
+  >
+    すべてを含める必要はありません
+  </text>
+</svg>

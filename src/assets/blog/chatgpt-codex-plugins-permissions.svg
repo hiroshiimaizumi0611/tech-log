@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title description">
+  <title id="title">PluginとAppの権限確認フロー</title>
+  <desc id="description">Pluginの導入方針からApp設定、ユーザー認証、接続先サービスの元権限、操作確認までを順に確認する。</desc>
+  <rect width="1200" height="675" fill="#07090d" />
+  <text
+    x="60"
+    y="68"
+    fill="#f5f7fa"
+    font-family="'Hiragino Sans', 'Yu Gothic', 'Noto Sans JP', system-ui, sans-serif"
+    font-size="48"
+    font-weight="750"
+  >
+    権限は5段階で確認する
+  </text>
+
+  <path d="M112 158V570" stroke="#202936" stroke-width="8" stroke-linecap="round" />
+  <g font-family="'Hiragino Sans', 'Yu Gothic', 'Noto Sans JP', system-ui, sans-serif">
+    <g>
+      <rect x="60" y="104" width="1080" height="82" rx="20" fill="#0b0f14" stroke="#4ea1ff" stroke-width="2" />
+      <circle cx="112" cy="145" r="28" fill="#4ea1ff" />
+      <text x="112" y="159" text-anchor="middle" fill="#07090d" font-size="40" font-weight="850">1</text>
+      <text x="174" y="159" fill="#f5f7fa" font-size="40" font-weight="700">Pluginの導入方針</text>
+    </g>
+    <path d="m100 194 12 12 12-12" fill="none" stroke="#8cc5ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+    <g>
+      <rect x="60" y="208" width="1080" height="82" rx="20" fill="#0b0f14" stroke="#202936" stroke-width="2" />
+      <circle cx="112" cy="249" r="28" fill="#0b0f14" stroke="#4ea1ff" stroke-width="4" />
+      <text x="112" y="263" text-anchor="middle" fill="#8cc5ff" font-size="40" font-weight="850">2</text>
+      <text x="174" y="263" fill="#f5f7fa" font-size="40" font-weight="700">AppのWorkspace・Role設定</text>
+    </g>
+    <path d="m100 298 12 12 12-12" fill="none" stroke="#8cc5ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+    <g>
+      <rect x="60" y="312" width="1080" height="82" rx="20" fill="#0b0f14" stroke="#202936" stroke-width="2" />
+      <circle cx="112" cy="353" r="28" fill="#0b0f14" stroke="#4ea1ff" stroke-width="4" />
+      <text x="112" y="367" text-anchor="middle" fill="#8cc5ff" font-size="40" font-weight="850">3</text>
+      <text x="174" y="367" fill="#f5f7fa" font-size="40" font-weight="700">ユーザー認証</text>
+    </g>
+    <path d="m100 402 12 12 12-12" fill="none" stroke="#8cc5ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+    <g>
+      <rect x="60" y="416" width="1080" height="82" rx="20" fill="#0b0f14" stroke="#202936" stroke-width="2" />
+      <circle cx="112" cy="457" r="28" fill="#0b0f14" stroke="#4ea1ff" stroke-width="4" />
+      <text x="112" y="471" text-anchor="middle" fill="#8cc5ff" font-size="40" font-weight="850">4</text>
+      <text x="174" y="471" fill="#f5f7fa" font-size="40" font-weight="700">接続先サービスの元権限</text>
+    </g>
+    <path d="m100 506 12 12 12-12" fill="none" stroke="#8cc5ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+    <g>
+      <rect x="60" y="520" width="1080" height="82" rx="20" fill="#0b0f14" stroke="#202936" stroke-width="2" />
+      <circle cx="112" cy="561" r="28" fill="#0b0f14" stroke="#4ea1ff" stroke-width="4" />
+      <text x="112" y="575" text-anchor="middle" fill="#8cc5ff" font-size="40" font-weight="850">5</text>
+      <text x="174" y="575" fill="#f5f7fa" font-size="40" font-weight="700">操作確認</text>
+    </g>
+  </g>
+</svg>

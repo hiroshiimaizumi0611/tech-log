@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title description">
+  <title id="title">Appを選んで読み取り結果を確認する操作フロー図</title>
+  <desc id="description">
+    Appを含むPluginの場合に、アットメンションで内包Appを選択し、対象を限定して読み取りを依頼し、結果を確認する。デモでは書き込み操作を行わない。
+  </desc>
+  <rect width="1200" height="675" fill="#07090d" />
+  <g font-family="'Hiragino Sans', 'Yu Gothic', 'Noto Sans JP', system-ui, sans-serif">
+    <text x="60" y="66" fill="#f5f7fa" font-size="48" font-weight="800">Pluginで読み取る</text>
+    <text x="1140" y="66" text-anchor="end" fill="#8cc5ff" font-size="48" font-weight="700">操作フロー図</text>
+
+    <path d="M112 139V488" fill="none" stroke="#202936" stroke-width="8" stroke-linecap="round" />
+    <g>
+      <rect x="60" y="100" width="1080" height="82" rx="20" fill="#0b0f14" stroke="#4ea1ff" stroke-width="3" />
+      <circle cx="112" cy="141" r="28" fill="#4ea1ff" />
+      <text x="112" y="155" text-anchor="middle" fill="#07090d" font-size="40" font-weight="850">1</text>
+      <text x="174" y="155" fill="#f5f7fa" font-size="48" font-weight="750">@ App選択</text>
+      <text x="1080" y="154" text-anchor="end" fill="#a6afbc" font-size="48">+ → More からも選択可</text>
+    </g>
+    <path d="m100 190 12 12 12-12" fill="none" stroke="#8cc5ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+    <g>
+      <rect x="60" y="204" width="1080" height="82" rx="20" fill="#0b0f14" stroke="#202936" stroke-width="2" />
+      <circle cx="112" cy="245" r="28" fill="#0b0f14" stroke="#4ea1ff" stroke-width="4" />
+      <text x="112" y="259" text-anchor="middle" fill="#8cc5ff" font-size="40" font-weight="850">2</text>
+      <text x="174" y="259" fill="#f5f7fa" font-size="48" font-weight="750">対象を限定</text>
+      <text x="1080" y="258" text-anchor="end" fill="#a6afbc" font-size="48">公開リポジトリを指定</text>
+    </g>
+    <path d="m100 294 12 12 12-12" fill="none" stroke="#8cc5ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+    <g>
+      <rect x="60" y="308" width="1080" height="82" rx="20" fill="#0b0f14" stroke="#202936" stroke-width="2" />
+      <circle cx="112" cy="349" r="28" fill="#0b0f14" stroke="#4ea1ff" stroke-width="4" />
+      <text x="112" y="363" text-anchor="middle" fill="#8cc5ff" font-size="40" font-weight="850">3</text>
+      <text x="174" y="363" fill="#f5f7fa" font-size="48" font-weight="750">読取依頼</text>
+      <text x="1080" y="362" text-anchor="end" fill="#a6afbc" font-size="48">要約だけを依頼</text>
+    </g>
+    <path d="m100 398 12 12 12-12" fill="none" stroke="#8cc5ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+    <g>
+      <rect x="60" y="412" width="1080" height="82" rx="20" fill="#0b0f14" stroke="#202936" stroke-width="2" />
+      <circle cx="112" cy="453" r="28" fill="#0b0f14" stroke="#4ea1ff" stroke-width="4" />
+      <text x="112" y="467" text-anchor="middle" fill="#8cc5ff" font-size="40" font-weight="850">4</text>
+      <text x="174" y="467" fill="#f5f7fa" font-size="48" font-weight="750">結果確認</text>
+      <text x="1080" y="466" text-anchor="end" fill="#a6afbc" font-size="48">参照範囲も確認</text>
+    </g>
+
+    <rect x="60" y="518" width="1080" height="132" rx="22" fill="#101824" stroke="#4ea1ff" stroke-width="2" stroke-dasharray="10 10" />
+    <text x="164" y="558" fill="#8cc5ff" font-size="48" font-weight="750">Appを含むPluginの場合</text>
+    <path d="m102 601 13 13 27-31" fill="none" stroke="#8cc5ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+    <text x="164" y="624" fill="#f5f7fa" font-size="48" font-weight="750">読み取り専用デモ・書き込み操作なし</text>
+  </g>
+</svg>
