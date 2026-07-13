@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 import { chromium } from '@playwright/test';
@@ -113,6 +113,27 @@ describe('plugins article visuals', () => {
       }
     } finally {
       await browser.close();
+    }
+  });
+
+  it('does not write generated PNGs when the generator module is imported', async () => {
+    const paths = [fileURLToPath(new URL('../../public/og-default.png', import.meta.url)), asset('chatgpt-codex-plugins-og.png')];
+    const originals = await Promise.all(paths.map((path) => readFile(path)));
+    const sentinels = paths.map((_, index) => Buffer.from(`import-only-sentinel-${index}`));
+
+    try {
+      await Promise.all(paths.map((path, index) => writeFile(path, sentinels[index])));
+
+      const generatorUrl = new URL('../../scripts/generate-og.mjs', import.meta.url);
+      generatorUrl.searchParams.set('import-only', crypto.randomUUID());
+      await import(generatorUrl.href);
+
+      const afterImport = await Promise.all(paths.map((path) => readFile(path)));
+      for (const [index, content] of afterImport.entries()) {
+        expect(Buffer.compare(content, sentinels[index]), `${paths[index]} was rewritten during import`).toBe(0);
+      }
+    } finally {
+      await Promise.all(paths.map((path, index) => writeFile(path, originals[index])));
     }
   });
 

@@ -1,7 +1,7 @@
 import { constants } from 'node:fs';
 import { access, stat } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import sharp from 'sharp';
 
@@ -47,10 +47,11 @@ export const selectJapaneseFont = async (candidates = knownJapaneseFonts[process
   throw new Error(`[generate-og] Japanese font unavailable. Expected a readable regular font file: ${expected}.`);
 };
 
-const japaneseFont = await selectJapaneseFont();
-const fontFamily = `'${japaneseFont.family}', sans-serif`;
+export const main = async () => {
+  const japaneseFont = await selectJapaneseFont();
+  const fontFamily = `'${japaneseFont.family}', sans-serif`;
 
-const defaultOg = `
+  const defaultOg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <rect width="1200" height="630" fill="#07090d"/>
   <circle cx="1040" cy="92" r="280" fill="#0b0f14" stroke="#202936" stroke-width="2"/>
@@ -61,7 +62,7 @@ const defaultOg = `
   <text x="78" y="550" fill="#a6afbc" font-family="system-ui, sans-serif" font-size="30">つくる、動かす、改善する。</text>
 </svg>`;
 
-const pluginsArticleOg = `
+  const pluginsArticleOg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <rect width="1200" height="630" fill="#07090d"/>
   <circle cx="1080" cy="40" r="300" fill="#0b0f14" stroke="#202936" stroke-width="2"/>
@@ -95,12 +96,18 @@ const pluginsArticleOg = `
   <text x="72" y="574" fill="#a6afbc" font-family="${fontFamily}" font-size="28">すべて必須ではありません。用途に応じて構成できます。</text>
 </svg>`;
 
-const outputs = [
-  { path: resolve(here, '../public/og-default.png'), svg: defaultOg },
-  {
-    path: resolve(here, '../src/assets/blog/chatgpt-codex-plugins-og.png'),
-    svg: pluginsArticleOg,
-  },
-];
+  const outputs = [
+    { path: resolve(here, '../public/og-default.png'), svg: defaultOg },
+    {
+      path: resolve(here, '../src/assets/blog/chatgpt-codex-plugins-og.png'),
+      svg: pluginsArticleOg,
+    },
+  ];
 
-await Promise.all(outputs.map(({ path, svg }) => sharp(Buffer.from(svg)).png().toFile(path)));
+  await Promise.all(outputs.map(({ path, svg }) => sharp(Buffer.from(svg)).png().toFile(path)));
+};
+
+const entrypoint = process.argv[1];
+if (entrypoint && pathToFileURL(resolve(entrypoint)).href === import.meta.url) {
+  await main();
+}
