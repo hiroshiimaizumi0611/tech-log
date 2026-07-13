@@ -27,6 +27,7 @@
 
 - タイトル: `ChatGPTとCodexのPluginsとは？Apps・Skillsとの違い、探し方、権限の見方`
 - slug: `chatgpt-codex-plugins-guide`
+- 記事ファイル: `src/content/blog/chatgpt-codex-plugins-guide.md`
 - category: `AI`
 - tags: `OpenAI`、`ChatGPT`、`Codex`、`Plugins`
 - featured: `true`
@@ -39,7 +40,7 @@
 冒頭で次の3点を短く提示する。
 
 1. Appが単純にPluginへ改名されたわけではない。
-2. Pluginはワークフローのまとまり、Skillは再利用可能な手順、Appは外部サービスのデータや操作との接続である。
+2. Pluginはワークフローのまとまりであり、構成に応じてSkill、App、App Templateを含められる。Skillは再利用可能な手順、Appは外部サービスのデータや操作との接続である。
 3. Pluginの導入と、内包されるAppの権限は別の制御である。
 
 既存のApp接続は維持され、Plugin DirectoryがChatGPTとCodexにおけるワークフロー機能の主な発見場所になったことを、2026年7月9日の変更として説明する。
@@ -112,6 +113,8 @@ Issueの作成・更新・コメント・クローズは行わないでくださ
 - 返答が参照したIssueを人が確認できる
 - Issueの作成、更新、コメント、クローズが発生していない
 
+公開直前にPublic Repositoryの未解決Issue数を確認する。3件未満の場合は、プロンプトを「未解決Issueを最大3件」に変更し、本文と画面例も実在件数に合わせる。非公開または存在しないIssueを例として作らない。
+
 書込操作はこの記事の実例に含めない。
 
 ### 5.6 使えないときの確認順
@@ -140,21 +143,25 @@ Issueの作成・更新・コメント・クローズは行わないでくださ
 
 ## 6. 画像設計
 
-独自図解3枚と、個人情報を含まない公式画面2枚を基本構成とする。
+独自ビジュアル3枚と、個人情報を含まない公式画面2枚を基本構成とする。独自ビジュアル3枚は、トップ画像兼OG画像1枚と本文説明用の独自図解2枚を指す。トップ画像も本文冒頭に掲載するため、本文中の画像は合計5枚になる。
 
 ### 6.1 トップ画像兼OG画像
 
-- 内容: `Plugin = Skill + App + App Template`
+- 内容: `Pluginに含められるもの: Skills / Apps / App Templates`
 - サイズ: 1200×630px
 - 形式: PNG
+- asset: `src/assets/blog/chatgpt-codex-plugins-og.png`
 - デザイン: テックログのダーク背景、青いアクセント、既存のデザイントークンに合わせる
-- 用途: 記事カード、記事OGP、Twitter Card
+- frontmatter: `heroImage`と`ogImage`の両方から同じassetを参照する
+- 本文配置: 導入文の直後にMarkdown画像として同じassetを掲載し、その下にキャプションを置く。現在のArticleLayoutは`heroImage`を本文へ自動表示しないため、本文側の明示的な画像参照を必須とする
+- 用途: 記事本文、記事カード、記事OGP、Twitter Card
 - 公式ロゴを模倣せず、文字と抽象的な箱・接続線で表現する
+- Skill、App、App Templateが常にすべて含まれると読める等式表現は使用しない
 
 ### 6.2 独自図解
 
-1. Plugin、Skill、Appの役割を「まとめる・教える・つなぐ」で示す関係図
-2. Plugin導入から接続先権限、操作確認までのアクセス経路図
+1. `src/assets/blog/chatgpt-codex-plugins-roles.svg`: Plugin、Skill、Appの役割を「まとめる・教える・つなぐ」で示す関係図
+2. `src/assets/blog/chatgpt-codex-plugins-permissions.svg`: Plugin導入から接続先権限、操作確認までのアクセス経路図
 
 本文幅とMobile表示で文字が読めるよう、横長すぎる構成を避ける。図解はSVGを基本とし、本文中の具体的なaltと直後のキャプションで同じ意味を文章でも伝える。
 
@@ -164,6 +171,8 @@ Issueの作成・更新・コメント・クローズは行わないでくださ
 2. Pluginを選択する`@`メンションまたは追加メニュー
 
 画面にはアカウント名、メール、アイコン、会話履歴、非公開Workspace、非公開Repositoryなどを含めない。必要部分だけを切り出し、撮影日と公式ページへのリンクをキャプションに記載する。安全に取得できない場合やUIが記事構成と一致しない場合は、架空の公式画面を作らず、独自の操作フロー図へ置き換える。
+
+公式画面を掲載できる場合は、`src/assets/blog/chatgpt-plugin-directory.webp`と`src/assets/blog/chatgpt-plugin-selection.webp`を使用する。代替する場合も本文中の画像数と説明内容を維持し、ファイル名は実際の内容が分かる名称に変更する。
 
 ### 6.4 画像品質
 
@@ -225,7 +234,7 @@ Issueの作成・更新・コメント・クローズは行わないでくださ
 ## 10. 完了条件
 
 - 6つの本文セクションとまとめが、設計どおり公開可能な日本語記事として完成している
-- 独自図解3枚を掲載している
+- トップ画像兼OG画像1枚と本文説明用の独自図解2枚、合計3枚の独自ビジュアルを本文に掲載している
 - 個人情報を含まない公式画面2枚、または承認済みの独自操作フロー図への代替を掲載している
 - すべての重要な事実にOpenAI公式の参照先がある
 - 低リスクなGitHub Plugin実例が、読者自身で再現できる
