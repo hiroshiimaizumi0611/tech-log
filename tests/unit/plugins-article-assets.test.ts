@@ -69,13 +69,39 @@ describe('plugins article visuals', () => {
     expectReadableLabels(source, labels);
   });
 
+  it.each([
+    [
+      'chatgpt-plugin-directory-flow.svg',
+      ['操作フロー図', 'Plugin Directory', 'Plugin詳細', '必須App確認', 'Connect', '読み取り専用デモ・書き込み操作なし'],
+    ],
+    [
+      'chatgpt-plugin-selection-flow.svg',
+      ['操作フロー図', '@ Plugin選択', '対象を限定', '読取依頼', '結果確認', '読み取り専用デモ・書き込み操作なし'],
+    ],
+  ])('%s is a readable 1200x675 walkthrough flow', async (name, labels) => {
+    const source = await readFile(asset(name), 'utf8');
+    const rootAttributes = source.match(/<svg\b([^>]*)>/)?.[1];
+    const attribute = (key: string) => rootAttributes?.match(new RegExp(`\\b${key}="([^"]+)"`))?.[1];
+
+    expect(attribute('width')).toBe('1200');
+    expect(attribute('height')).toBe('675');
+    expect(attribute('viewBox')).toBe('0 0 1200 675');
+    for (const label of labels) expect(source).toContain(label);
+    expectReadableLabels(source, labels);
+  });
+
   it('keeps rendered text inside the 390px canvas without overlaps', async () => {
     const browser = await chromium.launch({ headless: true });
 
     try {
       const page = await browser.newPage({ viewport: { width: 390, height: 300 } });
 
-      for (const name of ['chatgpt-codex-plugins-roles.svg', 'chatgpt-codex-plugins-permissions.svg']) {
+      for (const name of [
+        'chatgpt-codex-plugins-roles.svg',
+        'chatgpt-codex-plugins-permissions.svg',
+        'chatgpt-plugin-directory-flow.svg',
+        'chatgpt-plugin-selection-flow.svg',
+      ]) {
         const source = await readFile(asset(name), 'utf8');
         await page.setContent(`<style>body{margin:0}svg{display:block;width:390px;height:auto}</style>${source}`);
 
