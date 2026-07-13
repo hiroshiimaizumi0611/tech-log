@@ -104,7 +104,7 @@
 .article-body .article-image-caption {
   display: block;
   margin-block: calc(var(--space-3) * -1) var(--space-6);
-  color: var(--color-text-weak);
+  color: var(--color-text-muted);
   font-family: var(--font-ui);
   font-size: 0.78rem;
   line-height: 1.65;

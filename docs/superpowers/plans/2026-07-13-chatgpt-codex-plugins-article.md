@@ -33,7 +33,7 @@ Expected: `v24.x.x`。Node 25で`npm ci`した`node_modules`は使わず、バ�
 - `src/assets/blog/chatgpt-codex-plugins-roles.svg`: Plugin・Skill・Appの役割図
 - `src/assets/blog/chatgpt-codex-plugins-permissions.svg`: 権限が通る段階を示す図
 - `src/assets/blog/chatgpt-plugin-directory.webp`: 個人情報を含まないPlugin Directory画面。安全に取得できない場合は`chatgpt-plugin-directory-flow.svg`
-- `src/assets/blog/chatgpt-plugin-selection.webp`: 個人情報を含まないPlugin選択画面。安全に取得できない場合は`chatgpt-plugin-selection-flow.svg`
+- `src/assets/blog/chatgpt-plugin-selection.webp`: 個人情報を含まない内包App選択画面。安全に取得できない場合は`chatgpt-plugin-selection-flow.svg`
 - `tests/unit/plugins-article-assets.test.ts`: 独自画像の形式・寸法・重要ラベルと、公式画面または代替図2枚の存在を検証
 
 ### 変更
@@ -70,7 +70,7 @@ Record for the implementation turn, without creating a separate research file:
 - 既存App接続の扱い
 - Plugin、Skill、App、App Templateの定義
 - Plugin導入とApp権限が別であること
-- Directory、接続、`@`メンションの現在の導線
+- Directory、接続、Appを含むPluginで内包Appを選ぶ`@`メンションの現在の導線
 - プラン、Workspace、Role、地域、対応画面による提供差
 
 Expected: 重要な主張を3つの公式ページだけで裏付けられる。裏付けられない主張は記事へ入れない。
@@ -93,7 +93,7 @@ Run:
 gh issue list --repo hiroshiimaizumi0611/tech-log --state open --limit 10 --json number,title,url
 ```
 
-Expected: 1件以上のPublic Issueが返る。3件未満なら本文のプロンプトを「未解決Issueを最大3件」にする。Issueの作成・更新は行わない。
+Expected: 1件以上のPublic Issueが返る。各Issueは番号・タイトル・URLだけを出力し、3件未満なら一覧とは別の最終行で取得できた件数が少ないことを伝える。Issueの作成・更新は行わない。
 
 - [ ] **Step 4: 記事で使う確定descriptionを固定する**
 
@@ -236,7 +236,7 @@ Use `@browser:control-in-app-browser` for a logged-in ChatGPT surface only if th
 Required captures:
 
 1. Plugin Directoryの一覧またはPlugin詳細
-2. Pluginを選ぶ`@`メンションまたは追加メニュー
+2. Appを含むPluginで内包Appを選ぶ`@`メンションまたは追加メニュー
 
 Reject a capture if it contains any account name, email, avatar, conversation title/history, private Workspace name, private Repository, or unrelated browser chrome. Do not crop or generatively reconstruct a screenshot after personal data has been captured.
 
@@ -249,7 +249,7 @@ Use the browser tool's element/region export so the output itself contains only 
 Do not pause the whole implementation. Create:
 
 - `chatgpt-plugin-directory-flow.svg`: `Directory → Plugin詳細 → 必須App確認 → Connect`
-- `chatgpt-plugin-selection-flow.svg`: `@ Plugin選択 → 対象を限定 → 読取依頼 → 結果確認`
+- `chatgpt-plugin-selection-flow.svg`: `Appを含むPluginの場合：@ App選択 → 対象を限定 → 読取依頼 → 結果確認`
 
 Use the blog tokens and label them clearly as `操作フロー図` rather than official UI.
 
@@ -397,7 +397,7 @@ Add after `.article-body img` in `src/styles/article.css`:
 .article-body .article-image-caption {
   display: block;
   margin-block: calc(var(--space-3) * -1) var(--space-6);
-  color: var(--color-text-weak);
+  color: var(--color-text-muted);
   font-family: var(--font-ui);
   font-size: 0.78rem;
   line-height: 1.65;

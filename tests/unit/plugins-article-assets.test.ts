@@ -47,7 +47,8 @@ const walkthroughVisuals: [string, string[]][] = [
     [
       'Pluginで読み取る',
       '操作フロー図',
-      '@ Plugin選択',
+      'Appを含むPluginの場合',
+      '@ App選択',
       '+ → More からも選択可',
       '対象を限定',
       '公開リポジトリを指定',
@@ -115,6 +116,7 @@ describe('plugins article visuals', () => {
     expect(attribute('height')).toBe('675');
     expect(attribute('viewBox')).toBe('0 0 1200 675');
     for (const label of labels) expect(source).toContain(label);
+    if (name === 'chatgpt-plugin-selection-flow.svg') expect(source).not.toContain('@ Plugin選択');
     expectReadableLabels(source, labels, 48);
   });
 
