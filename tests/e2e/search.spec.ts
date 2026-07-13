@@ -77,21 +77,40 @@ test('開いた検索モーダルに重大なアクセシビリティ違反が�
   expect(violations.filter(({ impact }) => impact === 'serious' || impact === 'critical')).toEqual([]);
 });
 
-test('Astro・Frontend・TypeScriptの記事を検索して結果へ移動できる', async ({ page }) => {
+test('Plugins・Astro・Frontend・TypeScriptの記事を検索して結果へ移動できる', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: '検索を開く' }).click();
   const input = page.getByRole('searchbox', { name: '記事を検索' });
   const results = page.locator('[data-search-results]');
 
-  for (const query of ['Astro', 'Frontend', 'TypeScript']) {
+  for (const query of ['Plugins', 'Astro', 'Frontend', 'TypeScript']) {
     await input.fill(query);
     await expect(page.locator('[data-search-summary]')).toContainText(/件/);
     await expect(results.getByRole('link').first()).toBeVisible();
     await expect(results).toContainText(new RegExp(query, 'i'));
   }
 
-  await input.fill('Astro');
-  const astroResult = results.getByRole('link', { name: /2026年版 Astroで技術ブログを構築した/ });
+  await input.fill('Plugins');
+  const pluginsResult = results.getByRole('link', {
+    name: /ChatGPTとCodexのPluginsとは？Apps・Skillsとの違い、探し方、権限の見方/,
+  });
+  await expect(pluginsResult).toHaveAttribute('href', '/blog/chatgpt-codex-plugins-guide/');
+  await pluginsResult.click();
+  await expect(page).toHaveURL(/\/blog\/chatgpt-codex-plugins-guide\/$/);
+  await expect(
+    page.getByRole('heading', {
+      level: 1,
+      name: 'ChatGPTとCodexのPluginsとは？Apps・Skillsとの違い、探し方、権限の見方',
+    }),
+  ).toBeVisible();
+
+  await page.goto('/');
+  await page.getByRole('button', { name: '検索を開く' }).click();
+  const reopenedInput = page.getByRole('searchbox', { name: '記事を検索' });
+  const reopenedResults = page.locator('[data-search-results]');
+
+  await reopenedInput.fill('Astro');
+  const astroResult = reopenedResults.getByRole('link', { name: /2026年版 Astroで技術ブログを構築した/ });
   await expect(astroResult).toHaveAttribute('href', '/blog/build-tech-blog-with-astro-2026/');
   await astroResult.click();
   await expect(page).toHaveURL(/\/blog\/build-tech-blog-with-astro-2026\/$/);

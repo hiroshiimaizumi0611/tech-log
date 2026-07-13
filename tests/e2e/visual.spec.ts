@@ -101,7 +101,7 @@ test('390pxではコードだけが内部スクロールを受け持つ', async 
   await expect(codeBlocks.first()).toHaveCSS('overflow-x', 'auto');
 });
 
-test('Featuredの長い英数字を1024pxと390pxでカード内に折り返す', async ({ page }) => {
+test('Featuredの長い英数字と画像を1024pxと390pxでカード内に収める', async ({ page }) => {
   const longText = 'ExtremelyLongUnbrokenTechnicalIdentifier'.repeat(12);
   for (const viewport of [
     { width: 1024, height: 900 },
@@ -110,11 +110,7 @@ test('Featuredの長い英数字を1024pxと390pxでカード内に折り返す'
     await page.setViewportSize(viewport);
     await page.goto('/');
 
-    const targets = [
-      page.locator('.featured h2'),
-      page.locator('.featured .description'),
-      page.locator('.featured .code-header span').first(),
-    ];
+    const targets = [page.locator('.featured h2'), page.locator('.featured .description')];
     for (const target of targets) {
       await target.evaluate((element, text) => {
         element.textContent = text;
@@ -127,6 +123,10 @@ test('Featuredの長い英数字を1024pxと390pxでカード内に折り返す'
     const featured = page.locator('.featured');
     const featuredSize = await featured.evaluate((element) => ({ client: element.clientWidth, scroll: element.scrollWidth }));
     expect(featuredSize.scroll).toBeLessThanOrEqual(featuredSize.client);
+    const featuredBox = (await featured.boundingBox())!;
+    const mediaBox = (await featured.locator('.media-layer').boundingBox())!;
+    expect(mediaBox.x).toBeGreaterThanOrEqual(featuredBox.x);
+    expect(mediaBox.x + mediaBox.width).toBeLessThanOrEqual(featuredBox.x + featuredBox.width);
     await expectNoPageOverflow(page);
   }
 });

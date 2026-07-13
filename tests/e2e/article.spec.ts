@@ -5,6 +5,27 @@ const articlePath = '/blog/gpt-5-6-sol-terra-luna/';
 const articleTitle = 'GPT-5.6 Sol・Terra・Lunaの違い―特徴・料金・選び方';
 const articleDescription =
   'GPT-5.6のSol・Terra・Lunaについて、性能階層、API料金、ChatGPT・Work・Codex・APIでの提供差と選択例を公式情報から整理します。';
+const pluginsArticlePath = '/blog/chatgpt-codex-plugins-guide/';
+const pluginsArticleTitle = 'ChatGPTとCodexのPluginsとは？Apps・Skillsとの違い、探し方、権限の見方';
+const pluginsArticleDescription =
+  '2026年7月9日のPlugin Directory移行を起点に、ChatGPTとCodexのPlugin・App・Skillの違い、探し方、権限、安全な使い始め方を公式情報から整理します。';
+const pluginsArticleHeadings = [
+  '2026年7月9日に何が変わったのか',
+  'Plugin・App・Skillの違い',
+  'Plugin Directoryで探して接続する',
+  '接続前に見る4つの権限',
+  'GitHub Pluginを安全に試す',
+  '使えないときの確認順',
+  'まとめ：接続前チェックリスト',
+] as const;
+const githubReadOnlyPrompt = `GitHub Pluginを使って、公開リポジトリ hiroshiimaizumi0611/tech-log の
+openなIssueだけを確認してください。
+Issue番号の降順で、先頭3件を表示してください。
+各Issueには「番号、タイトル、URL」の3項目だけを含めてください。
+3件未満の場合は、Issue一覧の後に
+「3件未満のため、取得できたIssueだけを表示しました」と別の最終行で伝えてください。
+読み取り専用で実行してください。
+Issueの作成・更新・コメント・クローズは行わないでください`;
 
 async function expectNoHighImpactAxeViolations(page: Page) {
   const { violations } = await new AxeBuilder({ page }).analyze();
@@ -31,6 +52,66 @@ test('記事の見出し、説明、日付、分類、読了時間と検索属�
   await expect(article.locator('[data-article-body]')).toBeVisible();
   await expect(page.locator('[data-author]')).toContainText('Hiroshi Imaizumi');
   await expectNoHighImpactAxeViolations(page);
+});
+
+test('Plugins記事のSEO、本文構成、画像と安全なGitHubプロンプトを公開する', async ({ page }) => {
+  await page.goto(pluginsArticlePath);
+
+  await expect(page).toHaveTitle(`${pluginsArticleTitle} | テックログ`);
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', pluginsArticleDescription);
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /\/blog\/chatgpt-codex-plugins-guide\/$/);
+  for (const selector of ['meta[property="og:image"]', 'meta[name="twitter:image"]']) {
+    const imageUrl = await page.locator(selector).getAttribute('content');
+    expect(imageUrl).toBeTruthy();
+    expect(new URL(imageUrl!).pathname).toMatch(/^\/_astro\/chatgpt-codex-plugins-og\..+\.png$/);
+    expect(new URL(imageUrl!).pathname).not.toBe('/og-default.png');
+  }
+
+  const article = page.locator('article[data-pagefind-body]');
+  const body = article.locator('[data-article-body]');
+  await expect(article.getByRole('heading', { level: 1, name: pluginsArticleTitle })).toBeVisible();
+  await expect(article.locator('time[datetime="2026-07-12T15:00:00.000Z"]')).toHaveCount(2);
+  await expect(body.getByRole('heading', { level: 2 })).toHaveText(pluginsArticleHeadings);
+  await expect(body).toContainText(
+    'Plugin導入方針 → AppのWorkspace／Role設定 → 利用者の認証 → 接続先サービスの元の権限 → アクション実行時の確認',
+  );
+  await expect(body.locator('pre code')).toContainText(githubReadOnlyPrompt);
+  await expect(body.getByText('Issueの作成・更新・コメント・クローズは行わないでください', { exact: true })).toHaveCount(1);
+  await expect(body).toContainText('技術的な権限制御ではありません。App側の読み書き制御と操作確認を併用してください。');
+
+  const images = body.locator('img');
+  await expect(images).toHaveCount(5);
+  const imageMetadata = await images.evaluateAll((elements) =>
+    elements.map((element) => ({
+      alt: element.getAttribute('alt') ?? '',
+      height: Number(element.getAttribute('height')),
+      width: Number(element.getAttribute('width')),
+    })),
+  );
+  expect(imageMetadata.every(({ alt, height, width }) => alt.length > 0 && height > 0 && width > 0)).toBe(true);
+  expect(new Set(imageMetadata.map(({ alt }) => alt)).size).toBe(5);
+  const captions = body.locator('.article-image-caption');
+  await expect(captions).toHaveCount(5);
+  for (const caption of await captions.all()) await expect(caption).toBeVisible();
+  await expectNoHighImpactAxeViolations(page);
+});
+
+test('Plugins記事を390pxで画像、キャプション、表をはみ出さず表示する', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(pluginsArticlePath);
+
+  const body = page.locator('[data-article-body]');
+  const bodyWidth = (await body.boundingBox())!.width;
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  for (const image of await body.locator('img').all()) {
+    expect((await image.boundingBox())!.width).toBeLessThanOrEqual(bodyWidth);
+  }
+  for (const caption of await body.locator('.article-image-caption').all()) {
+    await expect(caption).toBeVisible();
+    expect(await caption.evaluate((element) => getComputedStyle(element).color)).not.toBe('rgba(0, 0, 0, 0)');
+  }
+  await expect(body.locator('table')).toHaveCount(2);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
 
 test('本文の実IDと一致するH2/H3目次をデスクトップとモバイルに表示する', async ({ page }) => {
@@ -96,9 +177,9 @@ test('前後記事と決定的な関連記事を表示し、現在の記事を�
   const related = page.locator('[data-related-articles] [data-article-card]');
   await expect(related).toHaveCount(3);
   await expect(related.getByRole('heading')).toHaveText([
+    'ChatGPTとCodexのPluginsとは？Apps・Skillsとの違い、探し方、権限の見方',
     'ChatGPT Workとは？Chat・Codexとの違いと使い分け',
     '2026年版 Astroで技術ブログを構築した',
-    'Terraformで手動変更されたリソースを追従する方法',
   ]);
   await expect(page.locator('[data-related-articles]')).not.toContainText(articleTitle);
   await expect(page.locator('[data-related-articles] a a')).toHaveCount(0);

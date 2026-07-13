@@ -1,22 +1,11 @@
 import { expect, test } from '@playwright/test';
 
 const latestArticleTitles = [
+  'ChatGPTとCodexのPluginsとは？Apps・Skillsとの違い、探し方、権限の見方',
   '2026年版 Astroで技術ブログを構築した',
   'ChatGPT Workとは？Chat・Codexとの違いと使い分け',
   'GPT-5.6 Sol・Terra・Lunaの違い―特徴・料金・選び方',
-  'Terraformで手動変更されたリソースを追従する方法',
 ] as const;
-
-const featuredCode = `import type { GetStaticPaths } from 'astro';
-import { getCollection } from 'astro:content';
-
-export const getStaticPaths = (async () => {
-  const posts = await getCollection('blog');
-  return posts.map((post) => ({
-    params: { id: post.id },
-    props: { post },
-  }));
-}) satisfies GetStaticPaths;`;
 
 const backgroundImageUrl = async (locator: import('@playwright/test').Locator) => {
   const backgroundImage = await locator.evaluate((element) => getComputedStyle(element).backgroundImage);
@@ -38,17 +27,11 @@ test('最新の注目記事とサイト紹介をヒーローに表示する', as
 
   const featured = hero.getByRole('article', { name: '注目記事' });
   await expect(featured.getByRole('heading', { name: latestArticleTitles[0] })).toBeVisible();
-  await expect(featured.getByText('src/pages/blog/[id].astro', { exact: true })).toBeVisible();
-  await expect(featured.getByRole('link', { name: /続きを読む/ })).toHaveAttribute('href', '/blog/build-tech-blog-with-astro-2026/');
-
-  const highlightedCode = featured.locator('pre > code');
-  await expect(highlightedCode).toHaveCount(1);
-  await expect(highlightedCode).toHaveText(featuredCode);
-  await expect(highlightedCode).toHaveJSProperty('textContent', featuredCode);
-  const tokenColors = await highlightedCode
-    .locator('*')
-    .evaluateAll((tokens) => [...new Set(tokens.map((token) => getComputedStyle(token).color))]);
-  expect(tokenColors.length).toBeGreaterThan(1);
+  await expect(featured.getByRole('link', { name: /続きを読む/ })).toHaveAttribute('href', '/blog/chatgpt-codex-plugins-guide/');
+  await expect(featured.locator('pre, [data-featured-code]')).toHaveCount(0);
+  const customArtwork = featured.locator('[data-custom-hero]');
+  await expect(customArtwork).toBeVisible();
+  expect(new URL(await backgroundImageUrl(customArtwork)).pathname).toMatch(/^\/_astro\//);
   await expect(page.getByRole('region', { name: '最新の記事' }).locator('pre > code')).toHaveCount(0);
 });
 
@@ -70,8 +53,8 @@ test('最新記事を公開日順に4件だけ表示しカード全体を一つ�
 
 test('記事画像をカテゴリーアート上の装飾レイヤーとして表示する', async ({ page }) => {
   const cards = page.getByRole('region', { name: '最新の記事' }).locator('[data-article-card]');
-  const terraformCard = cards.filter({ hasText: latestArticleTitles[3] });
-  const customArtwork = terraformCard.locator('[data-custom-hero]');
+  const pluginsCard = cards.filter({ hasText: latestArticleTitles[0] });
+  const customArtwork = pluginsCard.locator('[data-custom-hero]');
 
   await expect(cards.locator('[data-category-artwork]')).toHaveCount(4);
   await expect(customArtwork).toBeVisible();
@@ -79,8 +62,8 @@ test('記事画像をカテゴリーアート上の装飾レイヤーとして�
   expect(new URL(customImageUrl).pathname).toMatch(/^\/_astro\//);
   await expect(customArtwork).toHaveAttribute('data-image-width', '640');
   await expect(customArtwork).toHaveAttribute('data-image-height', '360');
-  await expect(customArtwork).toHaveAttribute('data-image-format', 'svg');
-  await expect(terraformCard.locator('[data-category-artwork]')).toBeVisible();
+  await expect(customArtwork).toHaveAttribute('data-image-format', 'webp');
+  await expect(pluginsCard.locator('[data-category-artwork]')).toBeVisible();
   await expect(page.locator('script[data-image-fallback]')).toHaveCount(0);
 });
 
@@ -88,7 +71,7 @@ test('記事画像の取得失敗時も固定比率のカテゴリーアート�
   const initialCard = page
     .getByRole('region', { name: '最新の記事' })
     .locator('[data-article-card]')
-    .filter({ hasText: latestArticleTitles[3] });
+    .filter({ hasText: latestArticleTitles[0] });
   const optimizedImageUrl = await backgroundImageUrl(initialCard.locator('[data-custom-hero]'));
   let abortedRequests = 0;
   await page.route(optimizedImageUrl, async (route) => {
@@ -97,12 +80,12 @@ test('記事画像の取得失敗時も固定比率のカテゴリーアート�
   });
   await page.goto('/?hero-image=failure');
 
-  const terraformCard = page
+  const pluginsCard = page
     .getByRole('region', { name: '最新の記事' })
     .locator('[data-article-card]')
-    .filter({ hasText: latestArticleTitles[3] });
-  const fallback = terraformCard.locator('[data-category-artwork]');
-  const customArtwork = terraformCard.locator('[data-custom-hero]');
+    .filter({ hasText: latestArticleTitles[0] });
+  const fallback = pluginsCard.locator('[data-category-artwork]');
+  const customArtwork = pluginsCard.locator('[data-custom-hero]');
 
   expect(await backgroundImageUrl(customArtwork)).toBe(optimizedImageUrl);
   await expect(fallback).toBeVisible();
@@ -113,8 +96,8 @@ test('記事画像の取得失敗時も固定比率のカテゴリーアート�
   expect(fallbackBox).not.toBeNull();
   expect(customBox).not.toBeNull();
   expect(customBox).toEqual(fallbackBox);
-  await expect(terraformCard.getByRole('link')).toHaveAttribute('href', '/blog/terraform-drift-detection/');
-  await expect(terraformCard.getByRole('heading', { name: latestArticleTitles[3] })).toBeVisible();
+  await expect(pluginsCard.getByRole('link')).toHaveAttribute('href', '/blog/chatgpt-codex-plugins-guide/');
+  await expect(pluginsCard.getByRole('heading', { name: latestArticleTitles[0] })).toBeVisible();
   await expect(page.locator('script[data-image-fallback], [onerror]')).toHaveCount(0);
 });
 
