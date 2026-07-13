@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 const asset = (name: string) => fileURLToPath(new URL(`../../src/assets/blog/${name}`, import.meta.url));
 
-const expectReadableLabels = (source: string, labels: string[]) => {
+const expectReadableLabels = (source: string, labels: string[], minimumFontSize = 40) => {
   const textElements = [...source.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)].map((match) => ({
     fontSize: Number(match[1].match(/font-size="(\d+)"/)?.[1] ?? 0),
     text: match[2].replace(/<[^>]+>/g, '').replace(/\s+/g, ''),
@@ -19,9 +19,46 @@ const expectReadableLabels = (source: string, labels: string[]) => {
     const element = textElements.find(({ text }) => text.includes(normalizedLabel));
 
     expect(element, `${label} must be contained in one scalable text element`).toBeDefined();
-    expect(element?.fontSize, `${label} must use a source font size of at least 40px`).toBeGreaterThanOrEqual(40);
+    expect(element?.fontSize, `${label} must use a source font size of at least ${minimumFontSize}px`).toBeGreaterThanOrEqual(
+      minimumFontSize,
+    );
   }
 };
+
+const walkthroughVisuals: [string, string[]][] = [
+  [
+    'chatgpt-plugin-directory-flow.svg',
+    [
+      'Pluginを接続する',
+      '操作フロー図',
+      'Plugin Directory',
+      '一覧から探す',
+      'Plugin詳細',
+      '説明と提供元を確認',
+      '必須App確認',
+      '必要な接続先を確認',
+      'Connect',
+      '接続設定へ進む',
+      '読み取り専用デモ・書き込み操作なし',
+    ],
+  ],
+  [
+    'chatgpt-plugin-selection-flow.svg',
+    [
+      'Pluginで読み取る',
+      '操作フロー図',
+      '@ Plugin選択',
+      '+ → More からも選択可',
+      '対象を限定',
+      '公開リポジトリを指定',
+      '読取依頼',
+      '要約だけを依頼',
+      '結果確認',
+      '参照範囲も確認',
+      '読み取り専用デモ・書き込み操作なし',
+    ],
+  ],
+];
 
 describe('plugins article visuals', () => {
   it('builds a 1200x630 PNG without the misleading equality claim', async () => {
@@ -69,38 +106,7 @@ describe('plugins article visuals', () => {
     expectReadableLabels(source, labels);
   });
 
-  it.each([
-    [
-      'chatgpt-plugin-directory-flow.svg',
-      [
-        '操作フロー図',
-        'Plugin Directory',
-        '一覧から探す',
-        'Plugin詳細',
-        '説明と提供元を確認',
-        '必須App確認',
-        '必要な接続先を確認',
-        'Connect',
-        '接続設定へ進む',
-        '読み取り専用デモ・書き込み操作なし',
-      ],
-    ],
-    [
-      'chatgpt-plugin-selection-flow.svg',
-      [
-        '操作フロー図',
-        '@ Plugin選択',
-        '+ → More からも選択可',
-        '対象を限定',
-        '公開リポジトリを指定',
-        '読取依頼',
-        '要約だけを依頼',
-        '結果確認',
-        '参照範囲も確認',
-        '読み取り専用デモ・書き込み操作なし',
-      ],
-    ],
-  ])('%s is a readable 1200x675 walkthrough flow', async (name, labels) => {
+  it.each(walkthroughVisuals)('%s is a readable 1200x675 walkthrough flow', async (name, labels) => {
     const source = await readFile(asset(name), 'utf8');
     const rootAttributes = source.match(/<svg\b([^>]*)>/)?.[1];
     const attribute = (key: string) => rootAttributes?.match(new RegExp(`\\b${key}="([^"]+)"`))?.[1];
@@ -109,25 +115,25 @@ describe('plugins article visuals', () => {
     expect(attribute('height')).toBe('675');
     expect(attribute('viewBox')).toBe('0 0 1200 675');
     for (const label of labels) expect(source).toContain(label);
-    expectReadableLabels(source, labels);
+    expectReadableLabels(source, labels, 48);
   });
 
-  it('keeps rendered text inside the 390px canvas without overlaps', async () => {
+  it('keeps essential walkthrough text readable inside the 350px canvas without overlaps', async () => {
     const browser = await chromium.launch({ headless: true });
 
     try {
-      const page = await browser.newPage({ viewport: { width: 390, height: 300 } });
+      const page = await browser.newPage({ viewport: { width: 350, height: 240 } });
+      const renderingCases: [string, string[]][] = [
+        ['chatgpt-codex-plugins-roles.svg', []],
+        ['chatgpt-codex-plugins-permissions.svg', []],
+        ...walkthroughVisuals,
+      ];
 
-      for (const name of [
-        'chatgpt-codex-plugins-roles.svg',
-        'chatgpt-codex-plugins-permissions.svg',
-        'chatgpt-plugin-directory-flow.svg',
-        'chatgpt-plugin-selection-flow.svg',
-      ]) {
+      for (const [name, essentialLabels] of renderingCases) {
         const source = await readFile(asset(name), 'utf8');
-        await page.setContent(`<style>body{margin:0}svg{display:block;width:390px;height:auto}</style>${source}`);
+        await page.setContent(`<style>body{margin:0}svg{display:block;width:350px;height:auto}</style>${source}`);
 
-        const result = await page.evaluate(() => {
+        const result = await page.evaluate((expectedLabels) => {
           const svg = document.querySelector('svg');
           if (!svg) throw new Error('SVG root is missing');
 
@@ -154,11 +160,20 @@ describe('plugins article visuals', () => {
             }),
           );
 
-          return { clipped: clipped.map(({ label }) => label), overlaps };
-        });
+          const essentialText = expectedLabels.map((expected) => {
+            const normalizedExpected = expected.replace(/\s+/g, '');
+            const match = texts.find(({ label }) => label.replace(/\s+/g, '') === normalizedExpected);
+            return { height: match ? match.bounds.bottom - match.bounds.top : 0, label: expected };
+          });
+
+          return { clipped: clipped.map(({ label }) => label), essentialText, overlaps };
+        }, essentialLabels);
 
         expect(result.clipped, `${name} has clipped or off-canvas text`).toEqual([]);
         expect(result.overlaps, `${name} has overlapping text`).toEqual([]);
+        for (const text of result.essentialText) {
+          expect(text.height, `${name}: ${text.label} must render at least 14 CSS px tall`).toBeGreaterThanOrEqual(14);
+        }
       }
     } finally {
       await browser.close();
