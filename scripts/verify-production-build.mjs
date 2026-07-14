@@ -1,10 +1,24 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parse } from 'parse5';
 
 import { siteUrlError } from './validate-site-url.mjs';
 
 const ARTICLE_PATH = '/blog/build-tech-blog-with-astro-2026/';
+
+function analyticsConfigElements(html) {
+  const configs = [];
+  const visit = (node) => {
+    if (node.tagName === 'template') {
+      const attributes = new Map(node.attrs.map(({ name, value }) => [name, value]));
+      if (attributes.get('id') === 'cloudflare-web-analytics-config') configs.push(attributes);
+    }
+    for (const child of node.childNodes ?? []) visit(child);
+  };
+  visit(parse(html, { scriptingEnabled: true }));
+  return configs;
+}
 
 async function textArtifacts(directory, prefix = '') {
   const artifacts = [];
@@ -21,11 +35,14 @@ export async function productionBuildErrors({
   siteUrl = process.env.SITE_URL,
   distDir = resolve('dist'),
   googleSiteVerification = process.env.PUBLIC_GOOGLE_SITE_VERIFICATION,
+  analyticsToken = process.env.PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN,
 } = {}) {
   const validationError = siteUrlError(siteUrl);
   if (validationError) return [validationError];
-  const origin = new URL(siteUrl).origin;
+  const site = new URL(siteUrl);
+  const origin = site.origin;
   const verificationToken = googleSiteVerification?.trim();
+  const normalizedAnalyticsToken = analyticsToken?.trim();
   const errors = new Set();
 
   if (!verificationToken) errors.add('index.html: Google site verification value is missing.');
@@ -76,6 +93,21 @@ export async function productionBuildErrors({
       } else {
         const contentValue = /\bcontent=["']([^"']*)["']/iu.exec(verificationTags[0])?.[1];
         if (contentValue !== verificationToken) errors.add('index.html: verification tag content does not match the configured value.');
+      }
+    }
+    if (file === 'index.html') {
+      const configElements = analyticsConfigElements(content);
+      if (normalizedAnalyticsToken) {
+        if (configElements.length !== 1) {
+          errors.add('index.html: expected exactly one analytics config element.');
+        } else {
+          const token = configElements[0].get('data-token');
+          const hostname = configElements[0].get('data-allowed-hostname');
+          if (token !== normalizedAnalyticsToken) errors.add('index.html: analytics config token does not match the configured value.');
+          if (hostname !== site.hostname) errors.add('index.html: analytics config hostname does not match the SITE_URL hostname.');
+        }
+      } else if (configElements.length !== 0) {
+        errors.add('index.html: analytics config must be absent when analytics is not configured.');
       }
     }
   }

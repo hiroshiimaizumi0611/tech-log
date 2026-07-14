@@ -98,7 +98,10 @@ describe('deployment artifacts', () => {
       },
     });
     expect(steps[buildCheckIndex]).toMatchObject({
-      env: { PUBLIC_GOOGLE_SITE_VERIFICATION: '${{ vars.PUBLIC_GOOGLE_SITE_VERIFICATION }}' },
+      env: {
+        PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN: '${{ secrets.CLOUDFLARE_WEB_ANALYTICS_TOKEN }}',
+        PUBLIC_GOOGLE_SITE_VERIFICATION: '${{ vars.PUBLIC_GOOGLE_SITE_VERIFICATION }}',
+      },
     });
     expect(source).toMatch(new RegExp(`uses: ${ACTIONS.checkout.replace('/', '\\/')} # v4\\.3\\.1`));
     expect(source).toMatch(new RegExp(`uses: ${ACTIONS.setupNode.replace('/', '\\/')} # v4\\.4\\.0`));
@@ -111,14 +114,16 @@ describe('production build origin verification', () => {
   it('accepts canonical, OGP, RSS, and sitemap output only from SITE_URL', async () => {
     const { productionBuildErrors } = await import('../../scripts/verify-production-build.mjs');
     const origin = 'https://techlog.example';
+    const analyticsToken = 'public-analytics-token';
     const googleSiteVerification = 'test-verification-token';
+    const analyticsConfig = `<template data-allowed-hostname="${new URL(origin).hostname}" id="cloudflare-web-analytics-config" data-token="${analyticsToken}"></template>`;
     const distDir = await mkdtemp(join(tmpdir(), 'tech-log-production-build-'));
     try {
       await mkdir(join(distDir, 'blog/build-tech-blog-with-astro-2026'), { recursive: true });
       await mkdir(join(distDir, 'about'), { recursive: true });
       await writeFile(
         join(distDir, 'index.html'),
-        `<meta name="google-site-verification" content="${googleSiteVerification}"><link rel="canonical" href="${origin}/"><meta property="og:url" content="${origin}/"><meta property="og:image" content="${origin}/og-default.png">`,
+        `<meta name="google-site-verification" content="${googleSiteVerification}"><link rel="canonical" href="${origin}/"><meta property="og:url" content="${origin}/"><meta property="og:image" content="${origin}/og-default.png">${analyticsConfig}`,
       );
       await writeFile(
         join(distDir, 'blog/build-tech-blog-with-astro-2026/index.html'),
@@ -129,32 +134,37 @@ describe('production build origin verification', () => {
       await writeFile(join(distDir, 'sitemap-0.xml'), `<loc>${origin}/</loc>`);
       await writeFile(join(distDir, 'about/index.html'), `<link rel="canonical" href="${origin}/about/">`);
       for (const siteUrl of [origin, `${origin}/`]) {
-        await expect(productionBuildErrors({ siteUrl, distDir, googleSiteVerification })).resolves.toEqual([]);
+        await expect(productionBuildErrors({ siteUrl, distDir, googleSiteVerification, analyticsToken })).resolves.toEqual([]);
       }
 
-      const missingVerification = await productionBuildErrors({ siteUrl: origin, distDir, googleSiteVerification: '   ' });
+      const missingVerification = await productionBuildErrors({
+        siteUrl: origin,
+        distDir,
+        googleSiteVerification: '   ',
+        analyticsToken,
+      });
       expect(missingVerification.join('\n')).toMatch(/verification/i);
       expect(missingVerification.join('\n')).not.toContain(googleSiteVerification);
 
       await writeFile(
         join(distDir, 'index.html'),
-        `<meta name="google-site-verification" content="${googleSiteVerification}"><meta name="google-site-verification" content="other"><link rel="canonical" href="${origin}/"><meta property="og:url" content="${origin}/"><meta property="og:image" content="${origin}/og-default.png">`,
+        `<meta name="google-site-verification" content="${googleSiteVerification}"><meta name="google-site-verification" content="other"><link rel="canonical" href="${origin}/"><meta property="og:url" content="${origin}/"><meta property="og:image" content="${origin}/og-default.png">${analyticsConfig}`,
       );
-      const duplicateVerification = await productionBuildErrors({ siteUrl: origin, distDir, googleSiteVerification });
+      const duplicateVerification = await productionBuildErrors({ siteUrl: origin, distDir, googleSiteVerification, analyticsToken });
       expect(duplicateVerification.join('\n')).toMatch(/exactly one verification tag/i);
       expect(duplicateVerification.join('\n')).not.toContain(googleSiteVerification);
 
       await writeFile(
         join(distDir, 'index.html'),
-        `<meta name="google-site-verification" content="wrong"><link rel="canonical" href="${origin}/"><meta property="og:url" content="${origin}/"><meta property="og:image" content="${origin}/og-default.png">`,
+        `<meta name="google-site-verification" content="wrong"><link rel="canonical" href="${origin}/"><meta property="og:url" content="${origin}/"><meta property="og:image" content="${origin}/og-default.png">${analyticsConfig}`,
       );
-      const mismatchedVerification = await productionBuildErrors({ siteUrl: origin, distDir, googleSiteVerification });
+      const mismatchedVerification = await productionBuildErrors({ siteUrl: origin, distDir, googleSiteVerification, analyticsToken });
       expect(mismatchedVerification.join('\n')).toMatch(/verification tag content/i);
       expect(mismatchedVerification.join('\n')).not.toContain(googleSiteVerification);
 
       await writeFile(
         join(distDir, 'index.html'),
-        `<meta name="google-site-verification" content="${googleSiteVerification}"><link rel="canonical" href="${origin}/"><meta property="og:url" content="${origin}/"><meta property="og:image" content="${origin}/og-default.png">`,
+        `<meta name="google-site-verification" content="${googleSiteVerification}"><link rel="canonical" href="${origin}/"><meta property="og:url" content="${origin}/"><meta property="og:image" content="${origin}/og-default.png">${analyticsConfig}`,
       );
 
       for (const invalidSiteUrl of [
@@ -163,16 +173,118 @@ describe('production build origin verification', () => {
         `${origin}/#fragment`,
         'https://user:password@techlog.example/',
       ]) {
-        const validationErrors = await productionBuildErrors({ siteUrl: invalidSiteUrl, distDir, googleSiteVerification });
+        const validationErrors = await productionBuildErrors({
+          siteUrl: invalidSiteUrl,
+          distDir,
+          googleSiteVerification,
+          analyticsToken,
+        });
         expect(validationErrors.join('\n')).toMatch(/origin without credentials, a path, query, or fragment/i);
         expect(validationErrors.join('\n')).not.toContain('password');
       }
 
       await writeFile(join(distDir, 'about/index.html'), '<link href="https://example.invalid/about/"><secret>body-must-not-leak</secret>');
-      const errors = await productionBuildErrors({ siteUrl: origin, distDir, googleSiteVerification });
+      const errors = await productionBuildErrors({ siteUrl: origin, distDir, googleSiteVerification, analyticsToken });
       expect(errors.join('\n')).toMatch(/about[/\\]index\.html/);
       expect(errors.join('\n')).not.toContain('body-must-not-leak');
     } finally {
+      await rm(distDir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects missing, duplicate, or mismatched Cloudflare Web Analytics configuration without leaking secrets', async () => {
+    const { productionBuildErrors } = await import('../../scripts/verify-production-build.mjs');
+    const origin = 'https://techlog.example';
+    const analyticsToken = 'public-analytics-token';
+    const googleSiteVerification = 'test-verification-token';
+    const fixtureBody = 'fixture-body-must-not-leak';
+    const distDir = await mkdtemp(join(tmpdir(), 'tech-log-production-build-'));
+    const originalAnalyticsToken = process.env.PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN;
+    delete process.env.PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN;
+    const baseIndex = `<meta name="google-site-verification" content="${googleSiteVerification}"><link rel="canonical" href="${origin}/"><meta property="og:url" content="${origin}/"><meta property="og:image" content="${origin}/og-default.png"><p>${fixtureBody}</p>`;
+    const config = (token = analyticsToken, hostname = new URL(origin).hostname) =>
+      `<template data-allowed-hostname="${hostname}" data-token="${token}" id="cloudflare-web-analytics-config"></template>`;
+
+    try {
+      await mkdir(join(distDir, 'blog/build-tech-blog-with-astro-2026'), { recursive: true });
+      await writeFile(
+        join(distDir, 'blog/build-tech-blog-with-astro-2026/index.html'),
+        `<link rel="canonical" href="${origin}/blog/build-tech-blog-with-astro-2026/"><meta property="og:url" content="${origin}/blog/build-tech-blog-with-astro-2026/">`,
+      );
+      await writeFile(join(distDir, 'rss.xml'), `<link>${origin}/</link><link>${origin}/blog/build-tech-blog-with-astro-2026/</link>`);
+      await writeFile(join(distDir, 'sitemap-index.xml'), `<loc>${origin}/sitemap-0.xml</loc>`);
+      await writeFile(join(distDir, 'sitemap-0.xml'), `<loc>${origin}/</loc>`);
+
+      const verify = async (index: string, configuredToken?: string) => {
+        await writeFile(join(distDir, 'index.html'), index);
+        const errors = await productionBuildErrors({
+          siteUrl: origin,
+          distDir,
+          googleSiteVerification,
+          ...(configuredToken === undefined ? {} : { analyticsToken: configuredToken }),
+        });
+        expect(errors.join('\n')).not.toContain(analyticsToken);
+        expect(errors.join('\n')).not.toContain(fixtureBody);
+        return errors;
+      };
+
+      await expect(verify(`${baseIndex}${config()}`, ` ${analyticsToken} `)).resolves.toEqual([]);
+      await expect(verify(baseIndex, analyticsToken)).resolves.toEqual(
+        expect.arrayContaining([expect.stringMatching(/exactly one analytics config/i)]),
+      );
+      await expect(verify(`${baseIndex}${config()}${config()}`, analyticsToken)).resolves.toEqual(
+        expect.arrayContaining([expect.stringMatching(/exactly one analytics config/i)]),
+      );
+      await expect(verify(`${baseIndex}${config(analyticsToken, 'other.example')}`, analyticsToken)).resolves.toEqual(
+        expect.arrayContaining([expect.stringMatching(/analytics config hostname/i)]),
+      );
+      await expect(verify(`${baseIndex}${config('wrong-token')}`, analyticsToken)).resolves.toEqual(
+        expect.arrayContaining([expect.stringMatching(/analytics config token/i)]),
+      );
+      await expect(verify(`${baseIndex}<template data-id="cloudflare-web-analytics-config"></template>`, analyticsToken)).resolves.toEqual(
+        expect.arrayContaining([expect.stringMatching(/exactly one analytics config/i)]),
+      );
+      await expect(
+        verify(
+          `${baseIndex}<template data-id="not-the-config" id="cloudflare-web-analytics-config" other-data-token="wrong-token" data-token="${analyticsToken}" other-data-allowed-hostname="wrong.example" data-allowed-hostname="${new URL(origin).hostname}"></template>`,
+          analyticsToken,
+        ),
+      ).resolves.toEqual([]);
+      await expect(
+        verify(
+          `${baseIndex}<template title=' id="cloudflare-web-analytics-config" data-token="${analyticsToken}" data-allowed-hostname="${new URL(origin).hostname}"'></template>`,
+          analyticsToken,
+        ),
+      ).resolves.toEqual(expect.arrayContaining([expect.stringMatching(/exactly one analytics config/i)]));
+      await expect(
+        verify(
+          `${baseIndex}<template id="cloudflare-web-analytics-config' data-token="${analyticsToken}" data-allowed-hostname="${new URL(origin).hostname}"></template>`,
+          analyticsToken,
+        ),
+      ).resolves.toEqual(expect.arrayContaining([expect.stringMatching(/exactly one analytics config/i)]));
+      const decoyConfig = config();
+      const decoyResults = [];
+      for (const decoy of [
+        `<!-- ${decoyConfig} -->`,
+        `<script>const decoy = '${decoyConfig}'</script>`,
+        `<div title='${decoyConfig}'></div>`,
+        `<noscript>${decoyConfig}</noscript>`,
+        `<xmp>${decoyConfig}</xmp>`,
+        `<template id="unrelated-wrapper">${decoyConfig}</template>`,
+      ]) {
+        decoyResults.push(await verify(`${baseIndex}${decoy}`, analyticsToken));
+      }
+      for (const errors of decoyResults) {
+        expect(errors).toEqual(expect.arrayContaining([expect.stringMatching(/exactly one analytics config/i)]));
+      }
+      for (const configuredToken of [undefined, '   ']) {
+        await expect(verify(`${baseIndex}${config()}`, configuredToken)).resolves.toEqual(
+          expect.arrayContaining([expect.stringMatching(/analytics config.*not configured/i)]),
+        );
+      }
+    } finally {
+      if (originalAnalyticsToken === undefined) delete process.env.PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN;
+      else process.env.PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN = originalAnalyticsToken;
       await rm(distDir, { recursive: true, force: true });
     }
   });

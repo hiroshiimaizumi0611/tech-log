@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
+const beaconSrc = 'https://static.cloudflareinsights.com/beacon.min.js';
+
 test('About、Privacy、404に必要な内容と復帰導線がある', async ({ page }) => {
   await page.goto('/about/');
   await expect(page.getByRole('heading', { level: 1, name: 'このブログについて' })).toBeVisible();
@@ -86,5 +88,24 @@ test('RSS、sitemap、robotsは公開記事だけを案内する', async ({ requ
 
 test('Analytics beaconはproductionかつtoken設定時だけ出力する', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('script[src="https://static.cloudflareinsights.com/beacon.min.js"]')).toHaveCount(0);
+  await expect(page.locator('#cloudflare-web-analytics-config')).toHaveCount(0);
+  await expect(page.locator(`script[src="${beaconSrc}"]`)).toHaveCount(0);
+});
+
+test('Analytics beaconは許可hostnameだけで読み込む', async ({ page }) => {
+  let interceptedBeaconRequests = 0;
+  await page.route(beaconSrc, (route) => {
+    interceptedBeaconRequests += 1;
+    return route.abort();
+  });
+
+  await page.goto('http://127.0.0.1:4322/analytics/');
+  const allowedBeacon = page.locator(`script[src="${beaconSrc}"]`);
+  await expect(allowedBeacon).toHaveCount(1);
+  await expect(allowedBeacon).toHaveAttribute('data-cf-beacon', JSON.stringify({ token: 'fixture-public-token' }));
+  await expect.poll(() => interceptedBeaconRequests).toBe(1);
+
+  await page.goto('http://localhost:4322/analytics/');
+  await expect(page.locator(`script[src="${beaconSrc}"]`)).toHaveCount(0);
+  expect(interceptedBeaconRequests).toBe(1);
 });
