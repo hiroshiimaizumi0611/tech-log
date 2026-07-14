@@ -250,6 +250,18 @@ describe('production build origin verification', () => {
           analyticsToken,
         ),
       ).resolves.toEqual([]);
+      await expect(
+        verify(
+          `${baseIndex}<template title=' id="cloudflare-web-analytics-config" data-token="${analyticsToken}" data-allowed-hostname="${new URL(origin).hostname}"'></template>`,
+          analyticsToken,
+        ),
+      ).resolves.toEqual(expect.arrayContaining([expect.stringMatching(/exactly one analytics config/i)]));
+      await expect(
+        verify(
+          `${baseIndex}<template id="cloudflare-web-analytics-config' data-token="${analyticsToken}" data-allowed-hostname="${new URL(origin).hostname}"></template>`,
+          analyticsToken,
+        ),
+      ).resolves.toEqual(expect.arrayContaining([expect.stringMatching(/exactly one analytics config/i)]));
       for (const configuredToken of [undefined, '   ']) {
         await expect(verify(`${baseIndex}${config()}`, configuredToken)).resolves.toEqual(
           expect.arrayContaining([expect.stringMatching(/analytics config.*not configured/i)]),

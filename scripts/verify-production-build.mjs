@@ -6,8 +6,40 @@ import { siteUrlError } from './validate-site-url.mjs';
 
 const ARTICLE_PATH = '/blog/build-tech-blog-with-astro-2026/';
 
-function quotedAttributeValue(element, attributeName) {
-  return new RegExp(`(?:^|\\s)${attributeName}\\s*=\\s*["']([^"']*)["']`, 'iu').exec(element)?.[1];
+function startTagAttributes(startTag) {
+  const tagName = /^<template\b/iu.exec(startTag)?.[0];
+  if (!tagName) return undefined;
+
+  const attributes = new Map();
+  let cursor = tagName.length;
+  while (cursor < startTag.length) {
+    while (/\s/u.test(startTag[cursor] ?? '')) cursor += 1;
+    if (startTag[cursor] === '>') return attributes;
+    if (startTag[cursor] === '/' && startTag[cursor + 1] === '>') return attributes;
+
+    const nameStart = cursor;
+    while (cursor < startTag.length && !/[\s=/>"']/u.test(startTag[cursor])) cursor += 1;
+    if (cursor === nameStart) return undefined;
+    const name = startTag.slice(nameStart, cursor).toLowerCase();
+
+    while (/\s/u.test(startTag[cursor] ?? '')) cursor += 1;
+    if (startTag[cursor] !== '=') {
+      if (!attributes.has(name)) attributes.set(name, '');
+      continue;
+    }
+
+    cursor += 1;
+    while (/\s/u.test(startTag[cursor] ?? '')) cursor += 1;
+    const quote = startTag[cursor];
+    if (quote !== '"' && quote !== "'") return undefined;
+    const valueStart = cursor + 1;
+    const valueEnd = startTag.indexOf(quote, valueStart);
+    if (valueEnd === -1) return undefined;
+    if (!attributes.has(name)) attributes.set(name, startTag.slice(valueStart, valueEnd));
+    cursor = valueEnd + 1;
+  }
+
+  return undefined;
 }
 
 async function textArtifacts(directory, prefix = '') {
@@ -86,15 +118,15 @@ export async function productionBuildErrors({
       }
     }
     if (file === 'index.html') {
-      const configElements = (content.match(/<template\b[^>]*>/giu) ?? []).filter(
-        (element) => quotedAttributeValue(element, 'id') === 'cloudflare-web-analytics-config',
-      );
+      const configElements = (content.match(/<template\b[^>]*>/giu) ?? [])
+        .map(startTagAttributes)
+        .filter((attributes) => attributes?.get('id') === 'cloudflare-web-analytics-config');
       if (normalizedAnalyticsToken) {
         if (configElements.length !== 1) {
           errors.add('index.html: expected exactly one analytics config element.');
         } else {
-          const token = quotedAttributeValue(configElements[0], 'data-token');
-          const hostname = quotedAttributeValue(configElements[0], 'data-allowed-hostname');
+          const token = configElements[0].get('data-token');
+          const hostname = configElements[0].get('data-allowed-hostname');
           if (token !== normalizedAnalyticsToken) errors.add('index.html: analytics config token does not match the configured value.');
           if (hostname !== site.hostname) errors.add('index.html: analytics config hostname does not match the SITE_URL hostname.');
         }
