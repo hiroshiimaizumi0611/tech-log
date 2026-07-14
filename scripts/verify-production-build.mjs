@@ -5,6 +5,55 @@ import { fileURLToPath } from 'node:url';
 import { siteUrlError } from './validate-site-url.mjs';
 
 const ARTICLE_PATH = '/blog/build-tech-blog-with-astro-2026/';
+const RAW_TEXT_ELEMENTS = new Set(['script', 'style', 'textarea', 'title']);
+
+function startTagEnd(html, start) {
+  let quote;
+  for (let cursor = start + 1; cursor < html.length; cursor += 1) {
+    const character = html[cursor];
+    if (quote) {
+      if (character === quote) quote = undefined;
+    } else if (character === '"' || character === "'") {
+      quote = character;
+    } else if (character === '>') {
+      return cursor;
+    }
+  }
+  return -1;
+}
+
+function templateStartTags(html) {
+  const templates = [];
+  let cursor = 0;
+  while (cursor < html.length) {
+    const tagStart = html.indexOf('<', cursor);
+    if (tagStart === -1) break;
+
+    if (html.startsWith('<!--', tagStart)) {
+      const commentEnd = html.indexOf('-->', tagStart + 4);
+      if (commentEnd === -1) break;
+      cursor = commentEnd + 3;
+      continue;
+    }
+
+    const tagEnd = startTagEnd(html, tagStart);
+    if (tagEnd === -1) break;
+    const startTag = html.slice(tagStart, tagEnd + 1);
+    const tagName = /^<([a-z][a-z0-9:-]*)(?=[\s/>])/iu.exec(startTag)?.[1]?.toLowerCase();
+    cursor = tagEnd + 1;
+    if (!tagName) continue;
+    if (tagName === 'template') templates.push(startTag);
+
+    if (RAW_TEXT_ELEMENTS.has(tagName)) {
+      const closingTag = new RegExp(`</${tagName}\\s*>`, 'giu');
+      closingTag.lastIndex = cursor;
+      const match = closingTag.exec(html);
+      if (!match) break;
+      cursor = match.index + match[0].length;
+    }
+  }
+  return templates;
+}
 
 function startTagAttributes(startTag) {
   const tagName = /^<template\b/iu.exec(startTag)?.[0];
@@ -118,7 +167,7 @@ export async function productionBuildErrors({
       }
     }
     if (file === 'index.html') {
-      const configElements = (content.match(/<template\b[^>]*>/giu) ?? [])
+      const configElements = templateStartTags(content)
         .map(startTagAttributes)
         .filter((attributes) => attributes?.get('id') === 'cloudflare-web-analytics-config');
       if (normalizedAnalyticsToken) {

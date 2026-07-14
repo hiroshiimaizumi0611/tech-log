@@ -262,6 +262,18 @@ describe('production build origin verification', () => {
           analyticsToken,
         ),
       ).resolves.toEqual(expect.arrayContaining([expect.stringMatching(/exactly one analytics config/i)]));
+      const decoyConfig = config();
+      const decoyResults = [];
+      for (const decoy of [
+        `<!-- ${decoyConfig} -->`,
+        `<script>const decoy = '${decoyConfig}'</script>`,
+        `<div title='${decoyConfig}'></div>`,
+      ]) {
+        decoyResults.push(await verify(`${baseIndex}${decoy}`, analyticsToken));
+      }
+      for (const errors of decoyResults) {
+        expect(errors).toEqual(expect.arrayContaining([expect.stringMatching(/exactly one analytics config/i)]));
+      }
       for (const configuredToken of [undefined, '   ']) {
         await expect(verify(`${baseIndex}${config()}`, configuredToken)).resolves.toEqual(
           expect.arrayContaining([expect.stringMatching(/analytics config.*not configured/i)]),
