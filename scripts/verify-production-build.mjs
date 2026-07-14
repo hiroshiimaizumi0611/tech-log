@@ -21,11 +21,14 @@ export async function productionBuildErrors({
   siteUrl = process.env.SITE_URL,
   distDir = resolve('dist'),
   googleSiteVerification = process.env.PUBLIC_GOOGLE_SITE_VERIFICATION,
+  analyticsToken = process.env.PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN,
 } = {}) {
   const validationError = siteUrlError(siteUrl);
   if (validationError) return [validationError];
-  const origin = new URL(siteUrl).origin;
+  const site = new URL(siteUrl);
+  const origin = site.origin;
   const verificationToken = googleSiteVerification?.trim();
+  const normalizedAnalyticsToken = analyticsToken?.trim();
   const errors = new Set();
 
   if (!verificationToken) errors.add('index.html: Google site verification value is missing.');
@@ -76,6 +79,23 @@ export async function productionBuildErrors({
       } else {
         const contentValue = /\bcontent=["']([^"']*)["']/iu.exec(verificationTags[0])?.[1];
         if (contentValue !== verificationToken) errors.add('index.html: verification tag content does not match the configured value.');
+      }
+    }
+    if (file === 'index.html') {
+      const configElements = (content.match(/<template\b[^>]*>/giu) ?? []).filter(
+        (element) => /\bid\s*=\s*["']([^"']*)["']/iu.exec(element)?.[1] === 'cloudflare-web-analytics-config',
+      );
+      if (normalizedAnalyticsToken) {
+        if (configElements.length !== 1) {
+          errors.add('index.html: expected exactly one analytics config element.');
+        } else {
+          const token = /\bdata-token\s*=\s*["']([^"']*)["']/iu.exec(configElements[0])?.[1];
+          const hostname = /\bdata-allowed-hostname\s*=\s*["']([^"']*)["']/iu.exec(configElements[0])?.[1];
+          if (token !== normalizedAnalyticsToken) errors.add('index.html: analytics config token does not match the configured value.');
+          if (hostname !== site.hostname) errors.add('index.html: analytics config hostname does not match the SITE_URL hostname.');
+        }
+      } else if (configElements.length !== 0) {
+        errors.add('index.html: analytics config must be absent when analytics is not configured.');
       }
     }
   }
