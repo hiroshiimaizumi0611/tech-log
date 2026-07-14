@@ -129,9 +129,10 @@ describe('README authoring and publishing guide', () => {
     for (const secret of ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID']) {
       expect(readme).toContain(`\`${secret}\``);
     }
-    for (const variable of ['SITE_URL', 'PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN']) {
+    for (const variable of ['SITE_URL', 'PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN', 'PUBLIC_GOOGLE_SITE_VERIFICATION']) {
       expect(readme).toContain(`\`${variable}\``);
     }
+    expect(readme).toMatch(/PUBLIC_GOOGLE_SITE_VERIFICATION.+content.+値.+production/is);
 
     expect(readme).toContain('npx wrangler deploy --dry-run');
     expect(readme).toMatch(/target.+authorization.+contact.+設定後/is);
@@ -149,7 +150,7 @@ describe('.env.example public configuration', () => {
       .filter((line) => /^[A-Z][A-Z0-9_]*=/.test(line))
       .map((line) => line.slice(0, line.indexOf('=')));
 
-    expect(names).toEqual(['SITE_URL', 'PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN']);
+    expect(names).toEqual(['SITE_URL', 'PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN', 'PUBLIC_GOOGLE_SITE_VERIFICATION']);
     expect(source).toContain('SITE_URL=https://example.invalid');
     expect(source).not.toMatch(/CLOUDFLARE_(?:API_TOKEN|ACCOUNT_ID)/);
   });

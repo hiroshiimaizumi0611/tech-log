@@ -50,15 +50,37 @@ describe('SITE_URL validation', () => {
       VITEST_WORKER_ID: undefined,
       SITE_URL: 'https://example.invalid',
       PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN: token,
+      PUBLIC_GOOGLE_SITE_VERIFICATION: 'test-verification-token',
     });
     expect(built.status, `${built.stdout}\n${built.stderr}`).toBe(0);
     expect(`${built.stdout}\n${built.stderr}`).not.toContain(token);
 
     const html = readFileSync(new URL('../../dist/index.html', import.meta.url), 'utf8');
+    expect(html.match(/name="google-site-verification"/g)).toHaveLength(1);
+    expect(html).toContain('name="google-site-verification" content="test-verification-token"');
     expect(html.match(/static\.cloudflareinsights\.com\/beacon\.min\.js/g)).toHaveLength(1);
     const encoded = /data-cf-beacon="([^"]+)"/.exec(html)?.[1];
     expect(encoded).toBeDefined();
     expect(JSON.parse(encoded!.replaceAll('&quot;', '"'))).toEqual({ token });
+
+    for (const verification of [undefined, '   ']) {
+      const withoutVerification = run('npm', ['run', 'build'], {
+        NODE_ENV: 'production',
+        DEV: undefined,
+        MODE: undefined,
+        PROD: undefined,
+        VITEST: undefined,
+        VITEST_MODE: undefined,
+        VITEST_POOL_ID: undefined,
+        VITEST_WORKER_ID: undefined,
+        SITE_URL: 'https://example.invalid',
+        PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN: undefined,
+        PUBLIC_GOOGLE_SITE_VERIFICATION: verification,
+      });
+      expect(withoutVerification.status, `${withoutVerification.stdout}\n${withoutVerification.stderr}`).toBe(0);
+      const htmlWithoutVerification = readFileSync(new URL('../../dist/index.html', import.meta.url), 'utf8');
+      expect(htmlWithoutVerification).not.toContain('name="google-site-verification"');
+    }
   }, 30_000);
 });
 
