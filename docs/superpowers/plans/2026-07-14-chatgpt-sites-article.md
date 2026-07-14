@@ -21,6 +21,8 @@
 - Create: `src/assets/blog/chatgpt-sites-mobile.png` — Mobileプレビュー
 - Create: `src/assets/blog/chatgpt-sites-saved-version.png` — デプロイ前に保存したバージョン
 - Create: `src/assets/blog/chatgpt-sites-finished.png` — 修正後の完成画面
+- Create: `public/blog-assets/chatgpt-sites-finished.png` — 図6を原寸表示するための、正本PNGとbyte-for-byteで同一な公開ミラー
+- Create: `public/blog-assets/chatgpt-sites-saved-version.png` — 図7を原寸表示するための、正本PNGとbyte-for-byteで同一な公開ミラー
 - Create after deploy approval: `src/assets/blog/chatgpt-sites-sharing-settings.png` — 実際の共有範囲設定。秘密情報や共有URLは写さない
 - Create: `tests/unit/chatgpt-sites-article.test.ts` — frontmatter、公式リンク、プロンプト、画像、秘密情報不掲載の契約
 - Create: `tests/e2e/chatgpt-sites-article.spec.ts` — 記事SEO、画像、Mobile表示、アクセシビリティの検証
@@ -400,6 +402,7 @@ Use the ten headings from the contract. Include:
 - the exact revision prompt actually used in Task 2
 - the observed first-version problems and changes, without fabricated results
 - OGP, save/deploy diagram, and five safe screenshots, each followed by a unique caption。実演画面のキャプションには撮影日、画面を載せる目的、UIが変わる可能性を明記する
+- 図6と図7の直後に、それぞれ`/blog-assets/chatgpt-sites-finished.png`と`/blog-assets/chatgpt-sites-saved-version.png`を開く原寸リンクを置く。この2ファイルだけは正本とbyte-for-byteで同一な公開ミラーを作り、一般的な重複アセット方式へ広げない
 - a clear note that the walkthrough is still saved but not deployed until the approval checkpoint
 - a final checklist covering content, links, Desktop, Mobile, keyboard, contrast, secrets, version, and sharing scope
 
@@ -414,6 +417,8 @@ npm test -- tests/unit/chatgpt-sites-article.test.ts
 ```
 
 Expected: FAIL only because the sharing-settings image is intentionally absent before deploy approval. Change the temporary minimum from `8` to `7`, rerun, and expect PASS. Task 6 restores the final minimum to `8` before removing `draft: true`.
+
+The contract also reads both files under `public/blog-assets/` and their canonical counterparts under `src/assets/blog/`, then requires exact Buffer equality. This proves the original-size links have deployable, unaltered targets.
 
 - [ ] **Step 5: Run the Japanese quick lint and manual read**
 
@@ -431,7 +436,10 @@ Expected: all findings are classified as fix or keep. If `uv` or the bundled scr
 ```bash
 npm run check
 npm test -- tests/unit/chatgpt-sites-article.test.ts
-git add src/content/blog/chatgpt-sites-guide.md tests/unit/chatgpt-sites-article.test.ts
+git add src/content/blog/chatgpt-sites-guide.md \
+  tests/unit/chatgpt-sites-article.test.ts \
+  public/blog-assets/chatgpt-sites-finished.png \
+  public/blog-assets/chatgpt-sites-saved-version.png
 git commit -m "docs: draft ChatGPT Sites walkthrough"
 ```
 
@@ -515,6 +523,7 @@ Update `src/content/blog/chatgpt-sites-guide.md`:
 - replace the temporary description with a final description covering generation, revision, version save, sharing-scope verification, and the observed limited-publication outcome
 - switch H2 `限定公開は内容と共有範囲を確認してから行う` to `共有範囲を確認して限定公開する`
 - change the OGP alt and caption from a planned workflow to final framing only after the actual outcome has been observed
+- preserve the Figure 6 and Figure 7 absolute original-size links and their two byte-identical `public/blog-assets/` mirrors
 - replace the pre-deploy note with the observed limited-publication result; if the intended scope was unavailable, avoid success wording and state where external changes stopped and what restriction appeared
 - add the inspected sharing-settings image and unique caption
 - explain the actual option selected and the separate-session access result
@@ -631,7 +640,7 @@ npm run preview -- --host 127.0.0.1
 
 Open `/blog/chatgpt-sites-guide/` at Desktop and 390px Mobile widths. Verify title, dates, all images and captions, prompts, official links, table or checklist layout, and no horizontal overflow.
 
-Expected: the built article matches the final Markdown and all external links point to intended official or public pages.
+Expected: the built article matches the final Markdown, the Figure 6 and Figure 7 links resolve to `/blog-assets/chatgpt-sites-finished.png` and `/blog-assets/chatgpt-sites-saved-version.png`, both built files are byte-identical to their public and canonical sources, and all external links point to intended official or public pages.
 
 - [ ] **Step 4: Request independent code and content review**
 

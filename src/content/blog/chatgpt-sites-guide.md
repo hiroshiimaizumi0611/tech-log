@@ -148,7 +148,7 @@ Sitesの開始画面でプロンプトを送ると、ページの生成とプレ
 
 ![Mobile修正後もDesktopの構成を保った完成候補プレビュー](../../assets/blog/chatgpt-sites-finished.png)
 <span class="article-image-caption">図6：2026-07-14撮影。Mobile修正後にDesktop表示が保たれたことを再確認する画面です。UIは変わる可能性があります。</span>
-[図6を原寸で開く](../../assets/blog/chatgpt-sites-finished.png)
+[図6を原寸で開く](/blog-assets/chatgpt-sites-finished.png)
 
 ## 公開前にバージョンを保存する
 
@@ -164,7 +164,7 @@ Sitesの開始画面でプロンプトを送ると、ページの生成とプレ
 
 ![公開せずに候補バージョンを保存した確認画面](../../assets/blog/chatgpt-sites-saved-version.png)
 <span class="article-image-caption">図7：2026-07-14撮影。公開候補を保存し、デプロイしていないことを確かめる画面です。UIは変わる可能性があります。</span>
-[図7を原寸で開く](../../assets/blog/chatgpt-sites-saved-version.png)
+[図7を原寸で開く](/blog-assets/chatgpt-sites-saved-version.png)
 
 **公式仕様：** 秘密の値は、プロンプト、ファイル、サイトのコンテンツ、`.openai/hosting.json`に入れません。
 

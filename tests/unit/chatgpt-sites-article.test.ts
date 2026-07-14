@@ -149,8 +149,8 @@ describe('ChatGPT Sites guide content', () => {
     expect(mobileFigure?.slice(1).join('\n')).toMatch(/最初の画面|ファーストビュー|ヒーロー/);
     expect(mobileFigure?.slice(1).join('\n')).not.toMatch(/記事カード|プロフィール|最終CTA/);
     expect(body).toContain('記事カード3件、プロフィール、最終CTAは画面下とDOMで確認し、図4にはすべて写っていません');
-    expect(body).toContain('[図6を原寸で開く](../../assets/blog/chatgpt-sites-finished.png)');
-    expect(body).toContain('[図7を原寸で開く](../../assets/blog/chatgpt-sites-saved-version.png)');
+    expect(body).toContain('[図6を原寸で開く](/blog-assets/chatgpt-sites-finished.png)');
+    expect(body).toContain('[図7を原寸で開く](/blog-assets/chatgpt-sites-saved-version.png)');
     expect(body).toContain('**公式仕様：** 秘密の値は、プロンプト、ファイル、サイトのコンテンツ、`.openai/hosting.json`に入れません。');
     expect(body).toContain('**筆者の方針：** この実演では、メールアドレス、問い合わせ情報、非公開URLも扱いません。');
 
@@ -167,5 +167,16 @@ describe('ChatGPT Sites guide content', () => {
     expect(images.every(([, alt]) => alt.trim().length > 0)).toBe(true);
     expect(new Set(images.map(([, alt]) => alt)).size).toBe(images.length);
     expect(body).not.toContain('hiroshiimaizumi0611@gmail.com');
+  });
+
+  it('publishes byte-identical full-size mirrors for the wide evidence images', async () => {
+    for (const name of ['chatgpt-sites-finished.png', 'chatgpt-sites-saved-version.png']) {
+      const [published, canonical] = await Promise.all([
+        readFile(new URL(`../../public/blog-assets/${name}`, import.meta.url)),
+        readFile(new URL(`../../src/assets/blog/${name}`, import.meta.url)),
+      ]);
+
+      expect(published.equals(canonical)).toBe(true);
+    }
   });
 });
