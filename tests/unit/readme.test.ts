@@ -132,6 +132,7 @@ describe('README authoring and publishing guide', () => {
     for (const variable of ['SITE_URL', 'PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN', 'PUBLIC_GOOGLE_SITE_VERIFICATION']) {
       expect(readme).toContain(`\`${variable}\``);
     }
+    expect(readme).toContain('`SITE_URL`のホストと一致する場合だけ');
     expect(readme).toMatch(/PUBLIC_GOOGLE_SITE_VERIFICATION.+content.+値.+production/is);
 
     expect(readme).toContain('npx wrangler deploy --dry-run');
