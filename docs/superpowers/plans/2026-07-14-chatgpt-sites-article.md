@@ -62,12 +62,13 @@ Check the production blog and these article slugs:
 
 ```text
 https://tech-log.hiroshiimaizumi0611.workers.dev/
+https://tech-log.hiroshiimaizumi0611.workers.dev/about/
 https://tech-log.hiroshiimaizumi0611.workers.dev/blog/chatgpt-codex-plugins-guide/
 https://tech-log.hiroshiimaizumi0611.workers.dev/blog/chatgpt-work-guide/
 https://tech-log.hiroshiimaizumi0611.workers.dev/blog/build-tech-blog-with-astro-2026/
 ```
 
-Expected: all four URLs return HTTP 200 and their visible titles match the repository. Replace a broken recommendation with another real public article before opening Sites.
+Expected: all five URLs return HTTP 200 and their visible titles match the repository. Replace a broken recommendation with another real public article before opening Sites.
 
 - [ ] **Step 3: Prepare the exact initial prompt**
 
@@ -82,7 +83,7 @@ Use this prompt, replacing no public URL unless Step 2 found a broken link:
 
 掲載内容:
 - サイト名: テックログ
-- 説明: AI、クラウド、IaCを中心に、試して分かったことを分かりやすくまとめる技術ブログ
+- 説明: クラウド、バックエンド、フロントエンド、IaC、AI、運用まで。現場で得た技術の実践知を、わかりやすく発信します。
 - 主なテーマ: AI、Cloud、IaC
 - 運営者: Hiroshi Imaizumi
 - プロフィール: クラウド、バックエンド、フロントエンド、IaC、AI、運用の実践から得た知見を、技術ブログとして記録しています
@@ -109,10 +110,11 @@ Use this prompt, replacing no public URL unless Step 2 found a broken link:
 - キーボードだけで主要リンクを操作できるようにする
 - 文字と背景に十分なコントラストを持たせる
 - 外部リンクだと分かる表現にする
-- 問い合わせフォーム、ログイン、外部API、アクセス解析、データ保存は追加しない
+- Aboutページのメールアドレスや問い合わせ情報は転載しないでください。掲載する運営者情報は、上記の氏名とプロフィール文だけにしてください。
+- 問い合わせフォーム、ログイン・認証、外部API、アクセス解析、ファイルアップロード、データ保存は追加しない。メールアドレス、秘密情報、非公開URLは掲載しない
 ```
 
-Expected: prompt contains the public operator name, public profile text, and `/about/` link, but no email address, secret, private URL, form, authentication, API, analytics, or persistence request.
+Expected: prompt uses the exact public description, contains the public operator name, public profile text, and `/about/` link, explicitly prohibits reproducing the About page's email address or contact information, and excludes forms, login/authentication, external APIs, analytics, file uploads, data storage, email addresses, secrets, and private URLs.
 
 ### Task 2: Sitesで非公開の生成・修正・バージョン保存を実演する
 
@@ -167,7 +169,7 @@ Build the prompt from observed problems only, using this fixed structure:
 - 残すもの: 正しく表示されている文章、リンク、色、構成
 - 完了条件: Desktop、Mobile、キーボード操作、コントラストで再確認できる状態
 
-フォーム、ログイン、外部API、アクセス解析、データ保存は追加しないでください。
+フォーム、ログイン・認証、外部API、アクセス解析、ファイルアップロード、データ保存は追加しないでください。メールアドレス、秘密情報、非公開URLは掲載しないでください。
 ```
 
 Expected: the final prompt includes concrete observed text instead of the four explanatory labels alone. Use `chatgpt-sites-initial.png` and the new `src/assets/blog/chatgpt-sites-finished.png` as the before-and-after pair; do not synthesize a comparison screen.
@@ -331,7 +333,10 @@ describe('ChatGPT Sites guide content', () => {
     expect(body).toContain('https://learn.chatgpt.com/use-cases/build-student-website');
     expect(body).toContain('デプロイされたURLは本番');
     expect(body).toContain('デプロイせずにバージョンを保存');
-    expect(body).toContain('フォーム、ログイン、外部API、アクセス解析、データ保存は追加しない');
+    expect(body).toContain('クラウド、バックエンド、フロントエンド、IaC、AI、運用まで。現場で得た技術の実践知を、わかりやすく発信します。');
+    expect(body).toContain('Aboutページのメールアドレスや問い合わせ情報は転載しないでください。掲載する運営者情報は、上記の氏名とプロフィール文だけにしてください。');
+    expect(body).toContain('フォーム、ログイン・認証、外部API、アクセス解析、ファイルアップロード、データ保存は追加しない');
+    expect(body).toContain('メールアドレス、秘密情報、非公開URLは掲載しない');
     expect(images.length).toBeGreaterThanOrEqual(8);
     expect(captions).toHaveLength(images.length);
     expect(images.every(([, alt]) => alt.trim().length > 0)).toBe(true);
