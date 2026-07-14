@@ -186,6 +186,8 @@ Open all five images with `view_image` at original detail.
 
 Expected: each screenshot shows the intended decision point, contains no email address, account identity, conversation history, non-public Workspace, secret, or share token, and remains readable at article width. Recapture unsafe images; do not blur or fabricate UI.
 
+Post-capture cropping is normally prohibited. Narrow exception: on 2026-07-14, the user explicitly approved non-generative Sharp `extract`-only crops of `chatgpt-sites-start.png` and `chatgpt-sites-initial.png` because those historical UI states were no longer available for direct recapture. This exception does not permit resizing, resampling, rotation, color changes, blur, compositing, regeneration, text alteration, or cropping any other screenshot.
+
 - [ ] **Step 8: Commit the safe screenshots**
 
 ```bash
