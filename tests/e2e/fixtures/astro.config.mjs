@@ -9,5 +9,10 @@ export default defineConfig({
   cacheDir: fileURLToPath(new URL('./.astro/', import.meta.url)),
   vite: {
     plugins: [tailwindcss()],
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('../../../src/', import.meta.url)),
+      },
+    },
   },
 });
