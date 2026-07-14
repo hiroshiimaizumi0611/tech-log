@@ -93,13 +93,19 @@ test('Analytics beaconはproductionかつtoken設定時だけ出力する', asyn
 });
 
 test('Analytics beaconは許可hostnameだけで読み込む', async ({ page }) => {
-  await page.route(beaconSrc, (route) => route.abort());
+  let interceptedBeaconRequests = 0;
+  await page.route(beaconSrc, (route) => {
+    interceptedBeaconRequests += 1;
+    return route.abort();
+  });
 
-  await page.goto('http://127.0.0.1:4322/');
+  await page.goto('http://127.0.0.1:4322/analytics/');
   const allowedBeacon = page.locator(`script[src="${beaconSrc}"]`);
   await expect(allowedBeacon).toHaveCount(1);
   await expect(allowedBeacon).toHaveAttribute('data-cf-beacon', JSON.stringify({ token: 'fixture-public-token' }));
+  await expect.poll(() => interceptedBeaconRequests).toBe(1);
 
-  await page.goto('http://localhost:4322/');
+  await page.goto('http://localhost:4322/analytics/');
   await expect(page.locator(`script[src="${beaconSrc}"]`)).toHaveCount(0);
+  expect(interceptedBeaconRequests).toBe(1);
 });
