@@ -1,3 +1,4 @@
 docs/superpowers/
+.agents/
 tests/e2e/fixtures/.astro/
 tests/e2e/fixtures/.dist/

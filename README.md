@@ -142,6 +142,7 @@ Variables:
 
 - `SITE_URL`: 公開先のHTTPS origin。
 - `PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN`: Web Analyticsを使う場合のpublic token。未使用なら空でよい。
+- `PUBLIC_GOOGLE_SITE_VERIFICATION`: Search Consoleが提示するHTMLタグの`content`値だけを登録する。タグ全体は登録しない。production deployでは必須で、未設定・重複・不一致はデプロイ前の成果物検査で失敗する。
 
 PRではCIの `verify` を必須checkにします。GitHubのbranch protectionで、`main` への直接変更を避け、PRと `verify` の成功を必須にしてください。
 

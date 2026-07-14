@@ -17,10 +17,18 @@ async function textArtifacts(directory, prefix = '') {
   return artifacts;
 }
 
-export async function productionBuildErrors({ siteUrl = process.env.SITE_URL, distDir = resolve('dist') } = {}) {
+export async function productionBuildErrors({
+  siteUrl = process.env.SITE_URL,
+  distDir = resolve('dist'),
+  googleSiteVerification = process.env.PUBLIC_GOOGLE_SITE_VERIFICATION,
+} = {}) {
   const validationError = siteUrlError(siteUrl);
   if (validationError) return [validationError];
   const origin = new URL(siteUrl).origin;
+  const verificationToken = googleSiteVerification?.trim();
+  const errors = new Set();
+
+  if (!verificationToken) errors.add('index.html: Google site verification value is missing.');
 
   const checks = [
     {
@@ -49,7 +57,6 @@ export async function productionBuildErrors({ siteUrl = process.env.SITE_URL, di
     { file: 'sitemap-0.xml', expected: [[`<loc>${origin}/</loc>`, 'sitemap URL origin']] },
   ];
 
-  const errors = new Set();
   for (const { file, expected } of checks) {
     let content;
     try {
@@ -61,6 +68,15 @@ export async function productionBuildErrors({ siteUrl = process.env.SITE_URL, di
     if (content.includes('https://example.invalid')) errors.add(`${file}: placeholder origin remains in the production artifact.`);
     for (const [value, label] of expected) {
       if (!content.includes(value)) errors.add(`${file}: ${label} does not use the SITE_URL origin.`);
+    }
+    if (file === 'index.html' && verificationToken) {
+      const verificationTags = content.match(/<meta\b[^>]*\bname=["']google-site-verification["'][^>]*>/giu) ?? [];
+      if (verificationTags.length !== 1) {
+        errors.add('index.html: expected exactly one verification tag.');
+      } else {
+        const contentValue = /\bcontent=["']([^"']*)["']/iu.exec(verificationTags[0])?.[1];
+        if (contentValue !== verificationToken) errors.add('index.html: verification tag content does not match the configured value.');
+      }
     }
   }
 

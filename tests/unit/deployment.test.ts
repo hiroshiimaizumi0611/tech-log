@@ -92,7 +92,13 @@ describe('deployment artifacts', () => {
     expect(steps[smokeIndex]).not.toHaveProperty('continue-on-error');
     expect(workflow.jobs.deploy.env).toEqual({ SITE_URL: '${{ vars.SITE_URL }}' });
     expect(steps[productionBuildIndex]).toMatchObject({
-      env: { PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN: '${{ secrets.CLOUDFLARE_WEB_ANALYTICS_TOKEN }}' },
+      env: {
+        PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN: '${{ secrets.CLOUDFLARE_WEB_ANALYTICS_TOKEN }}',
+        PUBLIC_GOOGLE_SITE_VERIFICATION: '${{ vars.PUBLIC_GOOGLE_SITE_VERIFICATION }}',
+      },
+    });
+    expect(steps[buildCheckIndex]).toMatchObject({
+      env: { PUBLIC_GOOGLE_SITE_VERIFICATION: '${{ vars.PUBLIC_GOOGLE_SITE_VERIFICATION }}' },
     });
     expect(source).toMatch(new RegExp(`uses: ${ACTIONS.checkout.replace('/', '\\/')} # v4\\.3\\.1`));
     expect(source).toMatch(new RegExp(`uses: ${ACTIONS.setupNode.replace('/', '\\/')} # v4\\.4\\.0`));
@@ -105,13 +111,14 @@ describe('production build origin verification', () => {
   it('accepts canonical, OGP, RSS, and sitemap output only from SITE_URL', async () => {
     const { productionBuildErrors } = await import('../../scripts/verify-production-build.mjs');
     const origin = 'https://techlog.example';
+    const googleSiteVerification = 'test-verification-token';
     const distDir = await mkdtemp(join(tmpdir(), 'tech-log-production-build-'));
     try {
       await mkdir(join(distDir, 'blog/build-tech-blog-with-astro-2026'), { recursive: true });
       await mkdir(join(distDir, 'about'), { recursive: true });
       await writeFile(
         join(distDir, 'index.html'),
-        `<link rel="canonical" href="${origin}/"><meta property="og:url" content="${origin}/"><meta property="og:image" content="${origin}/og-default.png">`,
+        `<meta name="google-site-verification" content="${googleSiteVerification}"><link rel="canonical" href="${origin}/"><meta property="og:url" content="${origin}/"><meta property="og:image" content="${origin}/og-default.png">`,
       );
       await writeFile(
         join(distDir, 'blog/build-tech-blog-with-astro-2026/index.html'),
@@ -122,8 +129,33 @@ describe('production build origin verification', () => {
       await writeFile(join(distDir, 'sitemap-0.xml'), `<loc>${origin}/</loc>`);
       await writeFile(join(distDir, 'about/index.html'), `<link rel="canonical" href="${origin}/about/">`);
       for (const siteUrl of [origin, `${origin}/`]) {
-        await expect(productionBuildErrors({ siteUrl, distDir })).resolves.toEqual([]);
+        await expect(productionBuildErrors({ siteUrl, distDir, googleSiteVerification })).resolves.toEqual([]);
       }
+
+      const missingVerification = await productionBuildErrors({ siteUrl: origin, distDir, googleSiteVerification: '   ' });
+      expect(missingVerification.join('\n')).toMatch(/verification/i);
+      expect(missingVerification.join('\n')).not.toContain(googleSiteVerification);
+
+      await writeFile(
+        join(distDir, 'index.html'),
+        `<meta name="google-site-verification" content="${googleSiteVerification}"><meta name="google-site-verification" content="other"><link rel="canonical" href="${origin}/"><meta property="og:url" content="${origin}/"><meta property="og:image" content="${origin}/og-default.png">`,
+      );
+      const duplicateVerification = await productionBuildErrors({ siteUrl: origin, distDir, googleSiteVerification });
+      expect(duplicateVerification.join('\n')).toMatch(/exactly one verification tag/i);
+      expect(duplicateVerification.join('\n')).not.toContain(googleSiteVerification);
+
+      await writeFile(
+        join(distDir, 'index.html'),
+        `<meta name="google-site-verification" content="wrong"><link rel="canonical" href="${origin}/"><meta property="og:url" content="${origin}/"><meta property="og:image" content="${origin}/og-default.png">`,
+      );
+      const mismatchedVerification = await productionBuildErrors({ siteUrl: origin, distDir, googleSiteVerification });
+      expect(mismatchedVerification.join('\n')).toMatch(/verification tag content/i);
+      expect(mismatchedVerification.join('\n')).not.toContain(googleSiteVerification);
+
+      await writeFile(
+        join(distDir, 'index.html'),
+        `<meta name="google-site-verification" content="${googleSiteVerification}"><link rel="canonical" href="${origin}/"><meta property="og:url" content="${origin}/"><meta property="og:image" content="${origin}/og-default.png">`,
+      );
 
       for (const invalidSiteUrl of [
         `${origin}/path`,
@@ -131,13 +163,13 @@ describe('production build origin verification', () => {
         `${origin}/#fragment`,
         'https://user:password@techlog.example/',
       ]) {
-        const validationErrors = await productionBuildErrors({ siteUrl: invalidSiteUrl, distDir });
+        const validationErrors = await productionBuildErrors({ siteUrl: invalidSiteUrl, distDir, googleSiteVerification });
         expect(validationErrors.join('\n')).toMatch(/origin without credentials, a path, query, or fragment/i);
         expect(validationErrors.join('\n')).not.toContain('password');
       }
 
       await writeFile(join(distDir, 'about/index.html'), '<link href="https://example.invalid/about/"><secret>body-must-not-leak</secret>');
-      const errors = await productionBuildErrors({ siteUrl: origin, distDir });
+      const errors = await productionBuildErrors({ siteUrl: origin, distDir, googleSiteVerification });
       expect(errors.join('\n')).toMatch(/about[/\\]index\.html/);
       expect(errors.join('\n')).not.toContain('body-must-not-leak');
     } finally {

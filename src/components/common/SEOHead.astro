@@ -38,11 +38,13 @@ const input = {
 };
 const seo = buildSeo(input);
 const jsonLd = serializeJsonLd(buildJsonLd(input));
+const googleSiteVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION?.trim();
 ---
 
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="description" content={description} />
+{googleSiteVerification && <meta name="google-site-verification" content={googleSiteVerification} />}
 <link rel="canonical" href={seo.canonical} />
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <meta property="og:site_name" content={SITE.name} />
