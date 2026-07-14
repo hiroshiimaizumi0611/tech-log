@@ -48,20 +48,19 @@ describe('ChatGPT Sites guide content', () => {
       /!\[([^\]]+)\]\(\.\.\/\.\.\/assets\/blog\/chatgpt-sites-mobile\.png\)\n(<span class="article-image-caption">[^<]+<\/span>)/,
     );
 
-    expect(frontmatter).toContain('title: ChatGPT Sitesの使い方｜実際にWebサイトを作って保存するまで');
-    expect(frontmatter).not.toContain('title: ChatGPT Sitesの使い方｜実際にWebサイトを作って限定公開するまで');
+    expect(frontmatter).toContain('title: ChatGPT Sitesの使い方｜実際にWebサイトを作って限定公開するまで');
     expect(frontmatter).toContain('description:');
-    for (const term of ['初心者', '生成', '修正', 'バージョン保存', 'デプロイ前']) {
+    for (const term of ['初心者', '生成', '修正', 'バージョン保存', '共有範囲', '自分のみ', '限定公開']) {
       expect(frontmatter).toContain(term);
     }
-    expect(frontmatter).not.toMatch(/^description:.*限定公開/m);
+    expect(frontmatter).not.toMatch(/^description:.*デプロイ前/m);
     expect(frontmatter).toContain("publishedAt: '2026-07-14'");
-    expect(frontmatter).toContain("updatedAt: '2026-07-14'");
+    expect(frontmatter).toContain("updatedAt: '2026-07-15'");
     expect(frontmatter).toContain('category: AI');
     for (const tag of ['OpenAI', 'ChatGPT', 'Sites', 'Web制作']) {
       expect(frontmatter).toContain(`  - ${tag}`);
     }
-    expect(frontmatter).toContain('draft: true');
+    expect(frontmatter).not.toContain('draft: true');
     expect(frontmatter).toContain('heroImage: ../../assets/blog/chatgpt-sites-guide-og.png');
     expect(frontmatter).toContain('ogImage: ../../assets/blog/chatgpt-sites-guide-og.png');
 
@@ -73,7 +72,7 @@ describe('ChatGPT Sites guide content', () => {
       '見た目より先に内容と操作を確認する',
       '修正プロンプトは具体的に書く',
       '公開前にバージョンを保存する',
-      '限定公開は内容と共有範囲を確認してから行う',
+      '共有範囲を確認して限定公開する',
       '実際に使って分かったこと',
       '公開前チェックリスト',
     ]);
@@ -137,10 +136,10 @@ describe('ChatGPT Sites guide content', () => {
     );
     expect(body).toContain('保存できました。公開・デプロイは行っていません。');
     expect(body).toContain('最終版を公開します。');
-    expect(body).toContain('デプロイ前に応答を停止');
+    expect(body).toContain('応答を停止し、共有範囲を広げる操作には進んでいません');
     expect(body).toContain('空白になった状態は観測しましたが、公開用スクリーンショットとして保存していません');
-    expect(workflowFigure?.slice(1).join('\n')).toContain('予定');
-    expect(workflowFigure?.slice(1).join('\n')).toContain('現在の実演はバージョン保存まで');
+    expect(workflowFigure?.slice(1).join('\n')).toContain('自分のみ');
+    expect(workflowFigure?.slice(1).join('\n')).toContain('限定公開まで確認');
     expect(initialDesktopFigure?.slice(1).join('\n')).toContain('初回のヒーロー、サイト名、レイアウト');
     expect(initialDesktopFigure?.slice(1).join('\n')).not.toMatch(/記事カード|プロフィール/);
     expect(mobileFigure).not.toBeNull();
@@ -151,6 +150,12 @@ describe('ChatGPT Sites guide content', () => {
     expect(body).toContain('記事カード3件、プロフィール、最終CTAは画面下とDOMで確認し、図4にはすべて写っていません');
     expect(body).toContain('[図6を原寸で開く](/blog-assets/chatgpt-sites-finished.png)');
     expect(body).toContain('[図7を原寸で開く](/blog-assets/chatgpt-sites-saved-version.png)');
+    expect(body).toContain('chatgpt-sites-sharing-settings.png');
+    expect(body).toContain('自分のみ');
+    expect(body).toContain('未認証のHTTPリクエストは401');
+    expect(body).toContain('別個のDeployボタンは表示されませんでした');
+    expect(body).toContain('Sitesが自動的に用意した');
+    expect(body).toContain('筆者が確認した');
     expect(body).toContain('**公式仕様：** 秘密の値は、プロンプト、ファイル、サイトのコンテンツ、`.openai/hosting.json`に入れません。');
     expect(body).toContain('**筆者の方針：** この実演では、メールアドレス、問い合わせ情報、非公開URLも扱いません。');
 
@@ -162,7 +167,9 @@ describe('ChatGPT Sites guide content', () => {
       '../../assets/blog/chatgpt-sites-save-vs-deploy.svg',
       '../../assets/blog/chatgpt-sites-finished.png',
       '../../assets/blog/chatgpt-sites-saved-version.png',
+      '../../assets/blog/chatgpt-sites-sharing-settings.png',
     ]);
+    expect(images.length).toBeGreaterThanOrEqual(8);
     expect(captions).toHaveLength(images.length);
     expect(images.every(([, alt]) => alt.trim().length > 0)).toBe(true);
     expect(new Set(images.map(([, alt]) => alt)).size).toBe(images.length);
