@@ -241,6 +241,15 @@ describe('production build origin verification', () => {
       await expect(verify(`${baseIndex}${config('wrong-token')}`, analyticsToken)).resolves.toEqual(
         expect.arrayContaining([expect.stringMatching(/analytics config token/i)]),
       );
+      await expect(verify(`${baseIndex}<template data-id="cloudflare-web-analytics-config"></template>`, analyticsToken)).resolves.toEqual(
+        expect.arrayContaining([expect.stringMatching(/exactly one analytics config/i)]),
+      );
+      await expect(
+        verify(
+          `${baseIndex}<template data-id="not-the-config" id="cloudflare-web-analytics-config" other-data-token="wrong-token" data-token="${analyticsToken}" other-data-allowed-hostname="wrong.example" data-allowed-hostname="${new URL(origin).hostname}"></template>`,
+          analyticsToken,
+        ),
+      ).resolves.toEqual([]);
       for (const configuredToken of [undefined, '   ']) {
         await expect(verify(`${baseIndex}${config()}`, configuredToken)).resolves.toEqual(
           expect.arrayContaining([expect.stringMatching(/analytics config.*not configured/i)]),

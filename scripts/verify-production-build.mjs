@@ -6,6 +6,10 @@ import { siteUrlError } from './validate-site-url.mjs';
 
 const ARTICLE_PATH = '/blog/build-tech-blog-with-astro-2026/';
 
+function quotedAttributeValue(element, attributeName) {
+  return new RegExp(`(?:^|\\s)${attributeName}\\s*=\\s*["']([^"']*)["']`, 'iu').exec(element)?.[1];
+}
+
 async function textArtifacts(directory, prefix = '') {
   const artifacts = [];
   for (const entry of await readdir(directory, { withFileTypes: true })) {
@@ -83,14 +87,14 @@ export async function productionBuildErrors({
     }
     if (file === 'index.html') {
       const configElements = (content.match(/<template\b[^>]*>/giu) ?? []).filter(
-        (element) => /\bid\s*=\s*["']([^"']*)["']/iu.exec(element)?.[1] === 'cloudflare-web-analytics-config',
+        (element) => quotedAttributeValue(element, 'id') === 'cloudflare-web-analytics-config',
       );
       if (normalizedAnalyticsToken) {
         if (configElements.length !== 1) {
           errors.add('index.html: expected exactly one analytics config element.');
         } else {
-          const token = /\bdata-token\s*=\s*["']([^"']*)["']/iu.exec(configElements[0])?.[1];
-          const hostname = /\bdata-allowed-hostname\s*=\s*["']([^"']*)["']/iu.exec(configElements[0])?.[1];
+          const token = quotedAttributeValue(configElements[0], 'data-token');
+          const hostname = quotedAttributeValue(configElements[0], 'data-allowed-hostname');
           if (token !== normalizedAnalyticsToken) errors.add('index.html: analytics config token does not match the configured value.');
           if (hostname !== site.hostname) errors.add('index.html: analytics config hostname does not match the SITE_URL hostname.');
         }
