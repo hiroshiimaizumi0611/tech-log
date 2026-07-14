@@ -13,7 +13,6 @@ function analyticsConfigElements(html) {
     if (node.tagName === 'template') {
       const attributes = new Map(node.attrs.map(({ name, value }) => [name, value]));
       if (attributes.get('id') === 'cloudflare-web-analytics-config') configs.push(attributes);
-      if (node.content) visit(node.content);
     }
     for (const child of node.childNodes ?? []) visit(child);
   };
