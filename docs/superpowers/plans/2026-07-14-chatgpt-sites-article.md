@@ -314,7 +314,7 @@ describe('ChatGPT Sites guide content', () => {
       (block) => block.trimStart().startsWith('「テックログ」') && block.includes('掲載内容:'),
     );
 
-    expect(frontmatter).toContain('title: ChatGPT Sitesの使い方｜実際にWebサイトを作って限定公開するまで');
+    expect(frontmatter).toContain('title: ChatGPT Sitesの使い方｜実際にWebサイトを作って保存するまで');
     expect(frontmatter).toMatch(/heroImage:\s+\.\.\/\.\.\/assets\/blog\/chatgpt-sites-guide-og\.png/);
     expect(frontmatter).toMatch(/ogImage:\s+\.\.\/\.\.\/assets\/blog\/chatgpt-sites-guide-og\.png/);
     expect(frontmatter).toContain('draft: true');
@@ -327,7 +327,7 @@ describe('ChatGPT Sites guide content', () => {
       '見た目より先に内容と操作を確認する',
       '修正プロンプトは具体的に書く',
       '公開前にバージョンを保存する',
-      '共有範囲を確認して限定公開する',
+      '限定公開は内容と共有範囲を確認してから行う',
       '実際に使って分かったこと',
       '公開前チェックリスト',
     ]) {
@@ -391,7 +391,7 @@ Expected: FAIL with `ENOENT` for `src/content/blog/chatgpt-sites-guide.md`.
 
 - [ ] **Step 3: Write the draft article**
 
-Use `@natural-japanese` in quick write mode. Create `src/content/blog/chatgpt-sites-guide.md` with `draft: true`, the approved title, description, current execution date, AI category, `OpenAI`/`ChatGPT`/`Sites`/`Web制作` tags, and the OGP asset for both `heroImage` and `ogImage`.
+Use `@natural-japanese` in quick write mode. Create `src/content/blog/chatgpt-sites-guide.md` with `draft: true`, the temporary title `ChatGPT Sitesの使い方｜実際にWebサイトを作って保存するまで`, a description limited to generation, revision, version save, and pre-deploy checks, the current execution date, AI category, `OpenAI`/`ChatGPT`/`Sites`/`Web制作` tags, and the OGP asset for both `heroImage` and `ogImage`. While the walkthrough stops at save, use the temporary H2 `限定公開は内容と共有範囲を確認してから行う`. Frame the OGP figure as the planned end-to-end workflow and state that the current hands-on progress stops at version save.
 
 Use the ten headings from the contract. Include:
 
@@ -492,6 +492,9 @@ In `tests/unit/chatgpt-sites-article.test.ts`:
 
 - restore `expect(images.length).toBeGreaterThanOrEqual(8)`
 - add `expect(frontmatter).not.toContain('draft: true')`
+- replace the temporary title assertion with `ChatGPT Sitesの使い方｜実際にWebサイトを作って限定公開するまで`
+- replace the temporary H2 assertion with `共有範囲を確認して限定公開する`
+- require the final description and OGP framing to describe the observed limited-publication outcome without overstating an unavailable or failed scope
 - add `expect(body).toContain('chatgpt-sites-sharing-settings.png')`
 - add one assertion for the exact observed sharing label
 
@@ -508,6 +511,10 @@ Expected: FAIL because the article is still draft and does not yet contain the f
 Update `src/content/blog/chatgpt-sites-guide.md`:
 
 - remove `draft: true`
+- switch the title to `ChatGPT Sitesの使い方｜実際にWebサイトを作って限定公開するまで`
+- replace the temporary description with a final description covering generation, revision, version save, sharing-scope verification, and the observed limited-publication outcome
+- switch H2 `限定公開は内容と共有範囲を確認してから行う` to `共有範囲を確認して限定公開する`
+- change the OGP alt and caption from a planned workflow to final framing only after the actual outcome has been observed
 - replace the pre-deploy note with the observed limited-publication result; if the intended scope was unavailable, avoid success wording and state where external changes stopped and what restriction appeared
 - add the inspected sharing-settings image and unique caption
 - explain the actual option selected and the separate-session access result

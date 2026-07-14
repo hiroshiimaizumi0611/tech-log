@@ -1,6 +1,6 @@
 ---
-title: ChatGPT Sitesの使い方｜実際にWebサイトを作って限定公開するまで
-description: ChatGPT Sitesでの作成から修正、保存、共有範囲の確認、限定公開までを初心者向けにたどる実践ガイドです。
+title: ChatGPT Sitesの使い方｜実際にWebサイトを作って保存するまで
+description: ChatGPT Sitesでの生成、修正、バージョン保存、デプロイ前の確認を初心者向けにたどる実践ガイドです。
 publishedAt: '2026-07-14'
 updatedAt: '2026-07-14'
 category: AI
@@ -18,12 +18,14 @@ ChatGPT Sitesでは、指示からWebサイトを作り、ホストし、会話�
 
 この記事の公式情報と実演画面は**2026-07-14時点**で確認しました。SitesはPublic Betaのため、画面や提供条件は今後変わる可能性があります。本文では、OpenAIが説明している内容を「公式仕様」、実際の画面で確かめた内容を「実演結果」、使い方に関する提案を「筆者の判断」と分けて記します。
 
-![ChatGPT Sitesで指示から保存と限定公開まで進む流れ](../../assets/blog/chatgpt-sites-guide-og.png)
-<span class="article-image-caption">図1：この記事で扱う、指示、プレビュー、修正、保存、限定公開の流れ。</span>
+![ChatGPT Sitesで指示から限定公開まで進む予定の流れ](../../assets/blog/chatgpt-sites-guide-og.png)
+<span class="article-image-caption">図1：記事で扱う予定の、指示、プレビュー、修正、保存、限定公開の全体像。現在の実演はバージョン保存までです。</span>
 
 ## ChatGPT Sitesで何ができるのか
 
-**公式仕様：** [Sitesの公式ガイド](https://learn.chatgpt.com/docs/sites)では、WebサイトやWebアプリ、ゲームを作成し、ホスト、修正、共有できる機能として説明されています。2026-07-14時点ではPublic Betaです。利用できるかどうかはプラン、地域、Workspaceの設定に左右されるため、固定的な料金表は載せません。現在の提供条件は[公式のPricing案内](https://learn.chatgpt.com/docs/pricing)で確認してください。[学生向けサイトの作成例](https://learn.chatgpt.com/use-cases/build-student-website)も、指示からサイトを組み立てる流れを把握する参考になります。
+**公式仕様：** [Sitesの公式ガイド](https://learn.chatgpt.com/docs/sites)では、WebサイトやWebアプリ、ゲームを作成し、ホスト、修正、共有できる機能として説明されています。2026-07-14時点ではPublic Betaで、利用可否はプラン、地域、Workspaceの設定に左右されます。現在の提供条件は[公式のPricing案内](https://learn.chatgpt.com/docs/pricing)で確認してください。
+
+固定的な料金表はこの記事に載せません。[学生向けサイトの作成例](https://learn.chatgpt.com/use-cases/build-student-website)は、指示からサイトを組み立てる流れを把握する参考になります。
 
 作ったサイトをSites上でホストしただけで自動的に一般公開されるわけではありません。一方、デプロイされたURLは本番として扱います。レビューだけなら、デプロイせずにバージョンを保存できます。保存とデプロイを同じ操作だと思わないことが、この記事で最も大切な点です。
 
@@ -92,8 +94,8 @@ Sitesの開始画面でプロンプトを送ると、ページの生成とプレ
 
 **実演結果：** 初回のDesktop表示には、指定したサイト名、説明、主要テーマ、おすすめ記事、運営者情報、CTAが入りました。指定した公開URLも反映されています。見た目が整っていても、これだけで完成とは判断しません。
 
-![テックログの説明と記事カードが入った初回Desktopプレビュー](../../assets/blog/chatgpt-sites-initial.png)
-<span class="article-image-caption">図3：2026-07-14撮影。初回生成で指定内容がDesktopに入ったことを確認する画面です。UIは変わる可能性があります。</span>
+![初回Desktopプレビューに表示されたテックログのヒーローとサイト名](../../assets/blog/chatgpt-sites-initial.png)
+<span class="article-image-caption">図3：2026-07-14撮影。初回のヒーロー、サイト名、レイアウトを確認する画面です。UIは変わる可能性があります。</span>
 
 ## 見た目より先に内容と操作を確認する
 
@@ -136,16 +138,17 @@ Sitesの開始画面でプロンプトを送ると、ページの生成とプレ
 - 公開・デプロイ、共有設定や権限の変更を行わない
 ```
 
-**実演結果：** 修正後のMobile iframeは`clientWidth=364`、`scrollWidth=364`でした。横方向のはみ出しはなく、おすすめ記事3件は1列になり、その後にプロフィールと最終CTAが表示されました。Desktopの構成も保たれています。
+**実演結果：** 修正後は、Mobileプレビュー枠の見えている幅と、その中のコンテンツ幅がどちらも364pxでした（`clientWidth=364`、`scrollWidth=364`）。この一致から、横方向のはみ出しは検出されませんでした。記事カード3件、プロフィール、最終CTAは画面下とDOMで確認し、図4にはすべて写っていません。Desktopの構成も保たれています。
 
-![修正後に本文と記事カードが1列で表示されたMobileプレビュー](../../assets/blog/chatgpt-sites-mobile.png)
-<span class="article-image-caption">図4：2026-07-14撮影。修正後のMobileで本文と記事カードが表示された結果を示します。公開用に保存したのはこの修正後画面です。UIは変わる可能性があります。</span>
+![修正後のMobileプレビューで読めるようになった最初の画面とヒーロー](../../assets/blog/chatgpt-sites-mobile.png)
+<span class="article-image-caption">図4：2026-07-14撮影。修正後のMobileで最初の画面とヒーローが表示された結果です。公開用に保存したのはこの修正後画面です。UIは変わる可能性があります。</span>
 
 ![保存とデプロイを別の判断点に分ける手順図](../../assets/blog/chatgpt-sites-save-vs-deploy.svg)
 <span class="article-image-caption">図5：バージョンを保存し、内容とアクセスを確認して、承認後にデプロイと共有範囲の確認へ進む流れ。</span>
 
 ![Mobile修正後もDesktopの構成を保った完成候補プレビュー](../../assets/blog/chatgpt-sites-finished.png)
 <span class="article-image-caption">図6：2026-07-14撮影。Mobile修正後にDesktop表示が保たれたことを再確認する画面です。UIは変わる可能性があります。</span>
+[図6を原寸で開く](../../assets/blog/chatgpt-sites-finished.png)
 
 ## 公開前にバージョンを保存する
 
@@ -161,10 +164,13 @@ Sitesの開始画面でプロンプトを送ると、ページの生成とプレ
 
 ![公開せずに候補バージョンを保存した確認画面](../../assets/blog/chatgpt-sites-saved-version.png)
 <span class="article-image-caption">図7：2026-07-14撮影。公開候補を保存し、デプロイしていないことを確かめる画面です。UIは変わる可能性があります。</span>
+[図7を原寸で開く](../../assets/blog/chatgpt-sites-saved-version.png)
 
-秘密情報は、公開直前だけでなく作成時から入れないでください。プロンプト、ファイル、コンテンツ、`.openai/hosting.json`のいずれにも、APIキー、メールアドレス、秘密情報、非公開URLを置かないのが原則です。
+**公式仕様：** 秘密の値は、プロンプト、ファイル、サイトのコンテンツ、`.openai/hosting.json`に入れません。
 
-## 共有範囲を確認して限定公開する
+**筆者の方針：** この実演では、メールアドレス、問い合わせ情報、非公開URLも扱いません。公開情報だけで紹介ページを作るという範囲に合わせた追加ルールです。
+
+## 限定公開は内容と共有範囲を確認してから行う
 
 この下書きの実演は、**まだデプロイしていません**。保存済みの候補を公開するには、対象バージョンと共有範囲を提示し、ユーザーから別の明示承認を得る必要があります。この記事の下書きを作ることや、以前の一般的な了承を、デプロイの承認には流用しません。
 
