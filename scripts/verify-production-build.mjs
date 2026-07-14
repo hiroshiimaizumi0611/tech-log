@@ -1,94 +1,24 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parse } from 'parse5';
 
 import { siteUrlError } from './validate-site-url.mjs';
 
 const ARTICLE_PATH = '/blog/build-tech-blog-with-astro-2026/';
-const RAW_TEXT_ELEMENTS = new Set(['script', 'style', 'textarea', 'title']);
 
-function startTagEnd(html, start) {
-  let quote;
-  for (let cursor = start + 1; cursor < html.length; cursor += 1) {
-    const character = html[cursor];
-    if (quote) {
-      if (character === quote) quote = undefined;
-    } else if (character === '"' || character === "'") {
-      quote = character;
-    } else if (character === '>') {
-      return cursor;
+function analyticsConfigElements(html) {
+  const configs = [];
+  const visit = (node) => {
+    if (node.tagName === 'template') {
+      const attributes = new Map(node.attrs.map(({ name, value }) => [name, value]));
+      if (attributes.get('id') === 'cloudflare-web-analytics-config') configs.push(attributes);
+      if (node.content) visit(node.content);
     }
-  }
-  return -1;
-}
-
-function templateStartTags(html) {
-  const templates = [];
-  let cursor = 0;
-  while (cursor < html.length) {
-    const tagStart = html.indexOf('<', cursor);
-    if (tagStart === -1) break;
-
-    if (html.startsWith('<!--', tagStart)) {
-      const commentEnd = html.indexOf('-->', tagStart + 4);
-      if (commentEnd === -1) break;
-      cursor = commentEnd + 3;
-      continue;
-    }
-
-    const tagEnd = startTagEnd(html, tagStart);
-    if (tagEnd === -1) break;
-    const startTag = html.slice(tagStart, tagEnd + 1);
-    const tagName = /^<([a-z][a-z0-9:-]*)(?=[\s/>])/iu.exec(startTag)?.[1]?.toLowerCase();
-    cursor = tagEnd + 1;
-    if (!tagName) continue;
-    if (tagName === 'template') templates.push(startTag);
-
-    if (RAW_TEXT_ELEMENTS.has(tagName)) {
-      const closingTag = new RegExp(`</${tagName}\\s*>`, 'giu');
-      closingTag.lastIndex = cursor;
-      const match = closingTag.exec(html);
-      if (!match) break;
-      cursor = match.index + match[0].length;
-    }
-  }
-  return templates;
-}
-
-function startTagAttributes(startTag) {
-  const tagName = /^<template\b/iu.exec(startTag)?.[0];
-  if (!tagName) return undefined;
-
-  const attributes = new Map();
-  let cursor = tagName.length;
-  while (cursor < startTag.length) {
-    while (/\s/u.test(startTag[cursor] ?? '')) cursor += 1;
-    if (startTag[cursor] === '>') return attributes;
-    if (startTag[cursor] === '/' && startTag[cursor + 1] === '>') return attributes;
-
-    const nameStart = cursor;
-    while (cursor < startTag.length && !/[\s=/>"']/u.test(startTag[cursor])) cursor += 1;
-    if (cursor === nameStart) return undefined;
-    const name = startTag.slice(nameStart, cursor).toLowerCase();
-
-    while (/\s/u.test(startTag[cursor] ?? '')) cursor += 1;
-    if (startTag[cursor] !== '=') {
-      if (!attributes.has(name)) attributes.set(name, '');
-      continue;
-    }
-
-    cursor += 1;
-    while (/\s/u.test(startTag[cursor] ?? '')) cursor += 1;
-    const quote = startTag[cursor];
-    if (quote !== '"' && quote !== "'") return undefined;
-    const valueStart = cursor + 1;
-    const valueEnd = startTag.indexOf(quote, valueStart);
-    if (valueEnd === -1) return undefined;
-    if (!attributes.has(name)) attributes.set(name, startTag.slice(valueStart, valueEnd));
-    cursor = valueEnd + 1;
-  }
-
-  return undefined;
+    for (const child of node.childNodes ?? []) visit(child);
+  };
+  visit(parse(html, { scriptingEnabled: true }));
+  return configs;
 }
 
 async function textArtifacts(directory, prefix = '') {
@@ -167,9 +97,7 @@ export async function productionBuildErrors({
       }
     }
     if (file === 'index.html') {
-      const configElements = templateStartTags(content)
-        .map(startTagAttributes)
-        .filter((attributes) => attributes?.get('id') === 'cloudflare-web-analytics-config');
+      const configElements = analyticsConfigElements(content);
       if (normalizedAnalyticsToken) {
         if (configElements.length !== 1) {
           errors.add('index.html: expected exactly one analytics config element.');

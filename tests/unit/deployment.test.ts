@@ -268,6 +268,8 @@ describe('production build origin verification', () => {
         `<!-- ${decoyConfig} -->`,
         `<script>const decoy = '${decoyConfig}'</script>`,
         `<div title='${decoyConfig}'></div>`,
+        `<noscript>${decoyConfig}</noscript>`,
+        `<xmp>${decoyConfig}</xmp>`,
       ]) {
         decoyResults.push(await verify(`${baseIndex}${decoy}`, analyticsToken));
       }
