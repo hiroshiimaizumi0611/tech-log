@@ -42,6 +42,11 @@ describe('ChatGPT Sites guide content', () => {
     const textBlocks = [...body.matchAll(/```text\n([\s\S]*?)\n```/g)].map(([, block]) => block);
     const initialPrompt = textBlocks.find((block) => block.includes('「テックログ」') && block.includes('掲載内容:'));
     const headings = [...body.matchAll(/^## (.+)$/gm)].map(([, heading]) => heading);
+    const section = (heading: string) =>
+      body.match(new RegExp(`(?:^|\\n)## ${heading}\\n([\\s\\S]*?)(?=\\n## |$)`))?.[1];
+    const introduction = body.match(/^([\s\S]*?)(?=\n## )/)?.[1];
+    const saveSection = section('公開前にバージョンを保存する');
+    const sharingSection = section('共有範囲を確認して限定公開する');
     const figure = (assetName: string) =>
       body.match(
         new RegExp(
@@ -69,6 +74,8 @@ describe('ChatGPT Sites guide content', () => {
     expect(frontmatter).not.toContain('draft: true');
     expect(frontmatter).toContain('heroImage: ../../assets/blog/chatgpt-sites-guide-og.png');
     expect(frontmatter).toContain('ogImage: ../../assets/blog/chatgpt-sites-guide-og.png');
+    expect(body).toContain('公式情報は**2026-07-14時点**');
+    expect(body).toContain('実演は**2026-07-15**に完了');
 
     expect(headings).toEqual([
       'ChatGPT Sitesで何ができるのか',
@@ -82,6 +89,18 @@ describe('ChatGPT Sites guide content', () => {
       '実際に使って分かったこと',
       '公開前チェックリスト',
     ]);
+
+    expect(introduction).toContain('公式上・概念上の区別');
+    expect(introduction).toContain('今回のUIでは、ホスト先が自動的に用意');
+    expect(introduction).toContain('独立したDeploy操作は確認できませんでした');
+    expect(saveSection).toContain('公式上・概念上の区別');
+    expect(saveSection).toContain('今回のUIでは、ホスト先が自動的に用意');
+    expect(saveSection).toContain('独立したDeploy操作は確認できませんでした');
+
+    expect(sharingSection).toContain('共有範囲が「自分のみ」');
+    expect(sharingSection).toContain('別個のDeployボタンは表示されませんでした');
+    expect(sharingSection).toContain('専用の本番URL');
+    expect(sharingSection).toContain('未認証のHTTPリクエストは401');
 
     for (const link of [
       'https://learn.chatgpt.com/docs/sites',
@@ -157,9 +176,6 @@ describe('ChatGPT Sites guide content', () => {
     expect(body).toContain('[図6を原寸で開く](/blog-assets/chatgpt-sites-finished.png)');
     expect(body).toContain('[図7を原寸で開く](/blog-assets/chatgpt-sites-saved-version.png)');
     expect(body).toContain('chatgpt-sites-sharing-settings.png');
-    expect(body).toContain('自分のみ');
-    expect(body).toContain('未認証のHTTPリクエストは401');
-    expect(body).toContain('別個のDeployボタンは表示されませんでした');
     expect(body).toContain('Sitesが自動的に用意した');
     expect(body).toContain('筆者が確認した');
     expect(body).toContain('**公式仕様：** 秘密の値は、プロンプト、ファイル、サイトのコンテンツ、`.openai/hosting.json`に入れません。');
@@ -180,6 +196,9 @@ describe('ChatGPT Sites guide content', () => {
     expect(images.every(([, alt]) => alt.trim().length > 0)).toBe(true);
     expect(new Set(images.map(([, alt]) => alt)).size).toBe(images.length);
     expect(body).not.toContain('hiroshiimaizumi0611@gmail.com');
+    expect(body).not.toMatch(/https?:\/\/[a-z0-9.-]+\.chatgpt\.site(?:\/[^\s)<]*)?/i);
+    expect(body).not.toMatch(/https:\/\/chatgpt\.com\/share\/[a-z0-9_-]+/i);
+    expect(body).not.toMatch(/(?:share[_-]?token|token)\s*[:=]\s*[a-z0-9_-]{8,}/i);
   });
 
   it('publishes byte-identical full-size mirrors for the wide evidence images', async () => {
