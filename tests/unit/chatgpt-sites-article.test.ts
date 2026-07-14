@@ -25,6 +25,12 @@ describe('ChatGPT Sites article visuals', () => {
       expect(source).toContain(label);
     }
   });
+
+  it('stores the sharing-settings evidence as a real PNG', async () => {
+    const metadata = await sharp(asset('chatgpt-sites-sharing-settings.png')).metadata();
+
+    expect(metadata).toMatchObject({ width: 812, height: 144, format: 'png' });
+  });
 });
 
 describe('ChatGPT Sites guide content', () => {
