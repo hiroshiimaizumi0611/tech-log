@@ -1,0 +1,23 @@
+---
+interface Props {
+  token: string;
+  allowedHostname: string;
+}
+
+const { token, allowedHostname } = Astro.props;
+---
+
+<template id="cloudflare-web-analytics-config" data-token={token} data-allowed-hostname={allowedHostname}></template>
+
+<script>
+  import { loadCloudflareWebAnalytics } from '@/scripts/cloudflare-analytics';
+
+  const config = document.querySelector<HTMLTemplateElement>('#cloudflare-web-analytics-config');
+  if (config) {
+    loadCloudflareWebAnalytics({
+      currentHostname: window.location.hostname,
+      allowedHostname: config.dataset.allowedHostname ?? '',
+      token: config.dataset.token,
+    });
+  }
+</script>

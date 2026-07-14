@@ -34,7 +34,7 @@ describe('SITE_URL validation', () => {
     expect(run(process.execPath, [script], { SITE_URL: 'https://techlog.example' }).status).toBe(0);
   });
 
-  it('connects validation to npm prebuild and renders one safe analytics beacon', () => {
+  it('connects validation to npm prebuild and renders host-scoped analytics configuration', () => {
     expect(run('npm', ['run', 'build'], { SITE_URL: undefined }).status).toBe(1);
     expect(run('npm', ['run', 'build'], { SITE_URL: 'http://techlog.example' }).status).toBe(1);
 
@@ -58,10 +58,30 @@ describe('SITE_URL validation', () => {
     const html = readFileSync(new URL('../../dist/index.html', import.meta.url), 'utf8');
     expect(html.match(/name="google-site-verification"/g)).toHaveLength(1);
     expect(html).toContain('name="google-site-verification" content="test-verification-token"');
-    expect(html.match(/static\.cloudflareinsights\.com\/beacon\.min\.js/g)).toHaveLength(1);
-    const encoded = /data-cf-beacon="([^"]+)"/.exec(html)?.[1];
-    expect(encoded).toBeDefined();
-    expect(JSON.parse(encoded!.replaceAll('&quot;', '"'))).toEqual({ token });
+    expect(html.match(/id="cloudflare-web-analytics-config"/g)).toHaveLength(1);
+    expect(html).toContain('data-allowed-hostname="example.invalid"');
+    expect(html).toContain(`data-token="${token}"`);
+    expect(html).not.toMatch(/<script[^>]+src="https:\/\/static\.cloudflareinsights\.com\/beacon\.min\.js"/);
+
+    for (const analyticsToken of [undefined, '   ']) {
+      const withoutAnalytics = run('npm', ['run', 'build'], {
+        NODE_ENV: 'production',
+        DEV: undefined,
+        MODE: undefined,
+        PROD: undefined,
+        VITEST: undefined,
+        VITEST_MODE: undefined,
+        VITEST_POOL_ID: undefined,
+        VITEST_WORKER_ID: undefined,
+        SITE_URL: 'https://example.invalid',
+        PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN: analyticsToken,
+        PUBLIC_GOOGLE_SITE_VERIFICATION: 'test-verification-token',
+      });
+      expect(withoutAnalytics.status, `${withoutAnalytics.stdout}\n${withoutAnalytics.stderr}`).toBe(0);
+      const htmlWithoutAnalytics = readFileSync(new URL('../../dist/index.html', import.meta.url), 'utf8');
+      expect(htmlWithoutAnalytics).toContain('name="google-site-verification" content="test-verification-token"');
+      expect(htmlWithoutAnalytics).not.toContain('id="cloudflare-web-analytics-config"');
+    }
 
     for (const verification of [undefined, '   ']) {
       const withoutVerification = run('npm', ['run', 'build'], {
