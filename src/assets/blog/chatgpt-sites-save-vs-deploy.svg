@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title description">
+  <title id="title">保存からデプロイまでの確認フロー</title>
+  <desc id="description">バージョンを保存し、内容とアクセスを確認し、承認を得てからデプロイし、最後に共有範囲を確認する。</desc>
+  <defs>
+    <pattern id="grid" width="34" height="34" patternUnits="userSpaceOnUse">
+      <path d="M34 0H0V34" fill="none" stroke="#17304a" stroke-width="1" opacity="0.3" />
+      <circle cx="1" cy="1" r="1.2" fill="#3978bd" opacity="0.35" />
+    </pattern>
+    <linearGradient id="review" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#102640" />
+      <stop offset="1" stop-color="#0a1420" />
+    </linearGradient>
+    <linearGradient id="deploy" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#10222e" />
+      <stop offset="1" stop-color="#09131b" />
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="675" fill="#05080d" />
+  <rect width="1200" height="675" fill="url(#grid)" />
+  <circle cx="1060" cy="90" r="250" fill="#0a2b50" opacity="0.18" />
+
+  <text x="64" y="78" fill="#f5f8fc" font-family="Hiragino Sans, Noto Sans CJK JP, Yu Gothic, sans-serif" font-size="54" font-weight="750">保存して確認してから、本番へ</text>
+  <text x="66" y="126" fill="#9dabb9" font-family="Hiragino Sans, Noto Sans CJK JP, Yu Gothic, sans-serif" font-size="27">保存はデプロイではありません。確認と承認を挟んで進みます。</text>
+
+  <g font-family="Hiragino Sans, Noto Sans CJK JP, Yu Gothic, sans-serif">
+    <rect x="58" y="168" width="668" height="48" rx="24" fill="#102640" stroke="#337ed0" stroke-width="2" />
+    <text x="392" y="201" text-anchor="middle" fill="#86c9ff" font-size="25" font-weight="700" letter-spacing="2">保存・レビュー</text>
+    <rect x="760" y="168" width="382" height="48" rx="24" fill="#10222e" stroke="#2e8394" stroke-width="2" />
+    <text x="951" y="201" text-anchor="middle" fill="#7bdbe9" font-size="25" font-weight="700" letter-spacing="2">本番反映・最終確認</text>
+
+    <path d="M151 340H1049" fill="none" stroke="#286caf" stroke-width="4" />
+    <path d="m1049 340-18-12v24Z" fill="#4ecfe3" />
+
+    <g transform="translate(48 246)">
+      <rect width="202" height="222" rx="22" fill="url(#review)" stroke="#3d8de0" stroke-width="3" />
+      <circle cx="101" cy="62" r="31" fill="#0b1a2b" stroke="#58a6ff" stroke-width="3" />
+      <path d="M84 61h34M88 49h26M91 73h20" fill="none" stroke="#78c7ff" stroke-width="5" stroke-linecap="round" />
+      <text x="101" y="132" text-anchor="middle" fill="#f4f8fc" font-size="38" font-weight="750" aria-label="バージョンを保存">
+        <tspan x="101">バージョン</tspan>
+        <tspan x="101" dy="45">を保存</tspan>
+      </text>
+    </g>
+
+    <g transform="translate(275 246)">
+      <rect width="230" height="222" rx="22" fill="url(#review)" stroke="#3d8de0" stroke-width="3" />
+      <circle cx="115" cy="62" r="31" fill="#0b1a2b" stroke="#58a6ff" stroke-width="3" />
+      <path d="M99 63l11 11 23-29" fill="none" stroke="#78c7ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+      <text x="115" y="118" text-anchor="middle" fill="#f4f8fc" font-size="40" font-weight="750" aria-label="内容とアクセスを確認">
+        <tspan x="115">内容と</tspan>
+        <tspan x="115" dy="42">アクセス</tspan>
+        <tspan x="115" dy="42">を確認</tspan>
+      </text>
+    </g>
+
+    <g transform="translate(530 246)">
+      <rect width="206" height="222" rx="22" fill="#161a20" stroke="#f0b64e" stroke-width="4" />
+      <path d="M103 28 132 45 132 79 103 96 74 79 74 45Z" fill="#2a2419" stroke="#ffd37a" stroke-width="3" />
+      <path d="M103 43v25M103 78v2" fill="none" stroke="#ffd37a" stroke-width="6" stroke-linecap="round" />
+      <text x="103" y="127" text-anchor="middle" fill="#fff0c7" font-size="40" font-weight="750" aria-label="承認してから進む">
+        <tspan x="103">承認して</tspan>
+        <tspan x="103" dy="40">から進む</tspan>
+      </text>
+    </g>
+
+    <g transform="translate(761 246)">
+      <rect width="178" height="222" rx="22" fill="url(#deploy)" stroke="#37a4b8" stroke-width="3" />
+      <circle cx="89" cy="62" r="31" fill="#0a1b20" stroke="#57d4e7" stroke-width="3" />
+      <path d="M89 42v35m-14-13 14 14 14-14" fill="none" stroke="#7ce4f1" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+      <text x="89" y="151" text-anchor="middle" fill="#f4f8fc" font-size="40" font-weight="750">デプロイ</text>
+    </g>
+
+    <g transform="translate(964 246)">
+      <rect width="188" height="222" rx="22" fill="url(#deploy)" stroke="#37a4b8" stroke-width="3" />
+      <circle cx="94" cy="62" r="31" fill="#0a1b20" stroke="#57d4e7" stroke-width="3" />
+      <circle cx="85" cy="60" r="12" fill="none" stroke="#7ce4f1" stroke-width="4" />
+      <path d="m95 70 13 13" fill="none" stroke="#7ce4f1" stroke-width="4" stroke-linecap="round" />
+      <text x="94" y="132" text-anchor="middle" fill="#f4f8fc" font-size="40" font-weight="750" aria-label="共有範囲を確認">
+        <tspan x="94">共有範囲</tspan>
+        <tspan x="94" dy="45">を確認</tspan>
+      </text>
+    </g>
+
+    <g fill="#9fb0c0" font-size="24" font-weight="700" text-anchor="middle">
+      <text x="149" y="516">1</text>
+      <text x="390" y="516">2</text>
+      <text x="633" y="516">3</text>
+      <text x="850" y="516">4</text>
+      <text x="1058" y="516">5</text>
+    </g>
+
+    <rect x="58" y="561" width="1094" height="70" rx="18" fill="#09121d" stroke="#223c57" stroke-width="2" />
+    <text x="605" y="607" text-anchor="middle" fill="#c9d6e3" font-size="31" font-weight="700">保存 → 確認 → 承認  の順序を飛ばさずに、本番へ反映する</text>
+  </g>
+</svg>
