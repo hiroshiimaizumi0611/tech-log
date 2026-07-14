@@ -16,7 +16,7 @@ Astroのビルド時に、`SITE_URL`から許可ホスト名を取得する。�
 
 ローダーはブラウザ上で次の順に動作する。
 
-1. 現在の`window.location.hostname`と許可ホスト名を比較する。
+1. 現在の`window.location.hostname`と許可ホスト名を完全一致で比較する。ポート番号は比較対象にしない。
 2. 一致しなければ何もせず終了する。
 3. 一致した場合だけ、`https://static.cloudflareinsights.com/beacon.min.js`を読み込むscript要素を追加する。
 4. script要素には、現在と同じ`data-cf-beacon`形式で公開tokenを設定する。
@@ -68,4 +68,4 @@ Cloudflare側の設定変更、ダッシュボードのフィルター作成、�
 - 公開サイトではCloudflare Web Analyticsが継続して動作する。
 - localhostとプレビュー環境からAnalyticsリクエストが送信されない。
 - ホスト判定を自動テストで再現できる。
-- デプロイ後の公開サイトでBeaconの読み込みを確認する。
+- デプロイ後の公開サイトをブラウザで開き、Beaconの読み込みを手動で確認する。
