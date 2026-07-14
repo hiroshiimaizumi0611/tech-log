@@ -79,6 +79,10 @@ test('390x844でdocumentと記事本文に横方向のoverflowを発生させな
 
   const body = page.locator('[data-article-body]');
   await expect(body).toBeVisible();
+  await expect(body.getByRole('link', { name: '図5を原寸で開く' })).toHaveAttribute(
+    'href',
+    '/blog-assets/chatgpt-sites-save-vs-deploy.svg',
+  );
   expect(await body.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });

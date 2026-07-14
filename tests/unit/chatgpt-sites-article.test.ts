@@ -42,8 +42,7 @@ describe('ChatGPT Sites guide content', () => {
     const textBlocks = [...body.matchAll(/```text\n([\s\S]*?)\n```/g)].map(([, block]) => block);
     const initialPrompt = textBlocks.find((block) => block.includes('「テックログ」') && block.includes('掲載内容:'));
     const headings = [...body.matchAll(/^## (.+)$/gm)].map(([, heading]) => heading);
-    const section = (heading: string) =>
-      body.match(new RegExp(`(?:^|\\n)## ${heading}\\n([\\s\\S]*?)(?=\\n## |$)`))?.[1];
+    const section = (heading: string) => body.match(new RegExp(`(?:^|\\n)## ${heading}\\n([\\s\\S]*?)(?=\\n## |$)`))?.[1];
     const introduction = body.match(/^([\s\S]*?)(?=\n## )/)?.[1];
     const saveSection = section('公開前にバージョンを保存する');
     const sharingSection = section('共有範囲を確認して限定公開する');
@@ -99,8 +98,10 @@ describe('ChatGPT Sites guide content', () => {
 
     expect(sharingSection).toContain('共有範囲が「自分のみ」');
     expect(sharingSection).toContain('別個のDeployボタンは表示されませんでした');
+    expect(sharingSection).toContain('ここで新しいデプロイ操作は実行していません');
     expect(sharingSection).toContain('専用の本番URL');
     expect(sharingSection).toContain('未認証のHTTPリクエストは401');
+    expect(body).toContain('デプロイを行う場合は対象と範囲を示して別の明示承認を得る');
 
     for (const link of [
       'https://learn.chatgpt.com/docs/sites',
@@ -173,6 +174,7 @@ describe('ChatGPT Sites guide content', () => {
     expect(mobileFigure?.slice(1).join('\n')).toMatch(/最初の画面|ファーストビュー|ヒーロー/);
     expect(mobileFigure?.slice(1).join('\n')).not.toMatch(/記事カード|プロフィール|最終CTA/);
     expect(body).toContain('記事カード3件、プロフィール、最終CTAは画面下とDOMで確認し、図4にはすべて写っていません');
+    expect(body).toContain('[図5を原寸で開く](/blog-assets/chatgpt-sites-save-vs-deploy.svg)');
     expect(body).toContain('[図6を原寸で開く](/blog-assets/chatgpt-sites-finished.png)');
     expect(body).toContain('[図7を原寸で開く](/blog-assets/chatgpt-sites-saved-version.png)');
     expect(body).toContain('chatgpt-sites-sharing-settings.png');
@@ -202,7 +204,7 @@ describe('ChatGPT Sites guide content', () => {
   });
 
   it('publishes byte-identical full-size mirrors for the wide evidence images', async () => {
-    for (const name of ['chatgpt-sites-finished.png', 'chatgpt-sites-saved-version.png']) {
+    for (const name of ['chatgpt-sites-save-vs-deploy.svg', 'chatgpt-sites-finished.png', 'chatgpt-sites-saved-version.png']) {
       const [published, canonical] = await Promise.all([
         readFile(new URL(`../../public/blog-assets/${name}`, import.meta.url)),
         readFile(new URL(`../../src/assets/blog/${name}`, import.meta.url)),
