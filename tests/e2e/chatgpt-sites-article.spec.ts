@@ -61,9 +61,16 @@ test('本文画像8点以上に一意の代替テキスト、寸法、表示キ�
   expect(imageMetadata.every(({ alt, height, width }) => alt.trim().length > 0 && height > 0 && width > 0)).toBe(true);
   expect(new Set(imageMetadata.map(({ alt }) => alt)).size).toBe(imageCount);
 
-  const captions = body.locator('.article-image-caption');
-  await expect(captions).toHaveCount(imageCount);
-  for (const caption of await captions.all()) await expect(caption).toBeVisible();
+  const imageParagraphs = body.locator('p:has(> img)');
+  await expect(imageParagraphs).toHaveCount(imageCount);
+  for (const paragraph of await imageParagraphs.all()) {
+    const image = paragraph.locator(':scope > img');
+    const caption = paragraph.locator(':scope > .article-image-caption');
+    await expect(image).toHaveCount(1);
+    await expect(caption).toHaveCount(1);
+    expect(await image.evaluate((element) => element.nextElementSibling?.classList.contains('article-image-caption'))).toBe(true);
+    await expect(caption).toBeVisible();
+  }
 });
 
 test('390x844でdocumentと記事本文に横方向のoverflowを発生させない', async ({ page }) => {
