@@ -341,7 +341,9 @@ describe('ChatGPT Sites guide content', () => {
     expect(initialPrompt).toBeDefined();
     const prompt = initialPrompt!;
     for (const requiredPromptText of [
+      'サイト名: テックログ',
       'クラウド、バックエンド、フロントエンド、IaC、AI、運用まで。現場で得た技術の実践知を、わかりやすく発信します。',
+      '主なテーマ: AI、Cloud、IaC',
       'Hiroshi Imaizumi',
       'クラウド、バックエンド、フロントエンド、IaC、AI、運用の実践から得た知見を、技術ブログとして記録しています',
       'https://tech-log.hiroshiimaizumi0611.workers.dev/about/',
@@ -353,6 +355,8 @@ describe('ChatGPT Sites guide content', () => {
       'https://tech-log.hiroshiimaizumi0611.workers.dev/blog/build-tech-blog-with-astro-2026/',
       'ブログを見るボタン:\n  https://tech-log.hiroshiimaizumi0611.workers.dev/',
       'ダークテーマと青いアクセント',
+      '技術ブログらしい落ち着いた印象',
+      '日本語本文を読みやすくする',
       'DesktopとMobileの両方へ対応する',
       '見出しを順序立てる',
       'キーボードだけで主要リンクを操作できるようにする',
