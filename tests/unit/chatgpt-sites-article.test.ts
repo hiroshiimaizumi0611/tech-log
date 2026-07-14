@@ -36,6 +36,9 @@ describe('ChatGPT Sites guide content', () => {
     const textBlocks = [...body.matchAll(/```text\n([\s\S]*?)\n```/g)].map(([, block]) => block);
     const initialPrompt = textBlocks.find((block) => block.includes('「テックログ」') && block.includes('掲載内容:'));
     const headings = [...body.matchAll(/^## (.+)$/gm)].map(([, heading]) => heading);
+    const mobileFigure = body.match(
+      /!\[([^\]]+)\]\(\.\.\/\.\.\/assets\/blog\/chatgpt-sites-mobile\.png\)\n(<span class="article-image-caption">[^<]+<\/span>)/,
+    );
 
     expect(frontmatter).toContain('title: ChatGPT Sitesの使い方｜実際にWebサイトを作って限定公開するまで');
     expect(frontmatter).toContain('description:');
@@ -125,6 +128,10 @@ describe('ChatGPT Sites guide content', () => {
     expect(body).toContain('保存できました。公開・デプロイは行っていません。');
     expect(body).toContain('最終版を公開します。');
     expect(body).toContain('デプロイ前に応答を停止');
+    expect(body).toContain('空白になった状態は観測しましたが、公開用スクリーンショットとして保存していません');
+    expect(mobileFigure).not.toBeNull();
+    expect(mobileFigure?.slice(1).join('\n')).toContain('修正後');
+    expect(mobileFigure?.slice(1).join('\n')).not.toMatch(/初回|修正前|空白/);
 
     expect(images.map(([, , path]) => path)).toEqual([
       '../../assets/blog/chatgpt-sites-guide-og.png',
