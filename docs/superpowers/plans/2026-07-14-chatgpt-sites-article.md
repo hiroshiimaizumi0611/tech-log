@@ -153,7 +153,7 @@ Check and record observable results in this order:
 4. heading order and main call to action
 5. keyboard access to major links
 6. text/background contrast
-7. absence of email addresses, secrets, private URLs, and unintended features
+7. absence of email addresses, secrets, private URLs, forms, login/authentication, external APIs, analytics, file uploads, and data storage
 
 Expected: findings are based on the actual preview. Do not invent a failure to make the article more dramatic.
 
@@ -307,6 +307,10 @@ describe('ChatGPT Sites guide content', () => {
     const [frontmatter, body] = source.replace(/^---\n/, '').split('\n---\n', 2);
     const images = [...body.matchAll(/!\[([^\]]+)\]\(([^)]+)\)/g)];
     const captions = [...body.matchAll(/<span class="article-image-caption">[^<]+<\/span>/g)];
+    const textBlocks = [...body.matchAll(/```text\n([\s\S]*?)\n```/g)].map(([, block]) => block);
+    const initialPrompt = textBlocks.find(
+      (block) => block.trimStart().startsWith('「テックログ」') && block.includes('掲載内容:'),
+    );
 
     expect(frontmatter).toContain('title: ChatGPT Sitesの使い方｜実際にWebサイトを作って限定公開するまで');
     expect(frontmatter).toMatch(/heroImage:\s+\.\.\/\.\.\/assets\/blog\/chatgpt-sites-guide-og\.png/);
@@ -333,10 +337,33 @@ describe('ChatGPT Sites guide content', () => {
     expect(body).toContain('https://learn.chatgpt.com/use-cases/build-student-website');
     expect(body).toContain('デプロイされたURLは本番');
     expect(body).toContain('デプロイせずにバージョンを保存');
-    expect(body).toContain('クラウド、バックエンド、フロントエンド、IaC、AI、運用まで。現場で得た技術の実践知を、わかりやすく発信します。');
-    expect(body).toContain('Aboutページのメールアドレスや問い合わせ情報は転載しないでください。掲載する運営者情報は、上記の氏名とプロフィール文だけにしてください。');
-    expect(body).toContain('フォーム、ログイン・認証、外部API、アクセス解析、ファイルアップロード、データ保存は追加しない');
-    expect(body).toContain('メールアドレス、秘密情報、非公開URLは掲載しない');
+
+    expect(initialPrompt).toBeDefined();
+    const prompt = initialPrompt!;
+    for (const requiredPromptText of [
+      'クラウド、バックエンド、フロントエンド、IaC、AI、運用まで。現場で得た技術の実践知を、わかりやすく発信します。',
+      'Hiroshi Imaizumi',
+      'クラウド、バックエンド、フロントエンド、IaC、AI、運用の実践から得た知見を、技術ブログとして記録しています',
+      'https://tech-log.hiroshiimaizumi0611.workers.dev/about/',
+      'ChatGPTとCodexのPluginsとは？Apps・Skillsとの違い、探し方、権限の見方',
+      'https://tech-log.hiroshiimaizumi0611.workers.dev/blog/chatgpt-codex-plugins-guide/',
+      'ChatGPT Workとは？Chat・Codexとの違いと使い分け',
+      'https://tech-log.hiroshiimaizumi0611.workers.dev/blog/chatgpt-work-guide/',
+      '2026年版 Astroで技術ブログを構築した',
+      'https://tech-log.hiroshiimaizumi0611.workers.dev/blog/build-tech-blog-with-astro-2026/',
+      'ブログを見るボタン:\n  https://tech-log.hiroshiimaizumi0611.workers.dev/',
+      'ダークテーマと青いアクセント',
+      'DesktopとMobileの両方へ対応する',
+      '見出しを順序立てる',
+      'キーボードだけで主要リンクを操作できるようにする',
+      '文字と背景に十分なコントラストを持たせる',
+      '外部リンクだと分かる表現にする',
+      'Aboutページのメールアドレスや問い合わせ情報は転載しないでください。掲載する運営者情報は、上記の氏名とプロフィール文だけにしてください。',
+      '問い合わせフォーム、ログイン・認証、外部API、アクセス解析、ファイルアップロード、データ保存は追加しない。メールアドレス、秘密情報、非公開URLは掲載しない',
+    ]) {
+      expect(prompt).toContain(requiredPromptText);
+    }
+
     expect(images.length).toBeGreaterThanOrEqual(8);
     expect(captions).toHaveLength(images.length);
     expect(images.every(([, alt]) => alt.trim().length > 0)).toBe(true);
