@@ -125,15 +125,19 @@ describe('README authoring and publishing guide', () => {
 
   it('documents exact deployment settings and keeps external publication conditional', async () => {
     const readme = await readProjectFile('README.md');
+    const githubSettingsSection = readme.match(/## GitHub Secrets \/ Variables\s*([\s\S]*?)(?=\n## )/)?.[1] ?? '';
+    const secretsSection = githubSettingsSection.match(/Secrets:\s*([\s\S]*?)(?=\nVariables:)/)?.[1] ?? '';
+    const variablesSection = githubSettingsSection.match(/Variables:\s*([\s\S]*?)(?=\n\nCloudflare Web Analytics)/)?.[1] ?? '';
 
-    for (const secret of ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID']) {
-      expect(readme).toContain(`\`${secret}\``);
+    for (const secret of ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_WEB_ANALYTICS_TOKEN']) {
+      expect(secretsSection).toContain(`\`${secret}\``);
     }
-    for (const variable of ['SITE_URL', 'PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN', 'PUBLIC_GOOGLE_SITE_VERIFICATION']) {
-      expect(readme).toContain(`\`${variable}\``);
+    for (const variable of ['SITE_URL', 'PUBLIC_GOOGLE_SITE_VERIFICATION']) {
+      expect(variablesSection).toContain(`\`${variable}\``);
     }
+    expect(variablesSection).not.toContain('`PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN`');
     expect(readme).toContain('`SITE_URL`のホストと一致する場合だけ');
-    expect(readme).toMatch(/PUBLIC_GOOGLE_SITE_VERIFICATION.+content.+値.+production/is);
+    expect(variablesSection).toMatch(/PUBLIC_GOOGLE_SITE_VERIFICATION.+content.+値.+production/is);
 
     expect(readme).toContain('npx wrangler deploy --dry-run');
     expect(readme).toMatch(/target.+authorization.+contact.+設定後/is);

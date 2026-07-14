@@ -137,11 +137,11 @@ Secrets:
 
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_WEB_ANALYTICS_TOKEN`: Cloudflare Web Analyticsのpublic token。任意。workflowがbuild環境の `PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN` へ割り当てるため、GitHubではこのSecret名で登録する。
 
 Variables:
 
 - `SITE_URL`: 公開先のHTTPS origin。
-- `PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN`: Web Analyticsを使う場合のpublic token。未使用なら空でよい。
 - `PUBLIC_GOOGLE_SITE_VERIFICATION`: Search Consoleが提示するHTMLタグの`content`値だけを登録する。タグ全体は登録しない。production deployでは必須で、未設定・重複・不一致はデプロイ前の成果物検査で失敗する。
 
 Cloudflare Web Analyticsは、閲覧中のホストが`SITE_URL`のホストと一致する場合だけ読み込みます。localhostやプレビューURLで本番成果物を確認しても、Analyticsへ送信しません。
