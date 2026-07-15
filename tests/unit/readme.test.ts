@@ -82,9 +82,16 @@ describe('README authoring and publishing guide', () => {
     expect(frontmatterSection).toMatch(/`draft`.+省略.+`false`.+公開対象/is);
     expect(frontmatterSection).toMatch(/`featured`.+省略.+`false`/is);
     expect(frontmatterSection).toMatch(/`featuredCode`.+`language`.+`filename`.+`code`/is);
+    const featuredCodeBlock = frontmatterSection.match(/^- `featuredCode`:[\s\S]*?(?=^- `heroImage`:)/m)?.[0] ?? '';
+    expect(featuredCodeBlock).toMatch(/`language`.+コードの言語.+空でない/is);
+    expect(featuredCodeBlock).toMatch(/`filename`.+互換性.+メタデータ.+現在の表示.+使用しない/is);
+    expect(featuredCodeBlock).not.toMatch(/コードパネルのファイル名/);
+    expect(featuredCodeBlock).not.toMatch(/省略時[^。\n]*`language`[^。\n]*表示/);
     expect(frontmatterSection).toMatch(/複数.+featured.+公開日.+新しい.+ID.+昇順/is);
     expect(frontmatterSection).toMatch(/`ogImage`.+`heroImage`.+既定画像/is);
-    expect(frontmatterSection).toMatch(/`heroImage`.+記事カード.+注目記事/is);
+    expect(frontmatterSection).toMatch(/`heroImage`.+記事カード.+OG画像.+コンパクトな注目記事.+表示しない/is);
+    expect(frontmatterSection).toMatch(/`featuredCode`.+互換性.+コンパクトな注目記事.+表示しない/is);
+    expect(frontmatterSection).not.toMatch(/選ばれた記事に\s*`featuredCode`\s*があれば[^。]*コードパネルを優先/is);
     expect(readme).toMatch(/draft: true.+公開.+除外/is);
     expect(readme).toMatch(/検索.+npm run build/is);
   });

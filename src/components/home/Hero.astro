@@ -1,15 +1,7 @@
 ---
-import type { ImageMetadata } from 'astro';
-
 import FeaturedArticle from '@/components/blog/FeaturedArticle.astro';
 import Container from '@/components/common/Container.astro';
-import type { CategoryKey } from '@/config/site';
-
-interface FeaturedCode {
-  language: string;
-  filename?: string;
-  code: string;
-}
+import InteractiveHeroNetwork from '@/components/home/InteractiveHeroNetwork.astro';
 
 interface Props {
   siteName: string;
@@ -19,14 +11,6 @@ interface Props {
   featured: {
     href: string;
     title: string;
-    description: string;
-    publishedDate: string;
-    publishedLabel: string;
-    category: CategoryKey;
-    tags: readonly string[];
-    readingMinutes: number;
-    featuredCode?: FeaturedCode;
-    heroImage?: ImageMetadata;
   };
 }
 
@@ -35,7 +19,7 @@ const { siteName, tagline, description, technologies, featured } = Astro.props;
 
 <section class="hero" aria-label="サイト紹介">
   <Container class="hero-inner">
-    <div class="intro">
+    <div class="intro" data-hero-entrance>
       <span class="kicker">TECH BLOG</span>
       <h1>{siteName}</h1>
       <p class="tagline">{tagline}</p>
@@ -46,7 +30,10 @@ const { siteName, tagline, description, technologies, featured } = Astro.props;
         <span>&lt;</span><span>/</span><span>&gt;</span>
       </div>
     </div>
-    <FeaturedArticle {...featured} />
+    <InteractiveHeroNetwork />
+    <div class="featured-slot" data-hero-entrance>
+      <FeaturedArticle {...featured} />
+    </div>
   </Container>
 </section>
 
@@ -61,11 +48,9 @@ const { siteName, tagline, description, technologies, featured } = Astro.props;
   }
 
   :global(.hero-inner) {
-    display: grid;
-    grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
-    gap: clamp(var(--space-8), 5vw, var(--space-16));
-    align-items: center;
-    padding-block: clamp(var(--space-10), 4vw, var(--space-16));
+    position: relative;
+    min-block-size: clamp(34rem, 70vh, 44rem);
+    padding-block: clamp(var(--space-12), 7vw, var(--space-16));
   }
 
   :global(.hero-inner) > * {
@@ -74,6 +59,28 @@ const { siteName, tagline, description, technologies, featured } = Astro.props;
 
   .intro {
     position: relative;
+    z-index: 2;
+    inline-size: min(47%, 38rem);
+    min-inline-size: 0;
+  }
+
+  :global(.hero-inner) > :global([data-hero-network]) {
+    position: absolute;
+    z-index: 1;
+    inset-block: clamp(var(--space-6), 5vw, var(--space-12)) var(--space-5);
+    inset-inline-end: 0;
+    inline-size: 64%;
+    max-inline-size: none;
+    opacity: 0.96;
+    mask-image: linear-gradient(to right, transparent 0%, #000 18%, #000 100%);
+  }
+
+  .featured-slot {
+    position: absolute;
+    z-index: 3;
+    inset-inline-end: clamp(var(--space-4), 4vw, var(--space-10));
+    inset-block-end: clamp(var(--space-5), 4vw, var(--space-10));
+    inline-size: min(31rem, 42%);
     min-inline-size: 0;
   }
 
@@ -140,10 +147,108 @@ const { siteName, tagline, description, technologies, featured } = Astro.props;
     transform: rotate(-8deg);
   }
 
+  .intro > .kicker,
+  .intro > h1,
+  .intro > .tagline,
+  .intro > .description,
+  .intro > .accent-line,
+  .intro > .tech-list {
+    animation: hero-intro-enter 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .intro > h1 {
+    animation-delay: 80ms;
+  }
+
+  .intro > .tagline {
+    animation-delay: 160ms;
+  }
+
+  .intro > .description {
+    animation-delay: 240ms;
+  }
+
+  .intro > .accent-line {
+    animation-delay: 320ms;
+  }
+
+  .intro > .tech-list {
+    animation-delay: 400ms;
+  }
+
+  .featured-slot {
+    animation: hero-featured-enter 280ms 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes hero-intro-enter {
+    from {
+      opacity: 0;
+      transform: translateY(0.65rem);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes hero-featured-enter {
+    from {
+      opacity: 0;
+      transform: translateY(1rem);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   @media (max-width: 63.99rem) {
     :global(.hero-inner) {
-      grid-template-columns: 1fr;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--space-8);
+      min-block-size: 0;
       padding-block: var(--space-12);
+    }
+
+    .intro,
+    :global(.hero-inner) > :global([data-hero-network]) {
+      position: relative;
+      inset: auto;
+      inline-size: 100%;
+    }
+
+    .featured-slot {
+      position: static;
+      inline-size: 100%;
+    }
+
+    .intro {
+      max-inline-size: 38rem;
+    }
+
+    :global(.hero-inner) > :global([data-hero-network]) {
+      mask-image: none;
+      opacity: 0.9;
+    }
+
+    .featured-slot {
+      max-inline-size: 36rem;
+      margin-inline-start: auto;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .intro > .kicker,
+    .intro > h1,
+    .intro > .tagline,
+    .intro > .description,
+    .intro > .accent-line,
+    .intro > .tech-list,
+    .featured-slot {
+      animation: none;
     }
   }
 
