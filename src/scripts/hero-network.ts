@@ -126,3 +126,281 @@ export function animationMode(input: { intersecting: boolean; documentVisible: b
   if (!input.intersecting || !input.documentVisible) return 'paused';
   return 'running';
 }
+
+const initializedNetworks = new WeakMap<Element, () => void>();
+const SHAPES: readonly ShapeMode[] = ['radial', 'wave', 'clusters'];
+
+interface CanvasSize {
+  width: number;
+  height: number;
+  pixelRatio: number;
+  particleCount: number;
+}
+
+function initializeNetwork(element: HTMLElement): void {
+  if (initializedNetworks.has(element)) return;
+  if (typeof window === 'undefined' || typeof HTMLCanvasElement === 'undefined') return;
+
+  const canvas = element.querySelector('canvas');
+  const pointerRing = element.querySelector<HTMLElement>('[data-pointer-ring]');
+  if (!(canvas instanceof HTMLCanvasElement) || !pointerRing) return;
+
+  let context: CanvasRenderingContext2D | null = null;
+  try {
+    context = canvas.getContext('2d');
+  } catch {
+    return;
+  }
+
+  if (
+    !context ||
+    typeof ResizeObserver === 'undefined' ||
+    typeof IntersectionObserver === 'undefined' ||
+    typeof window.matchMedia !== 'function' ||
+    typeof window.requestAnimationFrame !== 'function' ||
+    typeof window.cancelAnimationFrame !== 'function'
+  ) {
+    return;
+  }
+
+  const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const finePointerQuery = window.matchMedia('(hover: hover) and (pointer: fine)');
+  if (
+    typeof reducedMotionQuery.addEventListener !== 'function' ||
+    typeof reducedMotionQuery.removeEventListener !== 'function' ||
+    typeof finePointerQuery.addEventListener !== 'function' ||
+    typeof finePointerQuery.removeEventListener !== 'function'
+  ) {
+    return;
+  }
+  let size: CanvasSize = { width: 0, height: 0, pixelRatio: 1, particleCount: 36 };
+  let intersecting = true;
+  let currentMode: AnimationMode | 'fallback' = 'fallback';
+  let activeElapsedMs = 0;
+  let lastFrameTime: number | null = null;
+  let frameRequest: number | null = null;
+  let pointer: Point | null = null;
+  let canvasBounds: DOMRect | null = null;
+  let cleanedUp = false;
+
+  const clearPointer = (): void => {
+    pointer = null;
+    canvasBounds = null;
+    pointerRing.classList.remove('is-visible');
+  };
+
+  const updateCanvasSize = (width: number, height: number): boolean => {
+    const cssWidth = Math.max(1, Math.round(width));
+    const cssHeight = Math.max(1, Math.round(height));
+    const viewportWidth = window.innerWidth;
+    const cappedPixelRatio = pixelRatioForWidth(viewportWidth, window.devicePixelRatio);
+    const pixelRatio =
+      Number.isFinite(window.devicePixelRatio) && window.devicePixelRatio > 0
+        ? Math.min(window.devicePixelRatio, cappedPixelRatio)
+        : cappedPixelRatio;
+    const particleCount = particleCountForWidth(viewportWidth);
+
+    if (size.width === cssWidth && size.height === cssHeight && size.pixelRatio === pixelRatio && size.particleCount === particleCount) {
+      return false;
+    }
+
+    size = { width: cssWidth, height: cssHeight, pixelRatio, particleCount };
+    element.dataset.particleCount = String(particleCount);
+    canvas.style.width = `${cssWidth}px`;
+    canvas.style.height = `${cssHeight}px`;
+    canvas.width = Math.round(cssWidth * pixelRatio);
+    canvas.height = Math.round(cssHeight * pixelRatio);
+    return true;
+  };
+
+  const draw = (forcedShape?: ShapeMode): void => {
+    if (size.width <= 0 || size.height <= 0) return;
+
+    const count = size.particleCount;
+    const cycle = activeElapsedMs / SHAPE_DURATION_MS;
+    const shapeIndex = Math.floor(cycle) % SHAPES.length;
+    const fromShape = forcedShape ?? SHAPES[shapeIndex];
+    const toShape = forcedShape ?? SHAPES[(shapeIndex + 1) % SHAPES.length];
+    const rawProgress = forcedShape ? 0 : cycle - Math.floor(cycle);
+    const progress = rawProgress * rawProgress * (3 - 2 * rawProgress);
+    const phase = forcedShape ? 0 : (activeElapsedMs / 1_000) * 0.18;
+    const points: Point[] = [];
+
+    context.setTransform(size.pixelRatio, 0, 0, size.pixelRatio, 0, 0);
+    context.clearRect(0, 0, size.width, size.height);
+
+    for (let index = 0; index < count; index += 1) {
+      const from = positionForShape(fromShape, index, count, phase);
+      const to = positionForShape(toShape, index, count, phase);
+      const normalized = interpolatePosition(from, to, progress);
+      const point = { x: normalized.x * size.width, y: normalized.y * size.height };
+
+      if (pointer && finePointerQuery.matches && currentMode !== 'static') {
+        const force = cursorRepulsion(point, pointer);
+        point.x += force.x * 22;
+        point.y += force.y * 22;
+      }
+
+      points.push(point);
+    }
+
+    const connectionRange = Math.min(125, Math.max(72, size.width * 0.12));
+    const connectionCounts = points.map(() => 0);
+    const candidates: { fromIndex: number; toIndex: number; distance: number }[] = [];
+
+    for (let fromIndex = 0; fromIndex < points.length; fromIndex += 1) {
+      for (let toIndex = fromIndex + 1; toIndex < points.length; toIndex += 1) {
+        const distance = Math.hypot(points[fromIndex].x - points[toIndex].x, points[fromIndex].y - points[toIndex].y);
+        if (distance <= connectionRange) candidates.push({ fromIndex, toIndex, distance });
+      }
+    }
+
+    candidates.sort((a, b) => a.distance - b.distance);
+    context.lineWidth = 0.7;
+    for (const { fromIndex, toIndex, distance } of candidates) {
+      if (connectionCounts[fromIndex] >= 3 || connectionCounts[toIndex] >= 3) continue;
+
+      connectionCounts[fromIndex] += 1;
+      connectionCounts[toIndex] += 1;
+      context.strokeStyle = `rgba(92, 210, 180, ${0.18 * (1 - distance / connectionRange)})`;
+      context.beginPath();
+      context.moveTo(points[fromIndex].x, points[fromIndex].y);
+      context.lineTo(points[toIndex].x, points[toIndex].y);
+      context.stroke();
+    }
+
+    context.fillStyle = 'rgba(112, 232, 202, 0.72)';
+    for (const point of points) {
+      context.beginPath();
+      context.arc(point.x, point.y, 1.45, 0, TAU);
+      context.fill();
+    }
+
+    const frameShape = forcedShape ?? fromShape;
+    if (element.dataset.networkRendered !== 'true') element.dataset.networkRendered = 'true';
+    if (element.dataset.networkFrame !== frameShape) element.dataset.networkFrame = frameShape;
+  };
+
+  const scheduleFrame = (): void => {
+    if (frameRequest === null && currentMode === 'running') frameRequest = window.requestAnimationFrame(runFrame);
+  };
+
+  const runFrame = (time: number): void => {
+    frameRequest = null;
+    if (currentMode !== 'running') return;
+
+    if (lastFrameTime === null) {
+      lastFrameTime = time;
+    } else {
+      activeElapsedMs = advanceActiveElapsed(activeElapsedMs, time - lastFrameTime, currentMode);
+      lastFrameTime = time;
+    }
+
+    draw();
+    scheduleFrame();
+  };
+
+  const transition = (): void => {
+    const nextMode = animationMode({
+      intersecting,
+      documentVisible: document.visibilityState === 'visible',
+      reducedMotion: reducedMotionQuery.matches,
+    });
+    if (nextMode === currentMode) return;
+
+    currentMode = nextMode;
+    element.dataset.networkState = nextMode;
+
+    if (frameRequest !== null) {
+      window.cancelAnimationFrame(frameRequest);
+      frameRequest = null;
+    }
+    lastFrameTime = null;
+
+    if (nextMode === 'static') {
+      clearPointer();
+      draw('radial');
+    } else if (nextMode === 'running') {
+      scheduleFrame();
+    } else {
+      clearPointer();
+    }
+  };
+
+  const resizeObserver = new ResizeObserver((entries) => {
+    const entry = entries[0];
+    if (!entry) return;
+    const resized = updateCanvasSize(entry.contentRect.width, entry.contentRect.height);
+    canvasBounds = canvas.getBoundingClientRect();
+    if (resized && currentMode === 'static') draw('radial');
+  });
+
+  const intersectionObserver = new IntersectionObserver((entries) => {
+    const entry = entries[0];
+    if (!entry) return;
+    intersecting = entry.isIntersecting;
+    transition();
+  });
+
+  const onPointerMove = (event: PointerEvent): void => {
+    if (!finePointerQuery.matches || currentMode !== 'running') return;
+    const bounds = canvasBounds ?? canvas.getBoundingClientRect();
+    canvasBounds = bounds;
+    pointer = { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+    pointerRing.style.setProperty('--pointer-x', `${pointer.x}px`);
+    pointerRing.style.setProperty('--pointer-y', `${pointer.y}px`);
+    pointerRing.classList.add('is-visible');
+  };
+  const onPointerEnter = (): void => {
+    if (finePointerQuery.matches && currentMode === 'running') canvasBounds = canvas.getBoundingClientRect();
+  };
+
+  const onFinePointerChange = (): void => {
+    if (!finePointerQuery.matches) clearPointer();
+  };
+  const onVisibilityChange = (): void => transition();
+  const onReducedMotionChange = (): void => transition();
+  const onWindowResize = (): void => {
+    const bounds = element.getBoundingClientRect();
+    const resized = updateCanvasSize(bounds.width, bounds.height);
+    canvasBounds = canvas.getBoundingClientRect();
+    if (resized && currentMode === 'static') draw('radial');
+  };
+
+  const cleanup = (): void => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    if (frameRequest !== null) window.cancelAnimationFrame(frameRequest);
+    resizeObserver.disconnect();
+    intersectionObserver.disconnect();
+    reducedMotionQuery.removeEventListener('change', onReducedMotionChange);
+    finePointerQuery.removeEventListener('change', onFinePointerChange);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    document.removeEventListener('astro:before-swap', cleanup);
+    window.removeEventListener('resize', onWindowResize);
+    element.removeEventListener('pointerenter', onPointerEnter);
+    element.removeEventListener('pointermove', onPointerMove);
+    element.removeEventListener('pointerleave', clearPointer);
+    initializedNetworks.delete(element);
+  };
+
+  initializedNetworks.set(element, cleanup);
+  resizeObserver.observe(element);
+  intersectionObserver.observe(element);
+  reducedMotionQuery.addEventListener('change', onReducedMotionChange);
+  finePointerQuery.addEventListener('change', onFinePointerChange);
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  document.addEventListener('astro:before-swap', cleanup);
+  window.addEventListener('resize', onWindowResize, { passive: true });
+  element.addEventListener('pointerenter', onPointerEnter, { passive: true });
+  element.addEventListener('pointermove', onPointerMove, { passive: true });
+  element.addEventListener('pointerleave', clearPointer);
+
+  const initialBounds = element.getBoundingClientRect();
+  updateCanvasSize(initialBounds.width, initialBounds.height);
+  transition();
+}
+
+export function initHeroNetworks(root: ParentNode = document): void {
+  for (const element of root.querySelectorAll<HTMLElement>('[data-hero-network]')) initializeNetwork(element);
+}

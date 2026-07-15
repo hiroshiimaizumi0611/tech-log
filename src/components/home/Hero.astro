@@ -3,6 +3,7 @@ import type { ImageMetadata } from 'astro';
 
 import FeaturedArticle from '@/components/blog/FeaturedArticle.astro';
 import Container from '@/components/common/Container.astro';
+import InteractiveHeroNetwork from '@/components/home/InteractiveHeroNetwork.astro';
 import type { CategoryKey } from '@/config/site';
 
 interface FeaturedCode {
@@ -46,6 +47,7 @@ const { siteName, tagline, description, technologies, featured } = Astro.props;
         <span>&lt;</span><span>/</span><span>&gt;</span>
       </div>
     </div>
+    <InteractiveHeroNetwork />
     <FeaturedArticle {...featured} />
   </Container>
 </section>

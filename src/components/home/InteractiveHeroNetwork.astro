@@ -1,0 +1,95 @@
+<div class="hero-network" data-hero-network data-network-state="fallback" aria-hidden="true">
+  <div class="network-fallback" data-network-fallback></div>
+  <canvas aria-hidden="true"></canvas>
+  <span class="pointer-ring" data-pointer-ring></span>
+</div>
+
+<script>
+  import { initHeroNetworks } from '@/scripts/hero-network';
+
+  initHeroNetworks();
+</script>
+
+<style>
+  .hero-network {
+    position: relative;
+    isolation: isolate;
+    inline-size: 100%;
+    min-inline-size: 0;
+    min-block-size: 15rem;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    touch-action: pan-y;
+  }
+
+  .network-fallback,
+  canvas {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+  }
+
+  .network-fallback {
+    z-index: -1;
+    background:
+      radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--color-accent) 18%, transparent) 0 2px, transparent 3px),
+      radial-gradient(circle at 28% 32%, color-mix(in srgb, var(--color-accent-soft) 20%, transparent) 0 1px, transparent 2px),
+      radial-gradient(circle at 72% 68%, color-mix(in srgb, var(--color-accent) 14%, transparent) 0 1px, transparent 2px),
+      radial-gradient(ellipse at center, color-mix(in srgb, var(--color-accent) 9%, transparent), transparent 64%);
+    background-size:
+      2.75rem 2.75rem,
+      3.5rem 3.5rem,
+      4.25rem 4.25rem,
+      100% 100%;
+    transition: opacity 180ms ease;
+  }
+
+  .hero-network[data-network-rendered='true'] .network-fallback {
+    opacity: 0.42;
+  }
+
+  canvas,
+  .pointer-ring {
+    pointer-events: none;
+  }
+
+  canvas {
+    display: block;
+  }
+
+  .pointer-ring {
+    --pointer-x: -4rem;
+    --pointer-y: -4rem;
+
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    inline-size: 2.4rem;
+    block-size: 2.4rem;
+    border: 1px solid color-mix(in srgb, var(--color-accent) 38%, transparent);
+    border-radius: 50%;
+    opacity: 0;
+    transform: translate3d(calc(var(--pointer-x) - 50%), calc(var(--pointer-y) - 50%), 0);
+    transition: opacity 120ms ease;
+  }
+
+  .pointer-ring.is-visible {
+    opacity: 0.7;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .network-fallback,
+    canvas,
+    .pointer-ring {
+      transition: none;
+    }
+  }
+
+  @media (max-width: 63.99rem) {
+    .hero-network {
+      min-block-size: 12rem;
+      aspect-ratio: 16 / 8;
+    }
+  }
+</style>
