@@ -89,7 +89,9 @@ for (const viewport of viewports) {
     await expectNoPageOverflow(page);
     await expect(page).toHaveScreenshot(`home-${viewport.name}.png`, {
       animations: 'disabled',
-      fullPage: true,
+      // モバイルの全ページ高はOSごとの日本語フォントの改行差で変わるため、
+      // ヒーロー全体が収まる固定ビューポートを比較する。
+      fullPage: viewport.name !== 'mobile',
       maxDiffPixelRatio: crossPlatformPixelTolerance[viewport.name],
     });
   });
