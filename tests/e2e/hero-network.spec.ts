@@ -115,6 +115,51 @@ test('shows the full cursor repulsion range on fine pointers', async ({ page }) 
   expect(errors).toEqual([]);
 });
 
+test('resets cursor bounds when the page scrolls', async ({ page }) => {
+  const errors = captureFeatureErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+
+  const network = page.locator('[data-hero-network]');
+  const pointerRing = network.locator('[data-pointer-ring]');
+  const initialBounds = await network.boundingBox();
+  expect(initialBounds).not.toBeNull();
+
+  const initialPointer = {
+    x: initialBounds!.x + initialBounds!.width / 2,
+    y: initialBounds!.y + initialBounds!.height / 2,
+  };
+  await page.mouse.move(initialPointer.x, initialPointer.y);
+  await expect(pointerRing).toHaveClass(/is-visible/);
+
+  const initialRing = await pointerRing.boundingBox();
+  expect(initialRing).not.toBeNull();
+  expect(Math.abs(initialRing!.x + initialRing!.width / 2 - initialPointer.x)).toBeLessThanOrEqual(2);
+  expect(Math.abs(initialRing!.y + initialRing!.height / 2 - initialPointer.y)).toBeLessThanOrEqual(2);
+
+  await page.evaluate(() => window.scrollTo(0, 100));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(100);
+  await expect(pointerRing).not.toHaveClass(/is-visible/);
+
+  const scrolledBounds = await network.boundingBox();
+  expect(scrolledBounds).not.toBeNull();
+  expect(scrolledBounds!.y).toBeLessThan(900);
+  expect(scrolledBounds!.y + scrolledBounds!.height).toBeGreaterThan(0);
+
+  const movedPointer = {
+    x: scrolledBounds!.x + scrolledBounds!.width / 2 + 1,
+    y: scrolledBounds!.y + scrolledBounds!.height / 2 + 1,
+  };
+  await page.mouse.move(movedPointer.x, movedPointer.y);
+  await expect(pointerRing).toHaveClass(/is-visible/);
+
+  const movedRing = await pointerRing.boundingBox();
+  expect(movedRing).not.toBeNull();
+  expect(Math.abs(movedRing!.x + movedRing!.width / 2 - movedPointer.x)).toBeLessThanOrEqual(2);
+  expect(Math.abs(movedRing!.y + movedRing!.height / 2 - movedPointer.y)).toBeLessThanOrEqual(2);
+  expect(errors).toEqual([]);
+});
+
 test('navigates through the Featured link while the network is active', async ({ page }) => {
   const errors = captureFeatureErrors(page);
 

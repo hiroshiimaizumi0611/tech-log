@@ -368,6 +368,7 @@ function initializeNetwork(element: HTMLElement): void {
   };
   const onVisibilityChange = (): void => transition();
   const onReducedMotionChange = (): void => transition();
+  const onWindowScroll = (): void => clearPointer();
   const onWindowResize = (): void => {
     const bounds = element.getBoundingClientRect();
     const resized = updateCanvasSize(bounds.width, bounds.height);
@@ -385,6 +386,7 @@ function initializeNetwork(element: HTMLElement): void {
     finePointerQuery.removeEventListener('change', onFinePointerChange);
     document.removeEventListener('visibilitychange', onVisibilityChange);
     document.removeEventListener('astro:before-swap', cleanup);
+    window.removeEventListener('scroll', onWindowScroll);
     window.removeEventListener('resize', onWindowResize);
     element.removeEventListener('pointerenter', onPointerEnter);
     element.removeEventListener('pointermove', onPointerMove);
@@ -399,6 +401,7 @@ function initializeNetwork(element: HTMLElement): void {
   finePointerQuery.addEventListener('change', onFinePointerChange);
   document.addEventListener('visibilitychange', onVisibilityChange);
   document.addEventListener('astro:before-swap', cleanup);
+  window.addEventListener('scroll', onWindowScroll, { passive: true });
   window.addEventListener('resize', onWindowResize, { passive: true });
   element.addEventListener('pointerenter', onPointerEnter, { passive: true });
   element.addEventListener('pointermove', onPointerMove, { passive: true });
