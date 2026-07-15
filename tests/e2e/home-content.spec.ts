@@ -1,11 +1,13 @@
 import { expect, test } from '@playwright/test';
 
 const latestArticleTitles = [
+  'ChatGPT Sitesの使い方｜実際にWebサイトを作って限定公開するまで',
   'ChatGPTとCodexのPluginsとは？Apps・Skillsとの違い、探し方、権限の見方',
   '2026年版 Astroで技術ブログを構築した',
   'ChatGPT Workとは？Chat・Codexとの違いと使い分け',
-  'GPT-5.6 Sol・Terra・Lunaの違い―特徴・料金・選び方',
 ] as const;
+
+const featuredArticleTitle = 'ChatGPTとCodexのPluginsとは？Apps・Skillsとの違い、探し方、権限の見方';
 
 const backgroundImageUrl = async (locator: import('@playwright/test').Locator) => {
   const backgroundImage = await locator.evaluate((element) => getComputedStyle(element).backgroundImage);
@@ -26,7 +28,7 @@ test('最新の注目記事とサイト紹介をヒーローに表示する', as
   await expect(hero.getByText('AWS / React / TypeScript / Terraform / Java / AI / Ops', { exact: true })).toBeVisible();
 
   const featured = hero.getByRole('article', { name: '注目記事' });
-  await expect(featured.getByRole('heading', { name: latestArticleTitles[0] })).toBeVisible();
+  await expect(featured.getByRole('heading', { name: featuredArticleTitle })).toBeVisible();
   await expect(featured.getByRole('link', { name: /続きを読む/ })).toHaveAttribute('href', '/blog/chatgpt-codex-plugins-guide/');
   await expect(featured.locator('pre, [data-featured-code]')).toHaveCount(0);
   const customArtwork = featured.locator('[data-custom-hero]');
@@ -53,7 +55,7 @@ test('最新記事を公開日順に4件だけ表示しカード全体を一つ�
 
 test('記事画像をカテゴリーアート上の装飾レイヤーとして表示する', async ({ page }) => {
   const cards = page.getByRole('region', { name: '最新の記事' }).locator('[data-article-card]');
-  const pluginsCard = cards.filter({ hasText: latestArticleTitles[0] });
+  const pluginsCard = cards.filter({ hasText: featuredArticleTitle });
   const customArtwork = pluginsCard.locator('[data-custom-hero]');
 
   await expect(cards.locator('[data-category-artwork]')).toHaveCount(4);
@@ -72,7 +74,7 @@ test('Featuredと記事カードの画像取得失敗時も固定比率のカテ
   const initialCard = page
     .getByRole('region', { name: '最新の記事' })
     .locator('[data-article-card]')
-    .filter({ hasText: latestArticleTitles[0] });
+    .filter({ hasText: featuredArticleTitle });
   const featuredImageUrl = await backgroundImageUrl(initialFeatured.locator('[data-custom-hero]'));
   const cardImageUrl = await backgroundImageUrl(initialCard.locator('[data-custom-hero]'));
   expect(featuredImageUrl).not.toBe(cardImageUrl);
@@ -91,7 +93,7 @@ test('Featuredと記事カードの画像取得失敗時も固定比率のカテ
   const pluginsCard = page
     .getByRole('region', { name: '最新の記事' })
     .locator('[data-article-card]')
-    .filter({ hasText: latestArticleTitles[0] });
+    .filter({ hasText: featuredArticleTitle });
   for (const { imageUrl, region } of [
     { imageUrl: featuredImageUrl, region: featured },
     { imageUrl: cardImageUrl, region: pluginsCard },
@@ -102,7 +104,7 @@ test('Featuredと記事カードの画像取得失敗時も固定比率のカテ
     await expect(fallback).toBeVisible();
     await expect(customArtwork).toBeVisible();
     expect(await customArtwork.boundingBox()).toEqual(await fallback.boundingBox());
-    await expect(region.getByRole('heading', { name: latestArticleTitles[0] })).toBeVisible();
+    await expect(region.getByRole('heading', { name: featuredArticleTitle })).toBeVisible();
     await expect(region.getByRole('link')).toHaveAttribute('href', '/blog/chatgpt-codex-plugins-guide/');
   }
   expect(abortedRequests.featured).toBeGreaterThan(0);

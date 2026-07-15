@@ -189,9 +189,9 @@ test('前後記事と決定的な関連記事を表示し、現在の記事を�
   const related = page.locator('[data-related-articles] [data-article-card]');
   await expect(related).toHaveCount(3);
   await expect(related.getByRole('heading')).toHaveText([
+    'ChatGPT Sitesの使い方｜実際にWebサイトを作って限定公開するまで',
     'ChatGPTとCodexのPluginsとは？Apps・Skillsとの違い、探し方、権限の見方',
     'ChatGPT Workとは？Chat・Codexとの違いと使い分け',
-    '2026年版 Astroで技術ブログを構築した',
   ]);
   await expect(page.locator('[data-related-articles]')).not.toContainText(articleTitle);
   await expect(page.locator('[data-related-articles] a a')).toHaveCount(0);

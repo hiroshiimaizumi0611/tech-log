@@ -1,0 +1,217 @@
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+
+import sharp from 'sharp';
+import { describe, expect, it } from 'vitest';
+
+const asset = (name: string) => fileURLToPath(new URL(`../../src/assets/blog/${name}`, import.meta.url));
+
+describe('ChatGPT Sites article visuals', () => {
+  it('builds a 1200x630 PNG', async () => {
+    const metadata = await sharp(asset('chatgpt-sites-guide-og.png')).metadata();
+
+    expect(metadata).toMatchObject({ width: 1200, height: 630, format: 'png' });
+  });
+
+  it('exposes the save-before-deploy flow in a scalable SVG', async () => {
+    const source = await readFile(asset('chatgpt-sites-save-vs-deploy.svg'), 'utf8');
+    const rootAttributes = source.match(/<svg\b([^>]*)>/)?.[1];
+    const attribute = (key: string) => rootAttributes?.match(new RegExp(`\\b${key}="([^"]+)"`))?.[1];
+
+    expect(attribute('width')).toBe('1200');
+    expect(attribute('height')).toBe('675');
+    expect(attribute('viewBox')).toBe('0 0 1200 675');
+    for (const label of ['バージョンを保存', '内容とアクセスを確認', '承認してから進む', 'デプロイ', '共有範囲を確認']) {
+      expect(source).toContain(label);
+    }
+  });
+
+  it('stores the sharing-settings evidence as a real PNG', async () => {
+    const metadata = await sharp(asset('chatgpt-sites-sharing-settings.png')).metadata();
+
+    expect(metadata).toMatchObject({ width: 812, height: 144, format: 'png' });
+  });
+});
+
+describe('ChatGPT Sites guide content', () => {
+  it('keeps the approved structure, evidence, prompts, visuals, and publication boundary', async () => {
+    const source = await readFile(new URL('../../src/content/blog/chatgpt-sites-guide.md', import.meta.url), 'utf8');
+    const [frontmatter, body] = source.replace(/^---\n/, '').split('\n---\n', 2);
+    const images = [...body.matchAll(/!\[([^\]]+)\]\(([^)]+)\)/g)];
+    const captions = [...body.matchAll(/<span class="article-image-caption">[^<]+<\/span>/g)];
+    const textBlocks = [...body.matchAll(/```text\n([\s\S]*?)\n```/g)].map(([, block]) => block);
+    const initialPrompt = textBlocks.find((block) => block.includes('「テックログ」') && block.includes('掲載内容:'));
+    const headings = [...body.matchAll(/^## (.+)$/gm)].map(([, heading]) => heading);
+    const section = (heading: string) => body.match(new RegExp(`(?:^|\\n)## ${heading}\\n([\\s\\S]*?)(?=\\n## |$)`))?.[1];
+    const introduction = body.match(/^([\s\S]*?)(?=\n## )/)?.[1];
+    const saveSection = section('公開前にバージョンを保存する');
+    const sharingSection = section('本番URLと共有範囲を確認する');
+    const figure = (assetName: string) =>
+      body.match(
+        new RegExp(
+          `!\\[([^\\]]+)\\]\\(\\.\\.\\/\\.\\.\\/assets\\/blog\\/${assetName.replace('.', '\\.')}\\)\\n(<span class="article-image-caption">[^<]+<\\/span>)`,
+        ),
+      );
+    const workflowFigure = figure('chatgpt-sites-guide-og.png');
+    const initialDesktopFigure = figure('chatgpt-sites-initial.png');
+    const mobileFigure = body.match(
+      /!\[([^\]]+)\]\(\.\.\/\.\.\/assets\/blog\/chatgpt-sites-mobile\.png\)\n(<span class="article-image-caption">[^<]+<\/span>)/,
+    );
+
+    expect(frontmatter).toContain('title: ChatGPT Sitesの使い方｜実際にWebサイトを作って限定公開するまで');
+    expect(frontmatter).toContain('description:');
+    for (const term of ['初心者', '生成', '修正', 'バージョン保存', '共有範囲', '自分のみ', '限定公開']) {
+      expect(frontmatter).toContain(term);
+    }
+    expect(frontmatter).not.toMatch(/^description:.*デプロイ前/m);
+    expect(frontmatter).toContain("publishedAt: '2026-07-14'");
+    expect(frontmatter).toContain("updatedAt: '2026-07-15'");
+    expect(frontmatter).toContain('category: AI');
+    for (const tag of ['OpenAI', 'ChatGPT', 'Sites', 'Web制作']) {
+      expect(frontmatter).toContain(`  - ${tag}`);
+    }
+    expect(frontmatter).not.toContain('draft: true');
+    expect(frontmatter).toContain('heroImage: ../../assets/blog/chatgpt-sites-guide-og.png');
+    expect(frontmatter).toContain('ogImage: ../../assets/blog/chatgpt-sites-guide-og.png');
+    expect(body).toContain('公式情報は**2026-07-14時点**');
+    expect(body).toContain('実演は**2026-07-15**に完了');
+
+    expect(headings).toEqual([
+      'ChatGPT Sitesで何ができるのか',
+      '今回作るもの',
+      '作る前に情報をそろえる',
+      '最初のページを生成する',
+      '見た目より先に内容と操作を確認する',
+      '修正プロンプトは具体的に書く',
+      '公開前にバージョンを保存する',
+      '本番URLと共有範囲を確認する',
+      'Sitesは小規模な紹介ページ向きだが、公開前確認は欠かせない',
+      '公開前チェックリスト',
+    ]);
+
+    expect(introduction).toContain('生成結果をそのまま公開せず');
+    expect(introduction).toContain('モバイル表示、秘密情報、共有範囲を人が確認');
+    expect(saveSection).toContain('バージョン保存とデプロイを別の段階');
+    expect(saveSection).toContain('独立した「Deploy」ボタンはありませんでした');
+    expect(saveSection).toContain('保存後も本番側の状態と共有範囲を確認');
+
+    expect(sharingSection).toContain('共有範囲が「自分のみ」');
+    expect(sharingSection).toContain('別個の「Deploy」ボタンはありませんでした');
+    expect(sharingSection).toContain('新しいデプロイ操作は実行していません');
+    expect(sharingSection).toContain('専用の本番URL');
+    expect(sharingSection).toContain('未認証を示す401で拒否');
+    expect(body).toContain('デプロイを行う場合は対象と範囲を示して別の明示承認を得る');
+
+    for (const link of [
+      'https://learn.chatgpt.com/docs/sites',
+      'https://learn.chatgpt.com/docs/pricing',
+      'https://learn.chatgpt.com/use-cases/build-student-website',
+    ]) {
+      expect(body).toContain(link);
+    }
+    for (const fact of [
+      'Public Beta',
+      'プラン、地域、Workspace',
+      '本番側の状態と共有範囲を確認',
+      '公開候補を確定してレビューするための指示',
+      'ホスティングしただけで自動的に一般公開されるわけではありません',
+      'プロンプト、ファイル、サイトのコンテンツ、`.openai/hosting.json`',
+      '公式仕様',
+      '実演結果',
+      '筆者の判断',
+    ]) {
+      expect(body).toContain(fact);
+    }
+
+    expect(initialPrompt).toBeDefined();
+    const prompt = initialPrompt!;
+    for (const requiredPromptText of [
+      'サイト名: テックログ',
+      'クラウド、バックエンド、フロントエンド、IaC、AI、運用まで。現場で得た技術の実践知を、わかりやすく発信します。',
+      '主なテーマ: AI、Cloud、IaC',
+      '運営者: Hiroshi Imaizumi',
+      'プロフィール: クラウド、バックエンド、フロントエンド、IaC、AI、運用の実践から得た知見を、技術ブログとして記録しています',
+      'https://tech-log.hiroshiimaizumi0611.workers.dev/about/',
+      'ChatGPTとCodexのPluginsとは？Apps・Skillsとの違い、探し方、権限の見方',
+      'https://tech-log.hiroshiimaizumi0611.workers.dev/blog/chatgpt-codex-plugins-guide/',
+      'ChatGPT Workとは？Chat・Codexとの違いと使い分け',
+      'https://tech-log.hiroshiimaizumi0611.workers.dev/blog/chatgpt-work-guide/',
+      '2026年版 Astroで技術ブログを構築した',
+      'https://tech-log.hiroshiimaizumi0611.workers.dev/blog/build-tech-blog-with-astro-2026/',
+      'ブログを見るボタン:\n  https://tech-log.hiroshiimaizumi0611.workers.dev/',
+      'ダークテーマと青いアクセント',
+      '技術ブログらしい落ち着いた印象',
+      '日本語本文を読みやすくする',
+      'DesktopとMobileの両方へ対応する',
+      '見出しを順序立てる',
+      'キーボードだけで主要リンクを操作できるようにする',
+      '文字と背景に十分なコントラストを持たせる',
+      '外部リンクだと分かる表現にする',
+      'Aboutページのメールアドレスや問い合わせ情報は転載しないでください。掲載する運営者情報は、上記の氏名とプロフィール文だけにしてください。',
+      '問い合わせフォーム、ログイン・認証、外部API、アクセス解析、ファイルアップロード、データ保存は追加しない。メールアドレス、秘密情報、非公開URLは掲載しない',
+    ]) {
+      expect(prompt).toContain(requiredPromptText);
+    }
+
+    const revisionPrompt = textBlocks.find((block) => block.startsWith('対象: Mobile表示（幅390px前後）。'));
+    expect(revisionPrompt).toContain('Mobile幅でプレビューしたところ、サイト本文が空白');
+    expect(revisionPrompt).toContain('公開・デプロイ、共有設定や権限の変更を行わない');
+    expect(body).toContain(
+      '現在の修正済みページを、公開候補のバージョンとして保存してください。公開・デプロイは行わないでください。共有設定や権限を変更しないでください。現在の「自分だけが閲覧可能」な状態を維持してください。保存後は、保存できたことと、公開・デプロイを行っていないことだけを報告してください。',
+    );
+    expect(body).toContain('保存できました。公開・デプロイは行っていません。');
+    expect(body).toContain('最終版を公開します。');
+    expect(body).toContain('応答を停止し、共有範囲を広げる操作には進んでいません');
+    expect(body).toContain('本文が空白になることは確認しましたが、その画面は公開用スクリーンショットとして保存していません');
+    expect(workflowFigure?.slice(1).join('\n')).toContain('自分のみ');
+    expect(workflowFigure?.slice(1).join('\n')).toContain('限定公開まで確認');
+    expect(initialDesktopFigure?.slice(1).join('\n')).toContain('初回のヒーロー、サイト名、レイアウト');
+    expect(initialDesktopFigure?.slice(1).join('\n')).not.toMatch(/記事カード|プロフィール/);
+    expect(mobileFigure).not.toBeNull();
+    expect(mobileFigure?.slice(1).join('\n')).toContain('修正後');
+    expect(mobileFigure?.slice(1).join('\n')).not.toMatch(/初回|修正前|空白/);
+    expect(mobileFigure?.slice(1).join('\n')).toMatch(/最初の画面|ファーストビュー|ヒーロー/);
+    expect(mobileFigure?.slice(1).join('\n')).not.toMatch(/記事カード|プロフィール|最終CTA/);
+    expect(body).toContain('記事カード3件、プロフィール、最終ボタンは、画面下とページ構造（DOM）で確認しました');
+    expect(body).toContain('[図5を原寸で開く](/blog-assets/chatgpt-sites-save-vs-deploy.svg)');
+    expect(body).toContain('[図6を原寸で開く](/blog-assets/chatgpt-sites-finished.png)');
+    expect(body).toContain('[図7を原寸で開く](/blog-assets/chatgpt-sites-saved-version.png)');
+    expect(body).toContain('chatgpt-sites-sharing-settings.png');
+    expect(body).toContain('Sitesが自動的に用意した');
+    expect(body).toContain('本番側の状態を確認して記録しました');
+    expect(body).toContain(
+      '**公式仕様：** APIキーなどの秘密情報は、プロンプト、ファイル、サイトのコンテンツ、`.openai/hosting.json`に入れません。',
+    );
+    expect(body).toContain('**筆者の方針：** この実演では、メールアドレス、問い合わせ情報、非公開URLも扱いません。');
+
+    expect(images.map(([, , path]) => path)).toEqual([
+      '../../assets/blog/chatgpt-sites-guide-og.png',
+      '../../assets/blog/chatgpt-sites-start.png',
+      '../../assets/blog/chatgpt-sites-initial.png',
+      '../../assets/blog/chatgpt-sites-mobile.png',
+      '../../assets/blog/chatgpt-sites-save-vs-deploy.svg',
+      '../../assets/blog/chatgpt-sites-finished.png',
+      '../../assets/blog/chatgpt-sites-saved-version.png',
+      '../../assets/blog/chatgpt-sites-sharing-settings.png',
+    ]);
+    expect(images.length).toBeGreaterThanOrEqual(8);
+    expect(captions).toHaveLength(images.length);
+    expect(images.every(([, alt]) => alt.trim().length > 0)).toBe(true);
+    expect(new Set(images.map(([, alt]) => alt)).size).toBe(images.length);
+    expect(body).not.toContain('hiroshiimaizumi0611@gmail.com');
+    expect(body).not.toMatch(/https?:\/\/[a-z0-9.-]+\.chatgpt\.site(?:\/[^\s)<]*)?/i);
+    expect(body).not.toMatch(/https:\/\/chatgpt\.com\/share\/[a-z0-9_-]+/i);
+    expect(body).not.toMatch(/(?:share[_-]?token|token)\s*[:=]\s*[a-z0-9_-]{8,}/i);
+  });
+
+  it('publishes byte-identical full-size mirrors for the wide evidence images', async () => {
+    for (const name of ['chatgpt-sites-save-vs-deploy.svg', 'chatgpt-sites-finished.png', 'chatgpt-sites-saved-version.png']) {
+      const [published, canonical] = await Promise.all([
+        readFile(new URL(`../../public/blog-assets/${name}`, import.meta.url)),
+        readFile(new URL(`../../src/assets/blog/${name}`, import.meta.url)),
+      ]);
+
+      expect(published.equals(canonical)).toBe(true);
+    }
+  });
+});

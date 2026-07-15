@@ -83,6 +83,11 @@ test('Plugins・Astro・Frontend・TypeScriptの記事を検索して結果へ�
   const input = page.getByRole('searchbox', { name: '記事を検索' });
   const results = page.locator('[data-search-results]');
 
+  await input.fill('ChatGPT Sites');
+  const sitesResult = results.locator('a[href="/blog/chatgpt-sites-guide/"]');
+  await expect(sitesResult).toContainText('ChatGPT Sitesの使い方');
+  await expect(sitesResult).toHaveAttribute('href', '/blog/chatgpt-sites-guide/');
+
   for (const query of ['Plugins', 'Astro', 'Frontend', 'TypeScript']) {
     await input.fill(query);
     await expect(page.locator('[data-search-summary]')).toContainText(/件/);
@@ -110,7 +115,8 @@ test('Plugins・Astro・Frontend・TypeScriptの記事を検索して結果へ�
   const reopenedResults = page.locator('[data-search-results]');
 
   await reopenedInput.fill('Astro');
-  const astroResult = reopenedResults.getByRole('link', { name: /2026年版 Astroで技術ブログを構築した/ });
+  const astroResult = reopenedResults.locator('a[href="/blog/build-tech-blog-with-astro-2026/"]');
+  await expect(astroResult).toContainText('2026年版 Astroで技術ブログを構築した');
   await expect(astroResult).toHaveAttribute('href', '/blog/build-tech-blog-with-astro-2026/');
   await astroResult.click();
   await expect(page).toHaveURL(/\/blog\/build-tech-blog-with-astro-2026\/$/);
