@@ -214,10 +214,14 @@ const { siteName, tagline, description, technologies, featured } = Astro.props;
     }
 
     .intro,
-    :global(.hero-inner) > :global([data-hero-network]),
-    .featured-slot {
+    :global(.hero-inner) > :global([data-hero-network]) {
       position: relative;
       inset: auto;
+      inline-size: 100%;
+    }
+
+    .featured-slot {
+      position: static;
       inline-size: 100%;
     }
 

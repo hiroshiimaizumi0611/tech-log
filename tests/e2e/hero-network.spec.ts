@@ -30,6 +30,7 @@ async function animationFrameScheduleCount(page: Page): Promise<number> {
 test('renders a decorative, non-interactive canvas network', async ({ page }) => {
   const errors = captureFeatureErrors(page);
 
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
 
   const network = page.locator('[data-hero-network]');
@@ -56,6 +57,13 @@ test('renders a decorative, non-interactive canvas network', async ({ page }) =>
     touchAction: 'pan-y',
   });
 
+  const touchMovePrevented = await network.evaluate((element) => {
+    const event = new TouchEvent('touchmove', { bubbles: true, cancelable: true });
+    element.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(touchMovePrevented).toBe(false);
+
   const repeatedStateMutations = await network.evaluate(async (element) => {
     let mutationCount = 0;
     const observer = new MutationObserver((mutations) => {
@@ -71,6 +79,21 @@ test('renders a decorative, non-interactive canvas network', async ({ page }) =>
   });
 
   expect(repeatedStateMutations).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test('navigates through the Featured link while the network is active', async ({ page }) => {
+  const errors = captureFeatureErrors(page);
+
+  await page.goto('/');
+  await expect(page.locator('[data-hero-network]')).toHaveAttribute('data-network-state', 'running');
+
+  await page
+    .locator('.featured')
+    .getByRole('link', { name: /記事を読む/ })
+    .click();
+
+  await expect(page).toHaveURL(/\/blog\/chatgpt-codex-plugins-guide\/$/);
   expect(errors).toEqual([]);
 });
 

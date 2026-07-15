@@ -56,16 +56,41 @@ for (const viewport of viewports) {
   });
 }
 
-test('レスポンシブの情報順とカード列数を維持する', async ({ page }) => {
+test('モバイルではintro、network、Featuredの順で重ならずに表示する', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
 
   const intro = await page.locator('.hero .intro').boundingBox();
+  const network = await page.locator('.hero [data-hero-network]').boundingBox();
+  const featuredSlot = await page.locator('.hero .featured-slot').boundingBox();
   const featured = await page.locator('.hero .featured').boundingBox();
   expect(intro).not.toBeNull();
+  expect(network).not.toBeNull();
+  expect(featuredSlot).not.toBeNull();
   expect(featured).not.toBeNull();
-  expect(intro!.y).toBeLessThan(featured!.y);
+  expect(intro!.y + intro!.height).toBeLessThanOrEqual(network!.y + 0.5);
+  expect(network!.y + network!.height).toBeLessThanOrEqual(featuredSlot!.y + 0.5);
+  expect(featuredSlot!.y).toBeLessThanOrEqual(featured!.y + 0.5);
   expect(featured!.x + featured!.width).toBeLessThanOrEqual(390);
+
+  const layout = await page.locator('.hero').evaluate((hero) => {
+    const network = hero.querySelector<HTMLElement>('[data-hero-network]')!;
+    const featuredSlot = hero.querySelector<HTMLElement>('.featured-slot')!;
+    return {
+      networkInlineSize: getComputedStyle(network).inlineSize,
+      networkMinInlineSize: getComputedStyle(network).minInlineSize,
+      featuredPosition: getComputedStyle(featuredSlot).position,
+    };
+  });
+  expect(layout.featuredPosition).toBe('static');
+  expect(layout.networkInlineSize).toBe(`${network!.width}px`);
+  expect(layout.networkMinInlineSize).toBe('0px');
+  await expectNoPageOverflow(page);
+});
+
+test('レスポンシブのカード列数を維持する', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
 
   const mobileCards = await page.locator('[data-article-card]').evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().x));
   expect(new Set(mobileCards.map(Math.round)).size).toBe(1);
@@ -101,7 +126,7 @@ test('390pxではコードだけが内部スクロールを受け持つ', async 
   await expect(codeBlocks.first()).toHaveCSS('overflow-x', 'auto');
 });
 
-test('Featuredの長い英数字と画像を1024pxと390pxでカード内に収める', async ({ page }) => {
+test('compact Featuredの長い英数字を1024pxと390pxでカード内に収める', async ({ page }) => {
   const longText = 'ExtremelyLongUnbrokenTechnicalIdentifier'.repeat(12);
   for (const viewport of [
     { width: 1024, height: 900 },
@@ -110,23 +135,17 @@ test('Featuredの長い英数字と画像を1024pxと390pxでカード内に収�
     await page.setViewportSize(viewport);
     await page.goto('/');
 
-    const targets = [page.locator('.featured h2'), page.locator('.featured .description')];
-    for (const target of targets) {
-      await target.evaluate((element, text) => {
-        element.textContent = text;
-      }, longText);
-      await expect(target).toBeVisible();
-      const size = await target.evaluate((element) => ({ client: element.clientWidth, scroll: element.scrollWidth }));
-      expect(size.scroll).toBeLessThanOrEqual(size.client);
-    }
+    const heading = page.locator('.featured h2');
+    await heading.evaluate((element, text) => {
+      element.textContent = text;
+    }, longText);
+    await expect(heading).toBeVisible();
+    const headingSize = await heading.evaluate((element) => ({ client: element.clientWidth, scroll: element.scrollWidth }));
+    expect(headingSize.scroll).toBeLessThanOrEqual(headingSize.client);
 
     const featured = page.locator('.featured');
     const featuredSize = await featured.evaluate((element) => ({ client: element.clientWidth, scroll: element.scrollWidth }));
     expect(featuredSize.scroll).toBeLessThanOrEqual(featuredSize.client);
-    const featuredBox = (await featured.boundingBox())!;
-    const mediaBox = (await featured.locator('.media-layer').boundingBox())!;
-    expect(mediaBox.x).toBeGreaterThanOrEqual(featuredBox.x);
-    expect(mediaBox.x + mediaBox.width).toBeLessThanOrEqual(featuredBox.x + featuredBox.width);
     await expectNoPageOverflow(page);
   }
 });
@@ -146,12 +165,30 @@ test('reduced motionでは全hover移動とtransitionを停止する', async ({ 
   await sectionArrow.locator('..').hover();
   await expect(sectionArrow).toHaveCSS('transform', 'none');
 
-  const featuredArrow = page
-    .locator('.featured')
-    .getByRole('link', { name: /続きを読む/ })
-    .locator('span');
-  await featuredArrow.locator('..').hover();
+  const featuredLink = page.locator('.featured').getByRole('link', { name: /記事を読む/ });
+  const featuredArrow = featuredLink.locator('.read-more > span');
+  await featuredLink.hover();
+  await expect(featuredLink).toHaveCSS('transform', 'none');
   await expect(featuredArrow).toHaveCSS('transform', 'none');
+
+  const entranceTargets = page.locator(
+    '[data-hero-entrance], .intro > .kicker, .intro > h1, .intro > .tagline, .intro > .description, .intro > .accent-line, .intro > .tech-list',
+  );
+  await expect(entranceTargets).toHaveCount(8);
+  for (const target of await entranceTargets.all()) {
+    await expect(target).toBeVisible();
+    await expect(target).toHaveCSS('opacity', '1');
+    await expect(target).toHaveCSS('transform', 'none');
+    const durations = await target.evaluate((element) =>
+      getComputedStyle(element)
+        .animationDuration.split(',')
+        .map((value) => Number.parseFloat(value)),
+    );
+    expect(durations.every((value) => value <= 0.001)).toBe(true);
+  }
+
+  await expect(page.locator('[data-hero-network]')).toHaveAttribute('data-network-state', 'static');
+  await expect(featuredLink).toBeVisible();
 
   await page.getByRole('button', { name: '検索を開く' }).click();
   await page.getByRole('searchbox', { name: '記事を検索' }).fill('Astro');
@@ -160,7 +197,7 @@ test('reduced motionでは全hover移動とtransitionを停止する', async ({ 
   await searchResult.hover();
   await expect(searchResult).toHaveCSS('transform', 'none');
 
-  for (const target of [card, sectionArrow, featuredArrow, searchResult]) {
+  for (const target of [card, sectionArrow, featuredLink, featuredArrow, searchResult]) {
     const durations = await target.evaluate((element) => {
       const style = getComputedStyle(element);
       return [...style.transitionDuration.split(','), ...style.animationDuration.split(',')];
