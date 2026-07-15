@@ -22,9 +22,14 @@ const viewports = [
 
 const routes = ['/', '/blog/', '/tags/', '/categories/', '/about/', '/privacy/', '/blog/build-tech-blog-with-astro-2026/'] as const;
 
-// macOS と Linux では同じレイアウトでもフォントのラスタライズに約3%の差が出る。
+// macOS と Linux では同じレイアウトでもフォントのラスタライズや改行位置に差が出る。
+// モバイルの全ページ画像は差が広がりやすいため許容値を分ける一方、
 // 配置・overflow・列数・表示順は、このファイル内の個別アサーションで厳密に検証する。
-const crossPlatformPixelTolerance = 0.04;
+const crossPlatformPixelTolerance = {
+  desktop: 0.04,
+  tablet: 0.04,
+  mobile: 0.07,
+} as const;
 // Chromiumでの基準値は、desktop/tablet/mobileの順に
 // line 0.00948/0.00646/0.02094、particle 0.00124/0.00105/0.00393。
 // 下限は描画差を許容しつつ、線や粒子が大きく欠けた場合に失敗する値にする。
@@ -85,7 +90,7 @@ for (const viewport of viewports) {
     await expect(page).toHaveScreenshot(`home-${viewport.name}.png`, {
       animations: 'disabled',
       fullPage: true,
-      maxDiffPixelRatio: crossPlatformPixelTolerance,
+      maxDiffPixelRatio: crossPlatformPixelTolerance[viewport.name],
     });
   });
 
