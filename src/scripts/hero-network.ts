@@ -129,6 +129,12 @@ export function animationMode(input: { intersecting: boolean; documentVisible: b
 
 const initializedNetworks = new WeakMap<Element, () => void>();
 const SHAPES: readonly ShapeMode[] = ['radial', 'wave', 'clusters'];
+const PARTICLE_COLORS = [
+  'rgba(112, 232, 202, 0.88)',
+  'rgba(92, 194, 255, 0.9)',
+  'rgba(176, 148, 255, 0.78)',
+  'rgba(226, 248, 255, 0.96)',
+] as const;
 
 interface CanvasSize {
   width: number;
@@ -262,17 +268,17 @@ function initializeNetwork(element: HTMLElement): void {
 
       connectionCounts[fromIndex] += 1;
       connectionCounts[toIndex] += 1;
-      context.strokeStyle = `rgba(92, 210, 180, ${0.18 * (1 - distance / connectionRange)})`;
+      context.strokeStyle = `rgba(92, 194, 255, ${0.28 * (1 - distance / connectionRange)})`;
       context.beginPath();
       context.moveTo(points[fromIndex].x, points[fromIndex].y);
       context.lineTo(points[toIndex].x, points[toIndex].y);
       context.stroke();
     }
 
-    context.fillStyle = 'rgba(112, 232, 202, 0.72)';
-    for (const point of points) {
+    for (const [index, point] of points.entries()) {
+      context.fillStyle = PARTICLE_COLORS[index % PARTICLE_COLORS.length];
       context.beginPath();
-      context.arc(point.x, point.y, 1.45, 0, TAU);
+      context.arc(point.x, point.y, 1.65, 0, TAU);
       context.fill();
     }
 

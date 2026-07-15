@@ -25,6 +25,14 @@ const routes = ['/', '/blog/', '/tags/', '/categories/', '/about/', '/privacy/',
 // macOS と Linux では同じレイアウトでもフォントのラスタライズに約3%の差が出る。
 // 配置・overflow・列数・表示順は、このファイル内の個別アサーションで厳密に検証する。
 const crossPlatformPixelTolerance = 0.04;
+// Chromiumでの基準値は、desktop/tablet/mobileの順に
+// line 0.00948/0.00646/0.02094、particle 0.00124/0.00105/0.00393。
+// 下限は描画差を許容しつつ、線や粒子が大きく欠けた場合に失敗する値にする。
+const networkCoverageBounds = {
+  desktop: { line: { minimum: 0.006, maximum: 0.025 }, particle: { minimum: 0.00065, maximum: 0.003 } },
+  tablet: { line: { minimum: 0.0038, maximum: 0.025 }, particle: { minimum: 0.00055, maximum: 0.003 } },
+  mobile: { line: { minimum: 0.012, maximum: 0.05 }, particle: { minimum: 0.0022, maximum: 0.009 } },
+} as const;
 
 test('visual goldensをplatform非依存名で管理する', async () => {
   const files = await readdir(new URL('./visual.spec.ts-snapshots/', import.meta.url));
@@ -35,10 +43,44 @@ async function expectNoPageOverflow(page: Page) {
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 }
 
+async function measureNetworkCanvasCoverage(page: Page) {
+  return page.locator('[data-hero-network] canvas').evaluate((canvas: HTMLCanvasElement) => {
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) throw new Error('Hero network Canvas 2D context is unavailable');
+
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let linePixels = 0;
+    let particlePixels = 0;
+    for (let index = 3; index < pixels.length; index += 4) {
+      const alpha = pixels[index];
+      if (alpha > 8 && alpha <= 128) linePixels += 1;
+      if (alpha > 128) particlePixels += 1;
+    }
+
+    const totalPixels = canvas.width * canvas.height;
+    return {
+      lineRatio: linePixels / totalPixels,
+      particleRatio: particlePixels / totalPixels,
+    };
+  });
+}
+
 for (const viewport of viewports) {
   test(`ホームを${viewport.name}で表示できる`, async ({ page }) => {
     await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/');
+    const network = page.locator('[data-hero-network]');
+    await expect(network).toHaveAttribute('data-network-state', 'static');
+    await expect(network).toHaveAttribute('data-network-rendered', 'true');
+
+    const coverage = await measureNetworkCanvasCoverage(page);
+    const bounds = networkCoverageBounds[viewport.name];
+    expect(coverage.lineRatio, `${viewport.name} line coverage`).toBeGreaterThanOrEqual(bounds.line.minimum);
+    expect(coverage.lineRatio, `${viewport.name} line coverage`).toBeLessThanOrEqual(bounds.line.maximum);
+    expect(coverage.particleRatio, `${viewport.name} particle coverage`).toBeGreaterThanOrEqual(bounds.particle.minimum);
+    expect(coverage.particleRatio, `${viewport.name} particle coverage`).toBeLessThanOrEqual(bounds.particle.maximum);
+
     await expectNoPageOverflow(page);
     await expect(page).toHaveScreenshot(`home-${viewport.name}.png`, {
       animations: 'disabled',
