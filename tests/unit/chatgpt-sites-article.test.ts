@@ -45,7 +45,7 @@ describe('ChatGPT Sites guide content', () => {
     const section = (heading: string) => body.match(new RegExp(`(?:^|\\n)## ${heading}\\n([\\s\\S]*?)(?=\\n## |$)`))?.[1];
     const introduction = body.match(/^([\s\S]*?)(?=\n## )/)?.[1];
     const saveSection = section('公開前にバージョンを保存する');
-    const sharingSection = section('共有範囲を確認して限定公開する');
+    const sharingSection = section('本番URLと共有範囲を確認する');
     const figure = (assetName: string) =>
       body.match(
         new RegExp(
@@ -84,23 +84,22 @@ describe('ChatGPT Sites guide content', () => {
       '見た目より先に内容と操作を確認する',
       '修正プロンプトは具体的に書く',
       '公開前にバージョンを保存する',
-      '共有範囲を確認して限定公開する',
-      '実際に使って分かったこと',
+      '本番URLと共有範囲を確認する',
+      'Sitesは小規模な紹介ページ向きだが、公開前確認は欠かせない',
       '公開前チェックリスト',
     ]);
 
-    expect(introduction).toContain('公式上・概念上の区別');
-    expect(introduction).toContain('今回のUIでは、ホスト先が自動的に用意');
-    expect(introduction).toContain('独立したDeploy操作は確認できませんでした');
-    expect(saveSection).toContain('公式上・概念上の区別');
-    expect(saveSection).toContain('今回のUIでは、ホスト先が自動的に用意');
-    expect(saveSection).toContain('独立したDeploy操作は確認できませんでした');
+    expect(introduction).toContain('生成結果をそのまま公開せず');
+    expect(introduction).toContain('モバイル表示、秘密情報、共有範囲を人が確認');
+    expect(saveSection).toContain('バージョン保存とデプロイを別の段階');
+    expect(saveSection).toContain('独立した「Deploy」ボタンはありませんでした');
+    expect(saveSection).toContain('保存後も本番側の状態と共有範囲を確認');
 
     expect(sharingSection).toContain('共有範囲が「自分のみ」');
-    expect(sharingSection).toContain('別個のDeployボタンは表示されませんでした');
-    expect(sharingSection).toContain('ここで新しいデプロイ操作は実行していません');
+    expect(sharingSection).toContain('別個の「Deploy」ボタンはありませんでした');
+    expect(sharingSection).toContain('新しいデプロイ操作は実行していません');
     expect(sharingSection).toContain('専用の本番URL');
-    expect(sharingSection).toContain('未認証のHTTPリクエストは401');
+    expect(sharingSection).toContain('未認証を示す401で拒否');
     expect(body).toContain('デプロイを行う場合は対象と範囲を示して別の明示承認を得る');
 
     for (const link of [
@@ -113,8 +112,8 @@ describe('ChatGPT Sites guide content', () => {
     for (const fact of [
       'Public Beta',
       'プラン、地域、Workspace',
-      'デプロイされたURLは本番',
-      'デプロイせずにバージョンを保存',
+      '本番側の状態と共有範囲を確認',
+      '公開候補を確定してレビューするための指示',
       'ホスティングしただけで自動的に一般公開されるわけではありません',
       'プロンプト、ファイル、サイトのコンテンツ、`.openai/hosting.json`',
       '公式仕様',
@@ -163,7 +162,7 @@ describe('ChatGPT Sites guide content', () => {
     expect(body).toContain('保存できました。公開・デプロイは行っていません。');
     expect(body).toContain('最終版を公開します。');
     expect(body).toContain('応答を停止し、共有範囲を広げる操作には進んでいません');
-    expect(body).toContain('空白になった状態は観測しましたが、公開用スクリーンショットとして保存していません');
+    expect(body).toContain('本文が空白になることは確認しましたが、その画面は公開用スクリーンショットとして保存していません');
     expect(workflowFigure?.slice(1).join('\n')).toContain('自分のみ');
     expect(workflowFigure?.slice(1).join('\n')).toContain('限定公開まで確認');
     expect(initialDesktopFigure?.slice(1).join('\n')).toContain('初回のヒーロー、サイト名、レイアウト');
@@ -173,14 +172,16 @@ describe('ChatGPT Sites guide content', () => {
     expect(mobileFigure?.slice(1).join('\n')).not.toMatch(/初回|修正前|空白/);
     expect(mobileFigure?.slice(1).join('\n')).toMatch(/最初の画面|ファーストビュー|ヒーロー/);
     expect(mobileFigure?.slice(1).join('\n')).not.toMatch(/記事カード|プロフィール|最終CTA/);
-    expect(body).toContain('記事カード3件、プロフィール、最終CTAは画面下とDOMで確認し、図4にはすべて写っていません');
+    expect(body).toContain('記事カード3件、プロフィール、最終ボタンは、画面下とページ構造（DOM）で確認しました');
     expect(body).toContain('[図5を原寸で開く](/blog-assets/chatgpt-sites-save-vs-deploy.svg)');
     expect(body).toContain('[図6を原寸で開く](/blog-assets/chatgpt-sites-finished.png)');
     expect(body).toContain('[図7を原寸で開く](/blog-assets/chatgpt-sites-saved-version.png)');
     expect(body).toContain('chatgpt-sites-sharing-settings.png');
     expect(body).toContain('Sitesが自動的に用意した');
-    expect(body).toContain('筆者が確認した');
-    expect(body).toContain('**公式仕様：** 秘密の値は、プロンプト、ファイル、サイトのコンテンツ、`.openai/hosting.json`に入れません。');
+    expect(body).toContain('本番側の状態を確認して記録しました');
+    expect(body).toContain(
+      '**公式仕様：** APIキーなどの秘密情報は、プロンプト、ファイル、サイトのコンテンツ、`.openai/hosting.json`に入れません。',
+    );
     expect(body).toContain('**筆者の方針：** この実演では、メールアドレス、問い合わせ情報、非公開URLも扱いません。');
 
     expect(images.map(([, , path]) => path)).toEqual([
