@@ -169,6 +169,8 @@ function initializeNetwork(element: HTMLElement): void {
     return;
   }
 
+  pointerRing.style.setProperty('--pointer-diameter', `${POINTER_RANGE_PX * 2}px`);
+
   const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   const finePointerQuery = window.matchMedia('(hover: hover) and (pointer: fine)');
   if (

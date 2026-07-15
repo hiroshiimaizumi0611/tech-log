@@ -65,9 +65,9 @@
     position: absolute;
     inset-block-start: 0;
     inset-inline-start: 0;
-    inline-size: 2.4rem;
-    block-size: 2.4rem;
-    border: 1px solid color-mix(in srgb, var(--color-accent) 38%, transparent);
+    inline-size: var(--pointer-diameter, 300px);
+    block-size: var(--pointer-diameter, 300px);
+    border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
     border-radius: 50%;
     opacity: 0;
     transform: translate3d(calc(var(--pointer-x) - 50%), calc(var(--pointer-y) - 50%), 0);
@@ -75,7 +75,7 @@
   }
 
   .pointer-ring.is-visible {
-    opacity: 0.7;
+    opacity: 0.5;
   }
 
   @media (prefers-reduced-motion: reduce) {

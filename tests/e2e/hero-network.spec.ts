@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { POINTER_RANGE_PX } from '../../src/scripts/hero-network';
 
 function captureFeatureErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -79,6 +80,38 @@ test('renders a decorative, non-interactive canvas network', async ({ page }) =>
   });
 
   expect(repeatedStateMutations).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test('shows the full cursor repulsion range on fine pointers', async ({ page }) => {
+  const errors = captureFeatureErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+
+  const network = page.locator('[data-hero-network]');
+  const pointerRing = network.locator('[data-pointer-ring]');
+  const bounds = await network.boundingBox();
+  expect(bounds).not.toBeNull();
+
+  await page.mouse.move(bounds!.x + bounds!.width / 2, bounds!.y + bounds!.height / 2);
+  await expect(pointerRing).toHaveClass(/is-visible/);
+  await expect.poll(() => pointerRing.evaluate((element) => Number(getComputedStyle(element).opacity))).toBeGreaterThan(0);
+
+  const styles = await pointerRing.evaluate((element) => {
+    const computed = getComputedStyle(element);
+    return {
+      width: computed.width,
+      height: computed.height,
+      opacity: computed.opacity,
+      pointerEvents: computed.pointerEvents,
+    };
+  });
+
+  const expectedDiameter = `${POINTER_RANGE_PX * 2}px`;
+  expect(styles.width).toBe(expectedDiameter);
+  expect(styles.height).toBe(expectedDiameter);
+  expect(Number(styles.opacity)).toBeGreaterThan(0);
+  expect(styles.pointerEvents).toBe('none');
   expect(errors).toEqual([]);
 });
 
