@@ -39,8 +39,8 @@ const toArticleView = (entry: (typeof published)[number]) => ({
 });
 
 const featured = {
-  ...toArticleView(featuredEntry),
-  featuredCode: featuredEntry.data.featuredCode,
+  href: `/blog/${featuredEntry.id}/`,
+  title: featuredEntry.data.title,
 };
 const latest = getLatestPosts(published, 4).map(toArticleView);
 const popularTags = getPopularTags(published, 10).map((tag) => ({ ...tag, href: tagToHref(tag.label) }));

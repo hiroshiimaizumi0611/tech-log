@@ -26,14 +26,16 @@ test('最新の注目記事とサイト紹介をヒーローに表示する', as
   await expect(hero.getByRole('heading', { level: 1, name: 'テックログ' })).toBeVisible();
   await expect(hero.getByText('つくる、動かす、改善する。', { exact: true })).toBeVisible();
   await expect(hero.getByText('AWS / React / TypeScript / Terraform / Java / AI / Ops', { exact: true })).toBeVisible();
+  await expect(hero.locator('[data-hero-network]')).toBeVisible();
 
   const featured = hero.getByRole('article', { name: '注目記事' });
+  await expect(featured.getByText('FEATURED', { exact: true })).toBeVisible();
   await expect(featured.getByRole('heading', { name: featuredArticleTitle })).toBeVisible();
-  await expect(featured.getByRole('link', { name: /続きを読む/ })).toHaveAttribute('href', '/blog/chatgpt-codex-plugins-guide/');
-  await expect(featured.locator('pre, [data-featured-code]')).toHaveCount(0);
-  const customArtwork = featured.locator('[data-custom-hero]');
-  await expect(customArtwork).toBeVisible();
-  expect(new URL(await backgroundImageUrl(customArtwork)).pathname).toMatch(/^\/_astro\//);
+  await expect(featured.getByRole('link')).toHaveCount(1);
+  await expect(featured.getByRole('link', { name: featuredArticleTitle })).toHaveAttribute('href', '/blog/chatgpt-codex-plugins-guide/');
+  await expect(featured.locator('[data-custom-hero], [data-category-artwork], pre, .description, .tags')).toHaveCount(0);
+  await expect(featured.locator('time, .reading-time, .code-panel, .media-layer')).toHaveCount(0);
+  await expect(featured.getByText(/\d+分で読めます|2026年|featuredCode/i)).toHaveCount(0);
   await expect(page.getByRole('region', { name: '最新の記事' }).locator('pre > code')).toHaveCount(0);
 });
 
@@ -69,46 +71,32 @@ test('記事画像をカテゴリーアート上の装飾レイヤーとして�
   await expect(page.locator('script[data-image-fallback]')).toHaveCount(0);
 });
 
-test('Featuredと記事カードの画像取得失敗時も固定比率のカテゴリーアートとリンクを利用できる', async ({ page }) => {
-  const initialFeatured = page.getByRole('region', { name: 'サイト紹介' }).getByRole('article', { name: '注目記事' });
+test('記事カードの画像取得失敗時も固定比率のカテゴリーアートとリンクを利用できる', async ({ page }) => {
   const initialCard = page
     .getByRole('region', { name: '最新の記事' })
     .locator('[data-article-card]')
     .filter({ hasText: featuredArticleTitle });
-  const featuredImageUrl = await backgroundImageUrl(initialFeatured.locator('[data-custom-hero]'));
   const cardImageUrl = await backgroundImageUrl(initialCard.locator('[data-custom-hero]'));
-  expect(featuredImageUrl).not.toBe(cardImageUrl);
-  const abortedRequests = { card: 0, featured: 0 };
-  await page.route(featuredImageUrl, async (route) => {
-    abortedRequests.featured += 1;
-    await route.abort('failed');
-  });
+  let abortedRequests = 0;
   await page.route(cardImageUrl, async (route) => {
-    abortedRequests.card += 1;
+    abortedRequests += 1;
     await route.abort('failed');
   });
   await page.goto('/?hero-image=failure');
 
-  const featured = page.getByRole('region', { name: 'サイト紹介' }).getByRole('article', { name: '注目記事' });
   const pluginsCard = page
     .getByRole('region', { name: '最新の記事' })
     .locator('[data-article-card]')
     .filter({ hasText: featuredArticleTitle });
-  for (const { imageUrl, region } of [
-    { imageUrl: featuredImageUrl, region: featured },
-    { imageUrl: cardImageUrl, region: pluginsCard },
-  ]) {
-    const fallback = region.locator('[data-category-artwork]');
-    const customArtwork = region.locator('[data-custom-hero]');
-    expect(await backgroundImageUrl(customArtwork)).toBe(imageUrl);
-    await expect(fallback).toBeVisible();
-    await expect(customArtwork).toBeVisible();
-    expect(await customArtwork.boundingBox()).toEqual(await fallback.boundingBox());
-    await expect(region.getByRole('heading', { name: featuredArticleTitle })).toBeVisible();
-    await expect(region.getByRole('link')).toHaveAttribute('href', '/blog/chatgpt-codex-plugins-guide/');
-  }
-  expect(abortedRequests.featured).toBeGreaterThan(0);
-  expect(abortedRequests.card).toBeGreaterThan(0);
+  const fallback = pluginsCard.locator('[data-category-artwork]');
+  const customArtwork = pluginsCard.locator('[data-custom-hero]');
+  expect(await backgroundImageUrl(customArtwork)).toBe(cardImageUrl);
+  await expect(fallback).toBeVisible();
+  await expect(customArtwork).toBeVisible();
+  expect(await customArtwork.boundingBox()).toEqual(await fallback.boundingBox());
+  await expect(pluginsCard.getByRole('heading', { name: featuredArticleTitle })).toBeVisible();
+  await expect(pluginsCard.getByRole('link')).toHaveAttribute('href', '/blog/chatgpt-codex-plugins-guide/');
+  expect(abortedRequests).toBeGreaterThan(0);
   await expect(page.locator('script[data-image-fallback], [onerror]')).toHaveCount(0);
 });
 
@@ -140,6 +128,10 @@ test('JavaScriptなしでもホームのコンテンツとリンクを利用で�
   const page = await context.newPage();
   await page.goto('/');
 
+  const hero = page.getByRole('region', { name: 'サイト紹介' });
+  await expect(hero.getByRole('heading', { level: 1, name: 'テックログ' })).toBeVisible();
+  await expect(hero.getByRole('link', { name: featuredArticleTitle })).toHaveAttribute('href', '/blog/chatgpt-codex-plugins-guide/');
+  await expect(hero.locator('[data-network-fallback]')).toBeVisible();
   await expect(page.getByRole('region', { name: '最新の記事' }).locator('[data-article-card]')).toHaveCount(4);
   await expect(page.getByRole('region', { name: '人気のタグ' }).getByRole('link')).toHaveCount(10);
   await context.close();
