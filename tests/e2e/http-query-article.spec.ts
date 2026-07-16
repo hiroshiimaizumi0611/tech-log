@@ -23,7 +23,9 @@ test('HTTP QUERY記事のSEO、構成、比較表、コード例を公開する'
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /\/blog\/http-query-method-rfc-10008\/$/);
   for (const selector of ['meta[property="og:image"]', 'meta[name="twitter:image"]']) {
     const imageUrl = await page.locator(selector).getAttribute('content');
-    expect(new URL(imageUrl!).pathname).toBe('/og-default.png');
+    expect(imageUrl).not.toBeNull();
+    if (imageUrl === null) throw new Error(`${selector} must have a content attribute`);
+    expect(new URL(imageUrl).pathname).toBe('/og-default.png');
   }
 
   const article = page.locator('article[data-pagefind-body]');
@@ -35,6 +37,7 @@ test('HTTP QUERY記事のSEO、構成、比較表、コード例を公開する'
   await expect(body.getByRole('heading', { level: 2 })).toHaveText(articleHeadings);
   await expect(body.locator('table')).toHaveCount(1);
   await expect(body.locator('pre')).toHaveCount(2);
+  await expect(body.locator('img')).toHaveCount(0);
   await expect(body.locator('pre code')).toContainText(['QUERY /products/search HTTP/1.1', 'curl --request QUERY']);
 
   const { violations } = await new AxeBuilder({ page }).analyze();
