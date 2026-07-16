@@ -171,7 +171,7 @@ test('navigates through the Featured link while the network is active', async ({
     .getByRole('link', { name: /記事を読む/ })
     .click();
 
-  await expect(page).toHaveURL(/\/blog\/chatgpt-codex-plugins-guide\/$/);
+  await expect(page).toHaveURL(/\/blog\/http-query-method-rfc-10008\/$/);
   expect(errors).toEqual([]);
 });
 

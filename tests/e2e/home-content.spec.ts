@@ -1,13 +1,16 @@
 import { expect, test } from '@playwright/test';
 
+const httpQueryArticleTitle = 'HTTP QUERYメソッドとは？GET・POSTとの違いとcurlでの試し方';
+const pluginsArticleTitle = 'ChatGPTとCodexのPluginsとは？Apps・Skillsとの違い、探し方、権限の見方';
+
 const latestArticleTitles = [
+  httpQueryArticleTitle,
   'ChatGPT Sitesの使い方｜実際にWebサイトを作って限定公開するまで',
-  'ChatGPTとCodexのPluginsとは？Apps・Skillsとの違い、探し方、権限の見方',
+  pluginsArticleTitle,
   '2026年版 Astroで技術ブログを構築した',
-  'ChatGPT Workとは？Chat・Codexとの違いと使い分け',
 ] as const;
 
-const featuredArticleTitle = 'ChatGPTとCodexのPluginsとは？Apps・Skillsとの違い、探し方、権限の見方';
+const featuredArticleTitle = httpQueryArticleTitle;
 
 const backgroundImageUrl = async (locator: import('@playwright/test').Locator) => {
   const backgroundImage = await locator.evaluate((element) => getComputedStyle(element).backgroundImage);
@@ -32,7 +35,7 @@ test('最新の注目記事とサイト紹介をヒーローに表示する', as
   await expect(featured.getByText('FEATURED', { exact: true })).toBeVisible();
   await expect(featured.getByRole('heading', { name: featuredArticleTitle })).toBeVisible();
   await expect(featured.getByRole('link')).toHaveCount(1);
-  await expect(featured.getByRole('link', { name: featuredArticleTitle })).toHaveAttribute('href', '/blog/chatgpt-codex-plugins-guide/');
+  await expect(featured.getByRole('link', { name: featuredArticleTitle })).toHaveAttribute('href', '/blog/http-query-method-rfc-10008/');
   await expect(featured.locator('[data-custom-hero], [data-category-artwork], pre, .description, .tags')).toHaveCount(0);
   await expect(featured.locator('time, .reading-time, .code-panel, .media-layer')).toHaveCount(0);
   await expect(featured.getByText(/\d+分で読めます|2026年|featuredCode/i)).toHaveCount(0);
@@ -57,7 +60,7 @@ test('最新記事を公開日順に4件だけ表示しカード全体を一つ�
 
 test('記事画像をカテゴリーアート上の装飾レイヤーとして表示する', async ({ page }) => {
   const cards = page.getByRole('region', { name: '最新の記事' }).locator('[data-article-card]');
-  const pluginsCard = cards.filter({ hasText: featuredArticleTitle });
+  const pluginsCard = cards.filter({ hasText: pluginsArticleTitle });
   const customArtwork = pluginsCard.locator('[data-custom-hero]');
 
   await expect(cards.locator('[data-category-artwork]')).toHaveCount(4);
@@ -75,7 +78,7 @@ test('記事カードの画像取得失敗時も固定比率のカテゴリー�
   const initialCard = page
     .getByRole('region', { name: '最新の記事' })
     .locator('[data-article-card]')
-    .filter({ hasText: featuredArticleTitle });
+    .filter({ hasText: pluginsArticleTitle });
   const cardImageUrl = await backgroundImageUrl(initialCard.locator('[data-custom-hero]'));
   let abortedRequests = 0;
   await page.route(cardImageUrl, async (route) => {
@@ -87,14 +90,14 @@ test('記事カードの画像取得失敗時も固定比率のカテゴリー�
   const pluginsCard = page
     .getByRole('region', { name: '最新の記事' })
     .locator('[data-article-card]')
-    .filter({ hasText: featuredArticleTitle });
+    .filter({ hasText: pluginsArticleTitle });
   const fallback = pluginsCard.locator('[data-category-artwork]');
   const customArtwork = pluginsCard.locator('[data-custom-hero]');
   expect(await backgroundImageUrl(customArtwork)).toBe(cardImageUrl);
   await expect(fallback).toBeVisible();
   await expect(customArtwork).toBeVisible();
   expect(await customArtwork.boundingBox()).toEqual(await fallback.boundingBox());
-  await expect(pluginsCard.getByRole('heading', { name: featuredArticleTitle })).toBeVisible();
+  await expect(pluginsCard.getByRole('heading', { name: pluginsArticleTitle })).toBeVisible();
   await expect(pluginsCard.getByRole('link')).toHaveAttribute('href', '/blog/chatgpt-codex-plugins-guide/');
   expect(abortedRequests).toBeGreaterThan(0);
   await expect(page.locator('script[data-image-fallback], [onerror]')).toHaveCount(0);
@@ -130,7 +133,7 @@ test('JavaScriptなしでもホームのコンテンツとリンクを利用で�
 
   const hero = page.getByRole('region', { name: 'サイト紹介' });
   await expect(hero.getByRole('heading', { level: 1, name: 'テックログ' })).toBeVisible();
-  await expect(hero.getByRole('link', { name: featuredArticleTitle })).toHaveAttribute('href', '/blog/chatgpt-codex-plugins-guide/');
+  await expect(hero.getByRole('link', { name: featuredArticleTitle })).toHaveAttribute('href', '/blog/http-query-method-rfc-10008/');
   await expect(hero.locator('[data-network-fallback]')).toBeVisible();
   await expect(page.getByRole('region', { name: '最新の記事' }).locator('[data-article-card]')).toHaveCount(4);
   await expect(page.getByRole('region', { name: '人気のタグ' }).getByRole('link')).toHaveCount(10);
