@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 const articleTitles = [
+  'HTTP QUERYメソッドとは？GET・POSTとの違いとcurlでの試し方',
   'ChatGPT Sitesの使い方｜実際にWebサイトを作って限定公開するまで',
   'ChatGPTとCodexのPluginsとは？Apps・Skillsとの違い、探し方、権限の見方',
   '2026年版 Astroで技術ブログを構築した',
@@ -19,9 +20,9 @@ test('記事一覧は公開日の降順で公開記事を表示する', async ({
   await page.goto('/blog/');
 
   await expect(page.getByRole('heading', { level: 1, name: '記事一覧' })).toBeVisible();
-  await expect(page.getByText('6件の記事')).toBeVisible();
+  await expect(page.getByText('7件の記事')).toBeVisible();
   const cards = page.locator('main [data-article-card]');
-  await expect(cards).toHaveCount(6);
+  await expect(cards).toHaveCount(7);
   await expect(cards.getByRole('heading')).toHaveText(articleTitles);
   await expect(page.getByRole('navigation', { name: 'ページネーション' })).toHaveCount(0);
   await expectNoHighImpactAxeViolations(page);
