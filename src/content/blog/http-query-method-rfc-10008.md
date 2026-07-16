@@ -78,7 +78,7 @@ curl --request QUERY 'https://api.example.com/products/search' \
 
 QUERYのリクエスト内容の形式は対象リソースが決めます。サーバーは`OPTIONS`へのレスポンスの`Allow`でQUERYを利用可能なメソッドとして通知でき、`Accept-Query`で対応する問い合わせのメディアタイプを列挙できます。クライアントはここから、たとえば`application/json`を送れるか判断できます。
 
-`Content-Type`がない、対応していない、または実際の内容と一致しない場合には、サーバーが`415 Unsupported Media Type`を返すことがあります。メディアタイプは正しくても問い合わせ内容を処理できない場合は、`422 Unprocessable Content`が候補になります。どの形式とエラーを採用するかは、対象APIの契約として明記します。
+`Content-Type`などのメディアタイプ情報がない場合は、4xx（たとえば`400 Bad Request`）で拒否します。宣言されたメディアタイプが実際の内容と一致しない場合も、`400 Bad Request`が候補です。宣言されたメディアタイプが対象リソースで対応していない場合は、`415 Unsupported Media Type`が適切です。メディアタイプが対応済みで内容とも一致していても、問い合わせ内容の意味によって処理できない場合は、`422 Unprocessable Content`が候補になります。どの形式とエラーを採用するかは、対象APIの契約として明記します。
 
 RFC 10008では、QUERYのレスポンスに再利用できるURIを示す方法も定めています。Locationは同じ問い合わせを再実行できるリソースを識別し、クライアントはそのURIへGETできます。Content-Locationは返された結果に対応するリソースを識別します。両者は目的が異なるため、同じURIになるとは限りません。
 
