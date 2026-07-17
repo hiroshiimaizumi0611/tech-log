@@ -15,7 +15,7 @@ featured: true
 
 私の管理環境ではCloudFrontを利用していなかったため、直接的な影響はありませんでした。ただし、AWSの障害報告を受けて管理環境を確認し、VPCオリジンを使う場合の代替経路と切り替え手順を公式資料から調べました。
 
-> 今回確認するべきなのは、CloudFrontというサービス全般ではなく、CloudFrontからプライベートVPCオリジンへ届く経路です。
+> 今回確認すべきなのは、CloudFrontというサービス全般ではなく、CloudFrontからプライベートVPCオリジンへ届く経路です。
 
 ## 2026年7月16日のCloudFront障害で何が起きたか
 
@@ -31,7 +31,7 @@ AWSは3:52 AM PDTに複数の緩和策を実施し、4:18 AM PDTに全面復旧�
 
 一方、AWSの報告では、S3オリジンやインターネットへ公開したカスタムオリジンなど、他のオリジン種別は今回の事象では影響外でした。ここで述べているのは今回のイベントに限った影響範囲です。各オリジン種別の障害耐性を一般化するものではありません。
 
-切り分けでは、CloudFrontの5xxだけを見てオリジンアプリケーションの故障と決めつけないことが大切です。CloudFrontからオリジンまでのリクエスト数、ALBの応答、ターゲットの健全性を合わせて確認すると、問題のある区間を絞れます。
+切り分けでは、CloudFrontの5xxだけを見てオリジンアプリケーションの故障と決めつけません。CloudFrontからオリジンまでのリクエスト数、ALBの応答、ターゲットの健全性を合わせて確認すると、問題のある区間を絞れます。
 
 ## そもそもCloudFrontのVPCオリジンとは
 
@@ -71,13 +71,13 @@ AWSの最終報告では、プライベートVPCオリジンへの接続を管�
 
 [Origin failover](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/high_availability_origin_failover.html)では、primaryとsecondaryの2オリジンからOrigin Groupを作ります。primaryが設定済みの失敗条件に該当すると、そのリクエストをsecondaryへ送ります。選べるHTTPステータスコードは`400`、`403`、`404`、`416`、`429`、`500`、`502`、`503`、`504`です。
 
-接続失敗をフェイルオーバー対象にするには`503`を、origin response timeoutを対象にするには`504`を条件へ含めます。ここを設定しなければ、接続できない、または応答がtimeoutになったという理由だけで想定したsecondaryへ進むとは限りません。
+接続失敗をフェイルオーバー対象にするには`503`を、origin response timeoutを対象にするには`504`を条件へ含めます。この条件を設定しなければ、接続失敗や応答タイムアウトが起きても、想定したsecondaryへ進むとは限りません。
 
 自動フェイルオーバーが適用されるHTTPメソッドは`GET`、`HEAD`、`OPTIONS`のみに限定されています。`POST`、`PUT`などは対象外です。さらに`OPTIONS`を使う場合は、Cache behaviorのCached HTTP methodsへ`OPTIONS`を含める必要があります。
 
 [Origin Groupのリクエスト動作](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/RequestAndResponseBehaviorOriginGroups.html)では、前のリクエストがsecondaryへ送られていても、CloudFrontは次のリクエストでprimaryを再試行します。障害中ずっとsecondaryへ固定する仕組みではないため、primaryの試行時間やエラー率も監視対象に残ります。
 
-備えるなら、primaryをVPC origin、secondaryを事前に動作確認したPublic ALBなどのカスタムオリジンにします。今回の障害でOrigin Groupが実際にフェイルオーバーできたことは確認できていないため、この構成は将来の読み取り系障害に備えて事前検証する候補です。有効性を確かめるには、非本番で接続失敗とtimeoutを再現し、期待するステータス条件と所要時間を測ります。
+備えるなら、primaryをVPC origin、secondaryを事前に動作確認したPublic ALBなどのカスタムオリジンにします。今回の障害でOrigin Groupが実際にフェイルオーバーしたかは確認できません。この構成は、将来の読み取り系障害に備えて事前検証する候補です。有効性を確かめるには、非本番で接続失敗とtimeoutを再現し、期待するステータス条件と所要時間を測ります。
 
 ## POST・PUTを含むAPIは手動切り替えを準備する
 
