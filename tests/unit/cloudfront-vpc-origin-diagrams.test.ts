@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { lookup as probeImageMetadata } from '../../node_modules/astro/dist/assets/utils/vendor/image-size/lookup.js';
+
 const execFileAsync = promisify(execFile);
 const projectFile = (path: string) => fileURLToPath(new URL('../../' + path, import.meta.url));
 
@@ -125,5 +127,11 @@ describe('CloudFront VPC Origins article diagrams', () => {
     expect(source).not.toMatch(/\b(?:href|xlink:href)\s*=\s*["']\s*javascript:/i);
     expect(source).not.toMatch(/\b(?:href|xlink:href)\s*=\s*["']\s*https?:\/\//i);
     expect(source).not.toMatch(/url\(\s*["']?\s*https?:\/\//i);
+  });
+
+  it.each(diagrams)('$svg exposes 1200x675 metadata to Astro', async ({ svg }) => {
+    const metadata = probeImageMetadata(await readFile(projectFile(svg)));
+
+    expect(metadata).toEqual({ width: 1200, height: 675, type: 'svg' });
   });
 });
