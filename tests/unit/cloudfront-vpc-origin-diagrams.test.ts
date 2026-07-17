@@ -23,6 +23,7 @@ const diagrams = [
       '内部制約',
       'ルーティング設定の読み込み失敗',
     ],
+    requiredEdges: [],
   },
   {
     drawio: 'docs/diagrams/cloudfront-vpc-origin-failover.drawio',
@@ -42,6 +43,7 @@ const diagrams = [
       'CloudFront Prefix List',
       'Custom Header',
     ],
+    requiredEdges: [['read-methods', 'origin-group']],
   },
 ] as const;
 
@@ -51,7 +53,7 @@ function rootAttribute(source: string, root: 'svg' | 'mxfile', name: string): st
 }
 
 describe('CloudFront VPC Origins article diagrams', () => {
-  it.each(diagrams)('$drawio is editable, well-formed, and uses AWS4 shapes', async ({ drawio, labels }) => {
+  it.each(diagrams)('$drawio is editable, well-formed, and uses AWS4 shapes', async ({ drawio, labels, requiredEdges }) => {
     const path = projectFile(drawio);
     await expect(execFileAsync('/usr/bin/xmllint', ['--noout', path])).resolves.toBeDefined();
     const source = await readFile(path, 'utf8');
@@ -68,6 +70,10 @@ describe('CloudFront VPC Origins article diagrams', () => {
     expect(new Set(ids).size).toBe(ids.length);
     for (const match of source.matchAll(/\b(?:source|target)="([^"]+)"/g)) expect(ids).toContain(match[1]);
     for (const label of labels) expect(source).toContain(label.replaceAll('&', '&amp;'));
+    const edgeCells = [...source.matchAll(/<mxCell\b[^>]*\bedge="1"[^>]*>/g)].map((match) => match[0]);
+    for (const [edgeSource, edgeTarget] of requiredEdges) {
+      expect(edgeCells).toContainEqual(expect.stringMatching(new RegExp(`\\bsource="${edgeSource}"[^>]*\\btarget="${edgeTarget}"`)));
+    }
   });
 
   it.each(diagrams)('$svg is a safe, well-formed 1200x675 asset', async ({ svg, labels }) => {
