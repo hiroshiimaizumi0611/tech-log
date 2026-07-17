@@ -23,7 +23,19 @@ const diagrams = [
       '内部制約',
       'ルーティング設定の読み込み失敗',
     ],
-    requiredEdges: [],
+    requiredEdges: [
+      ['viewer-container', 'cloudfront-icon'],
+      ['cloudfront-icon', 'routing-constraint'],
+      ['routing-constraint', 'eni-icon'],
+      ['eni-icon', 'alb-icon'],
+      ['alb-icon', 'application-icon'],
+    ],
+    requiredAwsShapes: [
+      'resIcon=mxgraph.aws4.cloudfront',
+      'shape=mxgraph.aws4.elastic_network_interface',
+      'resIcon=mxgraph.aws4.elastic_load_balancing',
+      'resIcon=mxgraph.aws4.ec2',
+    ],
   },
   {
     drawio: 'docs/diagrams/cloudfront-vpc-origin-failover.drawio',
@@ -43,7 +55,16 @@ const diagrams = [
       'CloudFront Prefix List',
       'Custom Header',
     ],
-    requiredEdges: [['read-methods', 'origin-group']],
+    requiredEdges: [
+      ['read-methods', 'origin-group'],
+      ['origin-group', 'primary-origin-icon'],
+      ['origin-group', 'secondary-alb-icon'],
+      ['write-methods', 'monitor-triage'],
+      ['monitor-triage', 'approval'],
+      ['approval', 'manual-cloudfront-change'],
+      ['manual-cloudfront-change', 'secondary-alb-icon'],
+    ],
+    requiredAwsShapes: ['resIcon=mxgraph.aws4.cloudfront', 'resIcon=mxgraph.aws4.vpc', 'resIcon=mxgraph.aws4.elastic_load_balancing'],
   },
 ] as const;
 
@@ -52,29 +73,41 @@ function rootAttribute(source: string, root: 'svg' | 'mxfile', name: string): st
   return attributes?.match(new RegExp('\\b' + name + '="([^"]+)"'))?.[1];
 }
 
+function mxCellAttributes(source: string): Array<Record<string, string>> {
+  return [...source.matchAll(/<mxCell\b[^>]*>/g)].map(([tag]) =>
+    Object.fromEntries([...tag.matchAll(/([\w:-]+)="([^"]*)"/g)].map((match) => [match[1], match[2]])),
+  );
+}
+
 describe('CloudFront VPC Origins article diagrams', () => {
-  it.each(diagrams)('$drawio is editable, well-formed, and uses AWS4 shapes', async ({ drawio, labels, requiredEdges }) => {
-    const path = projectFile(drawio);
-    await expect(execFileAsync('/usr/bin/xmllint', ['--noout', path])).resolves.toBeDefined();
-    const source = await readFile(path, 'utf8');
+  it.each(diagrams)(
+    '$drawio is editable, well-formed, and uses AWS4 shapes',
+    async ({ drawio, labels, requiredEdges, requiredAwsShapes }) => {
+      const path = projectFile(drawio);
+      await expect(execFileAsync('/usr/bin/xmllint', ['--noout', path])).resolves.toBeDefined();
+      const source = await readFile(path, 'utf8');
 
-    expect(rootAttribute(source, 'mxfile', 'host')).toBeDefined();
-    expect(source).toContain('<diagram');
-    expect(source).toContain('<mxGraphModel');
-    expect(source).toMatch(/<mxCell\s+id="0"\s*\/>/);
-    expect(source).toMatch(/<mxCell\s+id="1"\s+parent="0"\s*\/>/);
-    expect(source).toContain('mxgraph.aws4.');
-    expect(source).not.toMatch(/<diagram[^>]*>\s*[A-Za-z0-9+/=]{100,}\s*<\/diagram>/);
+      expect(rootAttribute(source, 'mxfile', 'host')).toBeDefined();
+      expect(source).toContain('<diagram');
+      expect(source).toContain('<mxGraphModel');
+      expect(source).toMatch(/<mxCell\s+id="0"\s*\/>/);
+      expect(source).toMatch(/<mxCell\s+id="1"\s+parent="0"\s*\/>/);
+      expect(source).not.toMatch(/<diagram[^>]*>\s*[A-Za-z0-9+/=]{100,}\s*<\/diagram>/);
+      for (const awsShape of requiredAwsShapes) expect(source).toContain(awsShape);
 
-    const ids = [...source.matchAll(/<mxCell\b[^>]*\bid="([^"]+)"/g)].map((match) => match[1]);
-    expect(new Set(ids).size).toBe(ids.length);
-    for (const match of source.matchAll(/\b(?:source|target)="([^"]+)"/g)) expect(ids).toContain(match[1]);
-    for (const label of labels) expect(source).toContain(label.replaceAll('&', '&amp;'));
-    const edgeCells = [...source.matchAll(/<mxCell\b[^>]*\bedge="1"[^>]*>/g)].map((match) => match[0]);
-    for (const [edgeSource, edgeTarget] of requiredEdges) {
-      expect(edgeCells).toContainEqual(expect.stringMatching(new RegExp(`\\bsource="${edgeSource}"[^>]*\\btarget="${edgeTarget}"`)));
-    }
-  });
+      const cells = mxCellAttributes(source);
+      const ids = cells.map(({ id }) => id).filter((id): id is string => id !== undefined);
+      expect(new Set(ids).size).toBe(ids.length);
+      for (const { source: edgeSource, target: edgeTarget } of cells) {
+        if (edgeSource) expect(ids).toContain(edgeSource);
+        if (edgeTarget) expect(ids).toContain(edgeTarget);
+      }
+      for (const label of labels) expect(source).toContain(label.replaceAll('&', '&amp;'));
+      for (const [edgeSource, edgeTarget] of requiredEdges) {
+        expect(cells).toContainEqual(expect.objectContaining({ edge: '1', source: edgeSource, target: edgeTarget }));
+      }
+    },
+  );
 
   it.each(diagrams)('$svg is a safe, well-formed 1200x675 asset', async ({ svg, labels }) => {
     const path = projectFile(svg);
@@ -84,7 +117,13 @@ describe('CloudFront VPC Origins article diagrams', () => {
     expect(rootAttribute(source, 'svg', 'width')).toBe('1200');
     expect(rootAttribute(source, 'svg', 'height')).toBe('675');
     expect(rootAttribute(source, 'svg', 'viewBox')).toBe('0 0 1200 675');
-    for (const label of labels) expect(source).toContain(label);
+    const visibleMarkup = source.slice(source.indexOf('<defs'));
+    expect(visibleMarkup).not.toBe(source);
+    for (const label of labels) expect(visibleMarkup).toContain(label);
+    expect(source).not.toMatch(/<!DOCTYPE\b/i);
     expect(source).not.toMatch(/<script\b|\bon[a-z][\w:-]*\s*=/i);
+    expect(source).not.toMatch(/\b(?:href|xlink:href)\s*=\s*["']\s*javascript:/i);
+    expect(source).not.toMatch(/\b(?:href|xlink:href)\s*=\s*["']\s*https?:\/\//i);
+    expect(source).not.toMatch(/url\(\s*["']?\s*https?:\/\//i);
   });
 });

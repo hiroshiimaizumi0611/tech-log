@@ -56,10 +56,10 @@
           <mxGeometry x="0" y="105" width="235" height="45" as="geometry" />
         </mxCell>
         <mxCell id="prefix-list-control" value="CloudFront Prefix List" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#DD344C;strokeWidth=2;fontSize=20;fontStyle=1;fontColor=#A32638;fontFamily=Helvetica;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="925" y="315" width="235" height="36" as="geometry" />
+          <mxGeometry x="880" y="315" width="225" height="36" as="geometry" />
         </mxCell>
         <mxCell id="custom-header-control" value="Custom Header" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#DD344C;strokeWidth=2;fontSize=22;fontStyle=1;fontColor=#A32638;fontFamily=Helvetica;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="925" y="357" width="235" height="34" as="geometry" />
+          <mxGeometry x="880" y="357" width="225" height="34" as="geometry" />
         </mxCell>
 
         <mxCell id="write-methods" value="POST / PUT / PATCH / DELETE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#ED7100;strokeWidth=3;fontSize=26;fontStyle=1;fontColor=#8A4100;fontFamily=Helvetica;align=center;verticalAlign=middle;shadow=1;" vertex="1" parent="1">
@@ -101,10 +101,7 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="edge-manual-change-public-alb" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=20;html=1;endArrow=block;endFill=1;strokeWidth=5;strokeColor=#8A4100;fontFamily=Helvetica;exitX=1;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="manual-cloudfront-change" target="secondary-alb-icon">
-          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1175" y="535" /><mxPoint x="1175" y="228" /></Array></mxGeometry>
-        </mxCell>
-        <mxCell id="edge-manual-change-public-alb-label" value="手動（太い実線）" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];labelBackgroundColor=none;fontSize=22;fontStyle=1;fontColor=#8A4100;fontFamily=Helvetica;" connectable="0" vertex="1" parent="edge-manual-change-public-alb">
-          <mxGeometry relative="1" x="-0.45" y="-28" as="geometry"><mxPoint as="offset" /></mxGeometry>
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1130" y="535" /><mxPoint x="1130" y="228" /></Array></mxGeometry>
         </mxCell>
         <mxCell id="line-style-legend" value="破線：自動候補　　太い実線：手動" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#879596;fontSize=20;fontStyle=1;fontColor=#3E4B4F;fontFamily=Helvetica;align=center;verticalAlign=middle;" vertex="1" parent="1">
           <mxGeometry x="790" y="600" width="340" height="34" as="geometry" />
