@@ -128,7 +128,7 @@ AWSが障害中に案内した暫定策は、VPC Originsが必須でない顧客
 
 ### 読み取り系リクエストをOrigin Groupで備える
 
-- CloudFront Origin Groupはprimaryとsecondaryの2オリジンを持ち、設定したステータスコード、接続失敗、タイムアウト時にsecondaryへリクエストを送る機能と説明する。
+- CloudFront Origin Groupはprimaryとsecondaryの2オリジンを持ち、設定したステータスコードをprimaryが返した場合にsecondaryへリクエストを送る機能と説明する。CloudFrontがprimaryへ接続できない場合は`503`、primaryの応答がタイムアウトした場合は`504`をフェイルオーバーコードに設定していることが条件となる。
 - 選択可能なフェイルオーバー条件として`400`、`403`、`404`、`416`、`429`、`500`、`502`、`503`、`504`がある。
 - 自動フェイルオーバーの対象メソッドは`GET`、`HEAD`、`OPTIONS`のみ。`OPTIONS`はCache behaviorのCached HTTP methodsに含める必要がある。
 - CloudFrontは以前のリクエストが失敗しても、次のリクエストでは再びprimaryを試す。継続的にsecondaryへ固定する機能とは説明しない。
@@ -180,7 +180,7 @@ CloudFrontだけを見て切り替えない。オリジンアプリケーショ�
 - Secondary: 事前に動作確認したinternet-facing ALBなどのcustom origin
 - Mechanism: Origin Group
 - Methods: `GET`、`HEAD`、必要なら`OPTIONS`
-- Failover criteria: アプリケーションの性質に応じて接続失敗、タイムアウト、`500`、`502`、`503`、`504`などを選ぶ
+- Failover criteria: アプリケーションの性質に応じて`500`、`502`、`503`、`504`などを選ぶ。接続失敗を対象にするには`503`、応答タイムアウトを対象にするには`504`を設定する。
 - Limitation: 今回の障害への有効性は未実証。次リクエストもprimaryから試す。
 
 ### 更新系
@@ -235,6 +235,8 @@ CloudFrontだけを見て切り替えない。オリジンアプリケーショ�
 ## 8. 公式資料
 
 本文の仕様と事実は、次の一次情報を優先する。
+
+記事実装時には公開イベントデータを再確認し、事実確認日とEvent ARNを調査根拠またはテスト内に残す。
 
 - AWS Health Dashboard: `https://health.aws.amazon.com/health/status`
 - AWS public health event data: `https://health.aws.amazon.com/public/currentevents`
