@@ -56,6 +56,14 @@ function normalizedParagraphs(text: string): string[] {
     .filter(Boolean);
 }
 
+function h2Section(body: string, heading: string): string {
+  const startMarker = `## ${heading}`;
+  const start = body.indexOf(startMarker);
+  if (start === -1) throw new Error(`Missing H2 section: ${heading}`);
+  const end = body.indexOf('\n## ', start + startMarker.length);
+  return body.slice(start, end === -1 ? undefined : end);
+}
+
 function hasUnprovenCandidateWording(text: string): boolean {
   return normalizedParagraphs(text).some(
     (paragraph) =>
@@ -188,13 +196,47 @@ describe('CloudFront VPC Origins outage article', () => {
         (paragraph) =>
           /updateRequestOrigin\(\)/.test(paragraph) &&
           /VPC Origins?/.test(paragraph) &&
-          /(?:更新できない|対応していない|利用できない|使えない|対象外|未対応|cannot|not supported?)/i.test(paragraph),
+          /(?:定義|更新)/.test(paragraph) &&
+          /(?:でき(?:ない|ません|ず)|対応していない|利用できない|使えない|対象外|未対応|cannot|not supported?)/i.test(paragraph) &&
+          /(?:失敗|fail)/i.test(paragraph),
+      ),
+    ).toBe(true);
+    expect(
+      paragraphs.some(
+        (paragraph) =>
+          /selectRequestOriginById\(\)/.test(paragraph) &&
+          /(?:事前|あらかじめ)[^。]{0,40}(?:登録|設定)/.test(paragraph) &&
+          /VPC origin/i.test(paragraph),
+      ),
+    ).toBe(true);
+    expect(
+      paragraphs.some(
+        (paragraph) => /createRequestOriginGroup\(\)/.test(paragraph) && /VPC origins?/i.test(paragraph) && /含(?:め|む)/.test(paragraph),
       ),
     ).toBe(true);
     expect(
       paragraphs.some((paragraph) => paragraph.includes('次のリクエスト') && /primary/i.test(paragraph) && /再試行|retry/i.test(paragraph)),
     ).toBe(true);
     expect(hasUnprovenCandidateWording(body)).toBe(true);
+  });
+
+  it('connects Public ALB access controls and zero-downtime header rotation', async () => {
+    const { body } = splitArticle(await readFile(articleUrl, 'utf8'));
+    const writeSection = h2Section(body, 'POST・PUTを含むAPIは手動切り替えを準備する');
+    const publicAlbStart = writeSection.indexOf('待機用Public ALB');
+    expect(publicAlbStart).toBeGreaterThanOrEqual(0);
+    const publicAlbGuidance = writeSection.slice(publicAlbStart).replace(/\s+/g, ' ');
+
+    expect(publicAlbGuidance).toContain('AWS-managed prefix list');
+    expect(publicAlbGuidance).toMatch(/(?:Origin Protocol Policy[^。]{0,40}https-only|https-only[^。]{0,40}Origin Protocol Policy)/i);
+    expect(publicAlbGuidance).toMatch(
+      /(?:ランダム|random)[^。]{0,250}(?:header|ヘッダー)[^。]{0,250}(?:名前|name)[^。]{0,40}(?:値|value)/i,
+    );
+    expect(publicAlbGuidance).toMatch(/(?:header|ヘッダー)[^。]{0,250}(?:名前|name)[^。]{0,40}(?:値|value)[^。]{0,60}(?:秘密|secret)/i);
+    expect(publicAlbGuidance).toMatch(/listener rule[^。]{0,100}(?:不一致|一致しない)[^。]{0,40}403/i);
+    expect(publicAlbGuidance).toMatch(
+      /(?:新しい|追加)[^。]{0,100}ALB[^。]{0,100}(?:rule|ルール)[\s\S]*CloudFront[^。]{0,100}(?:更新|追加)[\s\S]*Deploying[^。]{0,100}(?:完了|終了)[\s\S]*(?:古い|元の)[^。]{0,100}(?:削除|除去)/i,
+    );
   });
 
   it('uses two accessible diagrams with their approved captions', async () => {

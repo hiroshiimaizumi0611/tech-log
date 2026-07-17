@@ -83,11 +83,15 @@ AWSの最終報告では、プライベートVPCオリジンへの接続を管�
 
 `POST`、`PUT`、`PATCH`、`DELETE`はOrigin Groupの自動フェイルオーバー対象外なので、更新系は切り分けと承認後に手動でオリジンを変更します。CloudFront distributionへ代替のカスタムオリジンを事前登録し、Cache behaviorの対象を切り替える変更手順をIaCとランブックに残しておきます。
 
-CloudFront Functionsの[`updateRequestOrigin()`](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/helper-functions-origin-modification.html)ではVPC Originsを更新できないため、リクエストごとの動的な切り替えをこの関数だけで実現しようとすると失敗します。手動切り替えを関数へ置き換える前に、使うAPIと対象オリジンの制約を確認します。
+CloudFront Functionsの[オリジン変更用helper](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/helper-functions-origin-modification.html)は、メソッドごとに扱える対象が違います。`updateRequestOrigin()`ではVPC originを新しく定義したり、既存のVPC Originを更新したりできず、その用途で呼ぶとリクエストが失敗します。一方、`selectRequestOriginById()`は同じdistributionへ事前設定したオリジンを選ぶメソッドで、VPC originも選択できます。`createRequestOriginGroup()`で作るグループにもVPC originsを含められます。
+
+これらのhelperがVPC originを扱える場合でも、通常のOrigin Groupによる自動フェイルオーバーは`GET`、`HEAD`、`OPTIONS`だけに適用されます。本記事では`POST`、`PUT`、`PATCH`、`DELETE`を自動切り替えの対象とはせず、切り分けと人による承認後にdistribution設定を手動で切り替えます。
 
 更新系では、タイムアウト後のretryが二重実行につながる可能性があります。冪等キーや重複排除の有無、認証ヘッダー、Host/TLS、Cookieやセッション、データ整合性を代表的な操作で確認します。代替オリジンが同じアプリケーションやデータストアを指していても、ヘッダー転送やセッションストアが違えば同じ結果になるとは限りません。
 
-待機用Public ALBは、直接アクセスを受け付ける状態にしません。[ALBへのアクセス制限](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/restrict-access-to-load-balancer.html)に従い、セキュリティグループの送信元をCloudFrontのAWS-managed prefix listへ絞ります。さらにCloudFrontから秘密の[`custom header`](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/add-origin-custom-headers.html)を付け、ALB listener ruleは一致するリクエストだけを転送し、不一致には固定`403`を返します。prefix listだけでは特定のdistributionを識別できないため、二つの制限を組み合わせます。
+待機用Public ALBは、直接アクセスを受け付ける状態にしません。[ALBへのアクセス制限](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/restrict-access-to-load-balancer.html)に従い、セキュリティグループの送信元をCloudFrontのAWS-managed prefix listへ絞り、CloudFrontからALBへのOrigin Protocol Policyを`https-only`にします。さらに、十分にランダムな[`custom header`](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/add-origin-custom-headers.html)の名前と値を作り、どちらも秘密情報として管理します。ALB listener ruleは一致するリクエストだけを転送し、不一致には固定`403`を返します。prefix listだけでは特定のdistributionを識別できないため、これらの制限を組み合わせます。
+
+custom headerを無停止でローテーションする間は、新旧の値を同時に受け付けます。まず新しい値も受け付ける条件をALB listener ruleへ追加し、古い値を残します。次にCloudFrontのcustom headerを新しい値へ更新し、distributionの`Deploying`が完了するまで待ちます。新しい値での疎通を確認してから、ALB listener ruleに残した古い値を削除します。
 
 この待機構成にはALBなどの追加費用がかかり、公開面も増えます。VPC originとPublic ALBでTLS、WAF、認証、ログ、アプリケーション設定を揃える作業も必要です。CloudFrontの設定変更には伝播時間があり、緊急時の切り替えが即時とは限りません。費用、セキュリティ、設定の一貫性、伝播時間を含めて採否を決めます。
 
