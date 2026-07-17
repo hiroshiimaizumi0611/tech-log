@@ -229,14 +229,36 @@ describe('CloudFront VPC Origins outage article', () => {
 
     expect(publicAlbGuidance).toContain('AWS-managed prefix list');
     expect(publicAlbGuidance).toMatch(/(?:Origin Protocol Policy[^。]{0,40}https-only|https-only[^。]{0,40}Origin Protocol Policy)/i);
+    expect(publicAlbGuidance).toMatch(/(?:ALB[^。]{0,50}HTTPS listener|HTTPS listener[^。]{0,50}ALB)[^。]{0,50}(?:必要|必須)/i);
+    expect(publicAlbGuidance).toMatch(/(?:証明書|certificate)[^。]{0,100}Origin Domain[^。]{0,80}(?:一致|cover|対象)/i);
+    expect(publicAlbGuidance).toMatch(
+      /(?:viewer[^。]{0,20})?Host[^。]{0,120}origin request policy[^。]{0,120}(?:場合|とき|のみ)[^。]{0,120}(?:証明書|hostname|ホスト名|オリジン)/i,
+    );
     expect(publicAlbGuidance).toMatch(
       /(?:ランダム|random)[^。]{0,250}(?:header|ヘッダー)[^。]{0,250}(?:名前|name)[^。]{0,40}(?:値|value)/i,
     );
     expect(publicAlbGuidance).toMatch(/(?:header|ヘッダー)[^。]{0,250}(?:名前|name)[^。]{0,40}(?:値|value)[^。]{0,60}(?:秘密|secret)/i);
     expect(publicAlbGuidance).toMatch(/listener rule[^。]{0,100}(?:不一致|一致しない)[^。]{0,40}403/i);
     expect(publicAlbGuidance).toMatch(
-      /(?:新しい|追加)[^。]{0,100}ALB[^。]{0,100}(?:rule|ルール)[\s\S]*CloudFront[^。]{0,100}(?:更新|追加)[\s\S]*Deploying[^。]{0,100}(?:完了|終了)[\s\S]*(?:古い|元の)[^。]{0,100}(?:削除|除去)/i,
+      /(?:新しい|追加)[^。]{0,120}(?:header|ヘッダー)[^。]{0,80}(?:名前|name)[^。]{0,40}(?:値|value)[^。]{0,60}(?:ペア|組)/i,
     );
+    expect(publicAlbGuidance).toMatch(
+      /(?:新しい|追加)[^。]{0,160}ALB[^。]{0,120}(?:rule|ルール)[\s\S]*CloudFront[^。]{0,160}(?:新旧|両方|双方|古い[^。]{0,40}新しい)[\s\S]*Deploying[^。]{0,100}(?:完了|終了)[\s\S]*CloudFront[^。]{0,120}(?:古い|元の)[^。]{0,100}(?:削除|停止)[\s\S]*ALB[^。]{0,120}(?:古い|元の)[^。]{0,100}(?:削除|除去)/i,
+    );
+  });
+
+  it('uses distribution metrics for detection and request logs for breakdowns', async () => {
+    const { body } = splitArticle(await readFile(articleUrl, 'utf8'));
+    const runbook = h2Section(body, '障害発生時の確認・切り替え手順').replace(/\s+/g, ' ');
+
+    expect(runbook).toMatch(
+      /CloudWatch[^。]{0,100}distribution[^。]{0,100}5xxErrorRate|5xxErrorRate[^。]{0,100}distribution[^。]{0,100}CloudWatch/i,
+    );
+    expect(runbook).toMatch(/(?:standard|標準)[^。]{0,30}(?:access )?logs?|(?:access )?logs?[^。]{0,30}(?:standard|標準)/i);
+    expect(runbook).toMatch(/real-time[^。]{0,30}(?:access )?logs?/i);
+    for (const field of ['cs-uri-stem', 'x-edge-location', 'cache-behavior-path-pattern', 'c-country']) {
+      expect(runbook).toContain(field);
+    }
   });
 
   it('uses two accessible diagrams with their approved captions', async () => {

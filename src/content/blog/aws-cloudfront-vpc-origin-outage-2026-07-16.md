@@ -89,9 +89,13 @@ CloudFront Functionsの[オリジン変更用helper](https://docs.aws.amazon.com
 
 更新系では、タイムアウト後のretryが二重実行につながる可能性があります。冪等キーや重複排除の有無、認証ヘッダー、Host/TLS、Cookieやセッション、データ整合性を代表的な操作で確認します。代替オリジンが同じアプリケーションやデータストアを指していても、ヘッダー転送やセッションストアが違えば同じ結果になるとは限りません。
 
-待機用Public ALBは、直接アクセスを受け付ける状態にしません。[ALBへのアクセス制限](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/restrict-access-to-load-balancer.html)に従い、セキュリティグループの送信元をCloudFrontのAWS-managed prefix listへ絞り、CloudFrontからALBへのOrigin Protocol Policyを`https-only`にします。さらに、十分にランダムな[`custom header`](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/add-origin-custom-headers.html)の名前と値を作り、どちらも秘密情報として管理します。ALB listener ruleは一致するリクエストだけを転送し、不一致には固定`403`を返します。prefix listだけでは特定のdistributionを識別できないため、これらの制限を組み合わせます。
+待機用Public ALBは、直接アクセスを受け付ける状態にしません。[ALBへのアクセス制限](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/restrict-access-to-load-balancer.html)に従い、セキュリティグループの送信元をCloudFrontのAWS-managed prefix listへ絞り、CloudFrontからALBへのOrigin Protocol Policyを`https-only`にします。この接続にはALBのHTTPS listenerが必要です。本記事の待機経路では、listenerのTLS証明書をCloudFrontのOrigin Domainに設定するホスト名と一致させます。
 
-custom headerを無停止でローテーションする間は、新旧の値を同時に受け付けます。まず新しい値も受け付ける条件をALB listener ruleへ追加し、古い値を残します。次にCloudFrontのcustom headerを新しい値へ更新し、distributionの`Deploying`が完了するまで待ちます。新しい値での疎通を確認してから、ALB listener ruleに残した古い値を削除します。
+viewerの`Host`を転送しない場合、CloudFrontはOrigin Domainを`Host`としてオリジンへ送ります。viewerの`Host`をorigin request policyで転送するのは、ALB listenerとアプリケーションがそのホスト名を処理する場合だけであり、TLS証明書も同じホスト名をカバーする必要があります。単にALBへHTTPSで接続するために、viewerの`Host`を無条件で転送する設定にはしません。
+
+さらに、十分にランダムな[`custom header`](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/add-origin-custom-headers.html)の名前と値を作り、どちらも秘密情報として管理します。ALB listener ruleは一致するリクエストだけを転送し、不一致には固定`403`を返します。prefix listだけでは特定のdistributionを識別できないため、これらの制限を組み合わせます。
+
+custom headerは、値だけでなくランダムな名前と値のペアごとローテーションします。まず新しいheaderの名前と値のペアを受け付けるALB listener ruleを追加し、古いペアのruleを残します。次にCloudFrontが新旧両方のペアを送るようorigin custom headersを更新し、distributionの`Deploying`が完了するまで待ちます。CloudFront経由の疎通と新しいruleへのマッチを確認したら、CloudFrontから古いペアを削除して再び`Deploying`の完了を待ちます。新しいペアだけで動作することを確認してから、ALB listener ruleに残した古いペアを削除します。
 
 この待機構成にはALBなどの追加費用がかかり、公開面も増えます。VPC originとPublic ALBでTLS、WAF、認証、ログ、アプリケーション設定を揃える作業も必要です。CloudFrontの設定変更には伝播時間があり、緊急時の切り替えが即時とは限りません。費用、セキュリティ、設定の一貫性、伝播時間を含めて採否を決めます。
 
@@ -99,7 +103,7 @@ custom headerを無停止でローテーションする間は、新旧の値を�
 
 CloudFrontの5xx増加を見つけても、すぐに代替オリジンへ変更しません。アプリケーションやデータベース、認証基盤の障害であれば、入口だけ変えても復旧せず、状況を複雑にします。本記事では次の順で確認します。
 
-1. CloudFrontの`5xxErrorRate`などを確認し、増加の開始時刻、対象distribution、Cache behavior、リージョンやURLの偏りを記録する。
+1. CloudWatchでdistribution単位の`5xxErrorRate`を確認し、5xx増加の開始時刻と対象distributionを記録する。このメトリクスだけではURL、Cache behavior、エッジロケーション、国別の偏りを分解できない。標準access logsの`cs-uri-stem`と`x-edge-location`、必要ならreal-time access logsの`cache-behavior-path-pattern`と`c-country`を使って内訳を確認する。
 2. ALBのリクエスト数と5xx、ターゲットのhealthを確認し、CloudFrontより後ろのアプリケーション、データベース、認証基盤の障害を切り分ける。
 3. AWS Health Dashboardとアカウント固有のAWS Health情報を確認し、サービスイベントの対象、開始時刻、更新内容を照合する。
 4. 読み取り系では、Origin Groupがsecondaryへフェイルオーバーしているか、primaryでの503または504、secondaryの応答、試行時間を確認する。
