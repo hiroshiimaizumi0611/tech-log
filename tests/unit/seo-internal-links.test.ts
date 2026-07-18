@@ -20,10 +20,37 @@ const linkContracts = [
 async function markdownLinks(id: string): Promise<string[]> {
   const markdown = await readFile(new URL(`../../src/content/blog/${id}.md`, import.meta.url), 'utf8');
   const body = markdown.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, '');
-  const links: string[] = [];
 
-  visit(unified().use(remarkParse).parse(body), 'link', (node) => {
+  return markdownLinkDestinations(body);
+}
+
+function normalizeReferenceIdentifier(identifier: string): string {
+  return identifier.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function markdownLinkDestinations(markdown: string): string[] {
+  const links: string[] = [];
+  const definitions = new Map<string, string>();
+  const tree = unified().use(remarkParse).parse(markdown);
+
+  visit(tree, 'definition', (node) => {
+    const identifier = normalizeReferenceIdentifier(node.identifier);
+
+    if (!definitions.has(identifier)) {
+      definitions.set(identifier, node.url);
+    }
+  });
+
+  visit(tree, 'link', (node) => {
     links.push(node.url);
+  });
+
+  visit(tree, 'linkReference', (node) => {
+    const destination = definitions.get(normalizeReferenceIdentifier(node.identifier));
+
+    if (destination) {
+      links.push(destination);
+    }
   });
 
   return links;
@@ -50,6 +77,48 @@ function parseOpeningFrontmatter(markdown: string): Record<string, unknown> {
 
   return publishedTarget;
 }
+
+describe('Markdown link extraction', () => {
+  it('通常のMarkdownリンクを収集する', () => {
+    expect(markdownLinkDestinations('[guide](/blog/direct-guide/)')).toEqual(['/blog/direct-guide/']);
+  });
+
+  it('大小文字と空白が異なる使用済み参照リンクを定義先へ解決する', () => {
+    const markdown = ['[guide][  Related   Guide  ]', '', '[related guide]: /blog/reference-guide/'].join('\n');
+
+    expect(markdownLinkDestinations(markdown)).toEqual(['/blog/reference-guide/']);
+  });
+
+  it('同じ参照リンクの出現を重複したまま収集する', () => {
+    const markdown = ['[first][guide]', '[second][GUIDE]', '', '[guide]: /blog/reference-guide/'].join('\n');
+
+    expect(markdownLinkDestinations(markdown)).toEqual(['/blog/reference-guide/', '/blog/reference-guide/']);
+  });
+
+  it('コード、画像、画像参照、未使用定義のURLを収集しない', () => {
+    const markdown = [
+      '`[inline](/blog/inline-code/)`',
+      '',
+      '```md',
+      '[fenced](/blog/fenced-code/)',
+      '```',
+      '',
+      '![image](/blog/image/)',
+      '![image reference][image target]',
+      '',
+      '[image target]: /blog/image-reference/',
+      '[unused]: /blog/unused-definition/',
+    ].join('\n');
+
+    expect(markdownLinkDestinations(markdown)).toEqual([]);
+  });
+
+  it('重複する定義では最初の定義を使用する', () => {
+    const markdown = ['[guide][reference]', '', '[reference]: /blog/first-definition/', '[REFERENCE]: /blog/second-definition/'].join('\n');
+
+    expect(markdownLinkDestinations(markdown)).toEqual(['/blog/first-definition/']);
+  });
+});
 
 describe('SEO contextual internal links', () => {
   for (const contract of linkContracts) {
