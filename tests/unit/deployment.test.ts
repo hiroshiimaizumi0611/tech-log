@@ -70,6 +70,7 @@ describe('deployment artifacts', () => {
     expect(steps.some(({ uses }) => uses === ACTIONS.checkout)).toBe(true);
     expect(steps.some(({ uses, with: input }) => uses === ACTIONS.setupNode && input?.['node-version'] === 24)).toBe(true);
     expect(steps.some(({ run }) => run === 'npm ci')).toBe(true);
+    expect(steps.some(({ run }) => run === 'sudo apt-get update && sudo apt-get install -y libxml2-utils')).toBe(true);
     expect(steps.some(({ run }) => run === 'npx playwright install --with-deps chromium')).toBe(true);
     const verifyIndex = steps.findIndex(({ run }) => run === 'npm run verify');
     const validationIndex = steps.findIndex(({ run }) => run === 'npm run validate:production');
