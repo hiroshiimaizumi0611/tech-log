@@ -6,7 +6,7 @@ Google に登録済みの記事から未登録の記事へ、本文の流れに�
 
 ## 背景
 
-2026年7月18日に Google Search Console を確認したところ、公開中の8記事のうち3記事がインデックス登録済みだった。残る5記事は「URL が Google に認識されていません」と表示された。公開中のサイトマップには全記事が含まれ、各記事の HTTP ステータス、canonical、H1、`BlogPosting` 構造化データ、robots の設定にも登録を妨げる問題はなかった。
+2026年7月18日に Google Search Console を確認したところ、公開中の8記事のうち、Astro構築記事、ChatGPTとCodexのPlugins記事、ChatGPT Sites記事の3本がインデックス登録済みだった。残る5記事は「URL が Google に認識されていません」と表示された。公開中のサイトマップには全記事が含まれ、各記事の HTTP ステータス、canonical、H1、`BlogPosting` 構造化データ、robots の設定にも登録を妨げる問題はなかった。
 
 現状の `robots.txt` はクロールを許可しているが、サイトマップの場所を記載していない。また、記事末尾の関連記事はカテゴリー、共通タグ、公開日の順で自動選定されるため、特定の記事へ意図的に読者とクローラーを案内する用途には向かない。
 
@@ -50,7 +50,7 @@ Allow: /
 Sitemap: <SITE_URL>/sitemap-index.xml
 ```
 
-Astro の `APIRoute` が受け取る `site` を使い、サイトマップ URL を組み立てる。`site` がない場合は不正な URL を生成せず、明示的にエラーにする。レスポンスの `Content-Type` は `text/plain; charset=utf-8` とする。
+Astro の `APIRoute` が受け取る `site` と `new URL('/sitemap-index.xml', site)` を使い、サイトマップ URL を組み立てる。この方法なら `SITE_URL` の末尾にスラッシュがあっても二重にならない。`site` がない場合は不正な URL を生成せず、明示的にエラーにする。レスポンスの `Content-Type` は `text/plain; charset=utf-8` とする。
 
 ## 検証
 
