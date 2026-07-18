@@ -19,6 +19,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Install XML validator
+        run: sudo apt-get update && sudo apt-get install -y libxml2-utils
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Verify
