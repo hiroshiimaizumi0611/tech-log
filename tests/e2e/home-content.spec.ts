@@ -1,16 +1,17 @@
 import { expect, test } from '@playwright/test';
 
+const cloudFrontArticleTitle = '2026年7月AWS CloudFront障害を解説｜VPCオリジンとは？回避策まで整理';
 const httpQueryArticleTitle = 'HTTP QUERYメソッドとは？GET・POSTとの違いとcurlでの試し方';
 const pluginsArticleTitle = 'ChatGPTとCodexのPluginsとは？Apps・Skillsとの違い、探し方、権限の見方';
 
 const latestArticleTitles = [
+  cloudFrontArticleTitle,
   httpQueryArticleTitle,
   'ChatGPT Sitesの使い方｜実際にWebサイトを作って限定公開するまで',
   pluginsArticleTitle,
-  '2026年版 Astroで技術ブログを構築した',
 ] as const;
 
-const featuredArticleTitle = httpQueryArticleTitle;
+const featuredArticleTitle = cloudFrontArticleTitle;
 
 const backgroundImageUrl = async (locator: import('@playwright/test').Locator) => {
   const backgroundImage = await locator.evaluate((element) => getComputedStyle(element).backgroundImage);
@@ -35,10 +36,13 @@ test('最新の注目記事とサイト紹介をヒーローに表示する', as
   await expect(featured.getByText('FEATURED', { exact: true })).toBeVisible();
   await expect(featured.getByRole('heading', { name: featuredArticleTitle })).toBeVisible();
   await expect(featured.getByRole('link')).toHaveCount(1);
-  await expect(featured.getByRole('link', { name: featuredArticleTitle })).toHaveAttribute('href', '/blog/http-query-method-rfc-10008/');
+  await expect(featured.getByRole('link', { name: featuredArticleTitle })).toHaveAttribute(
+    'href',
+    '/blog/aws-cloudfront-vpc-origin-outage-2026-07-16/',
+  );
   await expect(featured.locator('[data-custom-hero], [data-category-artwork], pre, .description, .tags')).toHaveCount(0);
   await expect(featured.locator('time, .reading-time, .code-panel, .media-layer')).toHaveCount(0);
-  await expect(featured.getByText(/\d+分で読めます|2026年|featuredCode/i)).toHaveCount(0);
+  await expect(featured.getByText(/\d+分で読めます|featuredCode/i)).toHaveCount(0);
   await expect(page.getByRole('region', { name: '最新の記事' }).locator('pre > code')).toHaveCount(0);
 });
 
@@ -133,7 +137,10 @@ test('JavaScriptなしでもホームのコンテンツとリンクを利用で�
 
   const hero = page.getByRole('region', { name: 'サイト紹介' });
   await expect(hero.getByRole('heading', { level: 1, name: 'テックログ' })).toBeVisible();
-  await expect(hero.getByRole('link', { name: featuredArticleTitle })).toHaveAttribute('href', '/blog/http-query-method-rfc-10008/');
+  await expect(hero.getByRole('link', { name: featuredArticleTitle })).toHaveAttribute(
+    'href',
+    '/blog/aws-cloudfront-vpc-origin-outage-2026-07-16/',
+  );
   await expect(hero.locator('[data-network-fallback]')).toBeVisible();
   await expect(page.getByRole('region', { name: '最新の記事' }).locator('[data-article-card]')).toHaveCount(4);
   await expect(page.getByRole('region', { name: '人気のタグ' }).getByRole('link')).toHaveCount(10);

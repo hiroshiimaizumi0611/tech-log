@@ -171,7 +171,7 @@ test('navigates through the Featured link while the network is active', async ({
     .getByRole('link', { name: /記事を読む/ })
     .click();
 
-  await expect(page).toHaveURL(/\/blog\/http-query-method-rfc-10008\/$/);
+  await expect(page).toHaveURL(/\/blog\/aws-cloudfront-vpc-origin-outage-2026-07-16\/$/);
   expect(errors).toEqual([]);
 });
 
