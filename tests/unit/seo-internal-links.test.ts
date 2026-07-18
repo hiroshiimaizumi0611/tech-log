@@ -24,17 +24,13 @@ async function markdownLinks(id: string): Promise<string[]> {
   return markdownLinkDestinations(body);
 }
 
-function normalizeReferenceIdentifier(identifier: string): string {
-  return identifier.trim().replace(/\s+/g, ' ').toLowerCase();
-}
-
 function markdownLinkDestinations(markdown: string): string[] {
   const links: string[] = [];
   const definitions = new Map<string, string>();
   const tree = unified().use(remarkParse).parse(markdown);
 
   visit(tree, 'definition', (node) => {
-    const identifier = normalizeReferenceIdentifier(node.identifier);
+    const identifier = node.identifier;
 
     if (!definitions.has(identifier)) {
       definitions.set(identifier, node.url);
@@ -46,7 +42,7 @@ function markdownLinkDestinations(markdown: string): string[] {
   });
 
   visit(tree, 'linkReference', (node) => {
-    const destination = definitions.get(normalizeReferenceIdentifier(node.identifier));
+    const destination = definitions.get(node.identifier);
 
     if (destination) {
       links.push(destination);
@@ -87,6 +83,13 @@ describe('Markdown link extraction', () => {
     const markdown = ['[guide][  Related   Guide  ]', '', '[related guide]: /blog/reference-guide/'].join('\n');
 
     expect(markdownLinkDestinations(markdown)).toEqual(['/blog/reference-guide/']);
+  });
+
+  it('NBSPを含む参照識別子を通常空白の識別子と区別する', () => {
+    const nbsp = '\u00a0';
+    const markdown = [`[guide][a${nbsp}b]`, '', '[a b]: /blog/wrong/', `[a${nbsp}b]: /blog/right/`].join('\n');
+
+    expect(markdownLinkDestinations(markdown)).toEqual(['/blog/right/']);
   });
 
   it('同じ参照リンクの出現を重複したまま収集する', () => {
