@@ -140,3 +140,5 @@ Cloudflare WorkersはWorkerコードだけでなく、静的アセットのデ�
 - build、型検査、テスト、検索インデックス生成をCIで同じ順序に固定する
 
 静的構成でも、生成工程の順序がずれると検索だけが古い、あるいは記事だけが欠ける状態になり得ます。ツールを増やすことより、各成果物の入力と出力を明示し、最終的な `dist` を一つの配布単位として検証することが重要です。
+
+この構成をTerraformで管理する場合は、[Terraformのdriftを安全に解消する手順](/blog/terraform-drift-detection/)も押さえておくと安心です。WorkersでバックエンドAPIも提供する場合は、[HTTP QUERYメソッドの用途と対応状況](/blog/http-query-method-rfc-10008/)も参考にしてください。

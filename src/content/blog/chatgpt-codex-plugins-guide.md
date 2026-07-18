@@ -132,3 +132,5 @@ Pluginは、SkillやAppなどを組み合わせて仕事の進め方を追加で
 - 画面導線、初期設定、提供条件、反映時間を公式情報で再確認した
 
 このチェックを通してから、小さな読み取り作業で挙動を確かめ、必要性が確認できた範囲だけを広げていくのが堅実です。
+
+Pluginをどの作業面で使うかは[ChatGPT WorkとChat・Codexの使い分け](/blog/chatgpt-work-guide/)を、用途ごとのモデル選択は[GPT-5.6 Sol・Terra・Lunaの違い](/blog/gpt-5-6-sol-terra-luna/)を参照してください。

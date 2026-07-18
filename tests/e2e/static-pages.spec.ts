@@ -82,7 +82,8 @@ test('RSS、sitemap、robotsは公開記事だけを案内する', async ({ requ
 
   const robots = await request.get('/robots.txt');
   expect(robots.ok()).toBe(true);
-  expect(await robots.text()).toContain('Allow: /');
+  expect(robots.headers()['content-type']).toContain('text/plain');
+  expect(await robots.text()).toBe(['User-agent: *', 'Allow: /', 'Sitemap: https://example.invalid/sitemap-index.xml', ''].join('\n'));
   await expect(readFile(new URL('../../public/favicon.svg', import.meta.url), 'utf8')).resolves.toContain('<svg');
 });
 
