@@ -15,6 +15,14 @@ const linkContracts = [
     source: 'chatgpt-codex-plugins-guide',
     targets: ['/blog/chatgpt-work-guide/', '/blog/gpt-5-6-sol-terra-luna/'],
   },
+  {
+    source: 'build-tech-blog-with-astro-2026',
+    targets: ['/blog/terraform-drift-detection/', '/blog/http-query-method-rfc-10008/'],
+  },
+  {
+    source: 'terraform-drift-detection',
+    targets: ['/blog/aws-cloudfront-vpc-origin-outage-2026-07-16/'],
+  },
 ] as const;
 
 async function markdownLinks(id: string): Promise<string[]> {

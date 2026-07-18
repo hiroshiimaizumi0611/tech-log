@@ -9,6 +9,14 @@ const linkContracts = [
     source: '/blog/chatgpt-codex-plugins-guide/',
     targets: ['/blog/chatgpt-work-guide/', '/blog/gpt-5-6-sol-terra-luna/'],
   },
+  {
+    source: '/blog/build-tech-blog-with-astro-2026/',
+    targets: ['/blog/terraform-drift-detection/', '/blog/http-query-method-rfc-10008/'],
+  },
+  {
+    source: '/blog/terraform-drift-detection/',
+    targets: ['/blog/aws-cloudfront-vpc-origin-outage-2026-07-16/'],
+  },
 ] as const;
 
 for (const contract of linkContracts) {
