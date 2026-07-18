@@ -42,7 +42,13 @@ function parseOpeningFrontmatter(markdown: string): Record<string, unknown> {
     throw new Error('Opening frontmatter must be a YAML mapping');
   }
 
-  return metadata as Record<string, unknown>;
+  const publishedTarget = metadata as Record<string, unknown>;
+
+  if (publishedTarget.draft === true) {
+    throw new Error('Published target must not be a draft');
+  }
+
+  return publishedTarget;
 }
 
 describe('SEO contextual internal links', () => {
@@ -67,8 +73,8 @@ describe('SEO contextual internal links', () => {
 });
 
 describe('opening frontmatter', () => {
-  it('インラインコメント付きのdraft: trueをbooleanとして読み取る', () => {
-    expect(parseOpeningFrontmatter('---\ndraft: true # 非公開\n---\n本文')).toMatchObject({ draft: true });
+  it('インラインコメント付きのdraft: trueを公開対象として拒否する', () => {
+    expect(() => parseOpeningFrontmatter('---\ndraft: true # 非公開\n---\n本文')).toThrow('Published target must not be a draft');
   });
 
   it.each([
