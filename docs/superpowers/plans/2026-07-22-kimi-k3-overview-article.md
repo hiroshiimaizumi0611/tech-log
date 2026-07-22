@@ -157,7 +157,7 @@ git commit -m "test: add Kimi K3 official visual contract"
 既存importへ次を加える。
 
 ```ts
-import type { Definition, Image, Link, LinkReference } from 'mdast';
+import type { Definition, Html, Image, ImageReference, Link, LinkReference } from 'mdast';
 import remarkParse from 'remark-parse';
 import { unified } from 'unified';
 import { visit } from 'unist-util-visit';
@@ -183,10 +183,17 @@ function splitArticle(markdown: string): { frontmatter: string; body: string } {
   return { frontmatter: match[1], body: markdown.slice(match[0].length).replace(/\r\n?/g, '\n') };
 }
 
-function inspectMarkdown(markdown: string): { images: Array<Pick<Image, 'alt' | 'url'>>; links: string[] } {
+function inspectMarkdown(markdown: string): {
+  inlineImages: Array<Pick<Image, 'alt' | 'url'>>;
+  imageReferences: Array<Pick<ImageReference, 'alt' | 'identifier'>>;
+  htmlImageCount: number;
+  links: string[];
+} {
   const tree = unified().use(remarkParse).parse(markdown);
   const definitions = new Map<string, string>();
-  const images: Array<Pick<Image, 'alt' | 'url'>> = [];
+  const inlineImages: Array<Pick<Image, 'alt' | 'url'>> = [];
+  const imageReferences: Array<Pick<ImageReference, 'alt' | 'identifier'>> = [];
+  let htmlImageCount = 0;
   const links: string[] = [];
 
   visit(tree, 'definition', (node: Definition) => definitions.set(node.identifier, node.url));
@@ -195,9 +202,15 @@ function inspectMarkdown(markdown: string): { images: Array<Pick<Image, 'alt' | 
     const url = definitions.get(node.identifier);
     if (url) links.push(url);
   });
-  visit(tree, 'image', (node: Image) => images.push({ alt: node.alt, url: node.url }));
+  visit(tree, 'image', (node: Image) => inlineImages.push({ alt: node.alt, url: node.url }));
+  visit(tree, 'imageReference', (node: ImageReference) => {
+    imageReferences.push({ alt: node.alt, identifier: node.identifier });
+  });
+  visit(tree, 'html', (node: Html) => {
+    htmlImageCount += (node.value.match(/<img\b/gi) ?? []).length;
+  });
 
-  return { images, links };
+  return { inlineImages, imageReferences, htmlImageCount, links };
 }
 ```
 
@@ -238,7 +251,6 @@ describe('Kimi K3 overview article', () => {
       'https://www.moonshot.ai/',
       'https://www.kimi.com/blog/kimi-k3',
       'https://www.kimi.com/help/getting-started/overview',
-      'https://www.kimi.com/resources/kimi-k3-pricing',
       'https://artificialanalysis.ai/models/kimi-k3',
     ]) {
       expect(links).toContain(url);
@@ -250,7 +262,6 @@ describe('Kimi K3 overview article', () => {
       '100万トークン',
       'Intelligence Index',
       '57',
-      '187モデル中4位',
       '35.2 tokens/s',
       '$3.00',
       '$15.00',
@@ -269,14 +280,17 @@ describe('Kimi K3 overview article', () => {
 
   it('uses exactly one attributed official image and no benchmark screenshot', async () => {
     const { body } = splitArticle(await readFile(articleUrl, 'utf8'));
-    const { images } = inspectMarkdown(body);
+    const { htmlImageCount, imageReferences, inlineImages } = inspectMarkdown(body);
 
-    expect(images).toEqual([
+    expect(inlineImages).toEqual([
       {
         alt: 'Kimi公式が公開したKimi K3の発表ビジュアル',
         url: '../../assets/blog/kimi-k3-official-hero.webp',
       },
     ]);
+    expect(imageReferences).toEqual([]);
+    expect(htmlImageCount).toBe(0);
+    expect(inlineImages.length + imageReferences.length + htmlImageCount).toBe(1);
     expect(body).toMatch(
       /Kimi K3の公式発表ビジュアル[^\n]*出典[^\n]*\[Kimi K3公式発表\]\(https:\/\/www\.kimi\.com\/blog\/kimi-k3\)/,
     );
@@ -339,7 +353,7 @@ featured: true
 
 1. 「Kimi K3はMoonshot AIの最新モデル」では、発表日、開発元、Kimi製品群での位置づけを書く。
 2. 「大規模な情報を扱うための設計が目立つ」を最も厚くし、2.8兆パラメータ、Mixture of Expertsで16/896 expertを有効化すること、Kimi Delta Attention、Attention Residuals、100万トークン、画像入力を平易に説明する。パラメータ数だけで性能は決まらないと補足する。
-3. 「第三者評価では知能が高く、速度と料金には弱点がある」へ、設計書の4行の比較表を置く。57、187モデル中4位、35.2 tokens/s、入力$3.00、出力$15.00を2026年7月22日時点の値として記載する。開発元の自己評価とは別であること、単一指標は実務能力のすべてを表さないことを書く。
+3. 「第三者評価では知能が高く、速度と料金には弱点がある」へ、設計書の4行の比較表を置く。Intelligence Index 57を2026年7月22日時点で高い評価を示すスコアとして記載し、35.2 tokens/s、入力$3.00、出力$15.00も同日時点の値として記載する。開発元の自己評価とは別であること、単一指標は実務能力のすべてを表さないことを書く。
 4. 「長いコードや資料を扱う仕事が有力な用途になる」では、公式が挙げる長時間のコーディング、知識作業、推論を紹介し、大規模コード、長い資料、複数段階の調査は仕様から導いた筆者の整理だと示す。
 5. 「料金と利用条件は使う場所によって異なる」では、Kimi.com、Kimi Work、Kimi Code、Kimi APIを紹介する。API料金はキャッシュヒット入力$0.30、通常入力$3.00、出力$15.00／100万トークンとする。会員プランの細かな料金表は転載しない。
 6. 「『オープン』の現状には注意が必要」では、公式の`open 3T-class model`という表現と、7月22日時点でフルウェイト未公開、7月27日までに公開予定という事実を隣接させる。すでにローカル実行できるとは書かない。
@@ -353,7 +367,6 @@ featured: true
 https://www.moonshot.ai/
 https://www.kimi.com/blog/kimi-k3
 https://www.kimi.com/help/getting-started/overview
-https://www.kimi.com/resources/kimi-k3-pricing
 https://artificialanalysis.ai/models/kimi-k3
 ```
 
@@ -395,7 +408,7 @@ Expected: findingごとに「修正」または「文脈上残す」を判断で
 
 - [ ] **Step 3: 数値と公開状態を再照合する**
 
-設計書の5出典を開き、本文が次を満たすか確認する。
+設計書の4出典を開き、本文が次を満たすか確認する。
 
 - Kimi公式の主張とArtificial Analysisの測定を別の段落で扱っている。
 - Artificial Analysisの数値を2026年7月22日時点と明示している。

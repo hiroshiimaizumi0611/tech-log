@@ -41,7 +41,7 @@ Artificial Analysisの2026年7月22日時点の測定値を、簡潔な表で示
 
 | 指標 | Kimi K3の値 | 読み方 |
 | --- | ---: | --- |
-| Intelligence Index | 57 | 同ページ掲載時点で187モデル中4位 |
+| Intelligence Index | 57 | 2026年7月22日時点で高い評価を示すスコア |
 | 出力速度 | 35.2 tokens/s | 比較対象の中央値78.5 tokens/sを下回る |
 | 入力料金 | $3.00 / 100万トークン | 比較対象の中央値$1.75より高い |
 | 出力料金 | $15.00 / 100万トークン | 比較対象の中央値$9.00より高い |
@@ -75,9 +75,8 @@ Kimi公式のベンチマーク画像とArtificial Analysisのグラフ画像は
 主要な事実は次の一次情報と第三者測定に結び付ける。
 
 - [Moonshot AI公式サイト](https://www.moonshot.ai/)
-- [Kimi K3公式発表](https://www.kimi.com/fr-fr/blog/kimi-k3)
+- [Kimi K3公式発表](https://www.kimi.com/blog/kimi-k3)
 - [Kimi Help Center: Kimi overview](https://www.kimi.com/help/getting-started/overview)
-- [Kimi K3公式料金解説](https://www.kimi.com/resources/kimi-k3-pricing)
 - [Artificial Analysis: Kimi K3](https://artificialanalysis.ai/models/kimi-k3)
 
 公開前に各ページを再確認し、数値が変化している場合も記事には「2026年7月22日時点」の値を使う。取得時点が異なる数値を混在させない。
