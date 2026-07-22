@@ -88,7 +88,7 @@ describe('Kimi K3 overview article', () => {
     expect(metadata).toMatchObject({
       title: 'Kimi K3とは？2.8兆パラメータの新AIモデルを公式情報とベンチマークから解説',
       description:
-        'Moonshot AIが発表したKimi K3とは何か。2.8兆パラメータ、100万トークンのコンテキスト、得意分野、料金、Artificial Analysisによる第三者評価を公式情報に基づいて解説します。',
+        'Moonshot AIが発表したKimi K3とは何か。2.8兆パラメータ、100万トークンのコンテキスト、得意分野、料金を公式情報とArtificial Analysisの第三者評価をもとに解説します。',
       publishedAt: '2026-07-22',
       category: 'AI',
       tags: ['Kimi', 'Moonshot AI', '生成AI', 'AIモデル'],
@@ -118,7 +118,7 @@ describe('Kimi K3 overview article', () => {
       '100万トークン',
       'Intelligence Index',
       '57',
-      '35.2 tokens/s',
+      '37.3 tokens/s',
       '$0.30',
       '$3.00',
       '$15.00',
@@ -141,9 +141,11 @@ describe('Kimi K3 overview article', () => {
 
     const evaluationSection = h2Section(body, '第三者評価では知能が高く、速度と料金には弱点がある');
     expect(inspectMarkdown(evaluationSection).links).toContain('https://artificialanalysis.ai/models/kimi-k3');
-    for (const fact of ['Intelligence Index', '57', '35.2 tokens/s', '$3.00', '$15.00']) {
+    for (const fact of ['Intelligence Index', '57', '37.3 tokens/s', '79.0 tokens/s', '$3.00', '$15.00']) {
       expect(evaluationSection).toContain(fact);
     }
+    expect(evaluationSection).toContain('キャッシュミス入力料金');
+    expect(evaluationSection).toContain('同価格帯の推論モデル');
     expect(evaluationSection).toMatch(/単一の指標[^。]*(?:決まら|表さ)/);
 
     const pricingSection = h2Section(body, '料金と利用条件は使う場所によって異なる');

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Kimi K3を初めて知った読者に向け、公式情報とArtificial Analysisの測定結果を区別して説明する日本語記事を公開可能な状態まで作る。
+**Goal:** Kimi K3を初めて知った読者に向け、公式情報とArtificial Analysisの測定・整理結果を区別して説明する日本語記事を公開可能な状態まで作る。
 
 **Architecture:** Astro Content CollectionへMarkdown記事を1件追加し、Kimi公式発表のヒーロー画像をローカルのWebPとして1点だけ保存する。記事固有のVitestでメタデータ、見出し、出典、ベンチマーク値、画像点数、誇張を避ける注意書きを固定し、既存の一覧・SEO・ビルド処理はそのまま利用する。
 
@@ -81,6 +81,7 @@ Expected: 1番目のコマンドがexit code 0、`git status --short`は空。�
 ### Task 1: 公式画像を保存し、画像契約をテストする
 
 **Files:**
+
 - Create: `src/assets/blog/kimi-k3-official-hero.webp`
 - Create: `tests/unit/kimi-k3-article.test.ts`
 
@@ -149,6 +150,7 @@ git commit -m "test: add Kimi K3 official visual contract"
 ### Task 2: 記事契約をテストで固定する
 
 **Files:**
+
 - Modify: `tests/unit/kimi-k3-article.test.ts`
 - Test: `tests/unit/kimi-k3-article.test.ts`
 
@@ -226,7 +228,7 @@ describe('Kimi K3 overview article', () => {
     expect(metadata).toMatchObject({
       title: 'Kimi K3とは？2.8兆パラメータの新AIモデルを公式情報とベンチマークから解説',
       description:
-        'Moonshot AIが発表したKimi K3とは何か。2.8兆パラメータ、100万トークンのコンテキスト、得意分野、料金、Artificial Analysisによる第三者評価を公式情報に基づいて解説します。',
+        'Moonshot AIが発表したKimi K3とは何か。2.8兆パラメータ、100万トークンのコンテキスト、得意分野、料金を公式情報とArtificial Analysisの第三者評価をもとに解説します。',
       publishedAt: '2026-07-22',
       category: 'AI',
       tags: ['Kimi', 'Moonshot AI', '生成AI', 'AIモデル'],
@@ -262,7 +264,7 @@ describe('Kimi K3 overview article', () => {
       '100万トークン',
       'Intelligence Index',
       '57',
-      '35.2 tokens/s',
+      '37.3 tokens/s',
       '$3.00',
       '$15.00',
       '2026年7月22日時点',
@@ -312,6 +314,7 @@ Expected: 画像テストだけがPASSし、記事テストは`src/content/blog/
 ### Task 3: Kimi K3入門記事を書く
 
 **Files:**
+
 - Create: `src/content/blog/kimi-k3-overview.md`
 - Modify: `tests/unit/kimi-k3-article.test.ts`（事実に反しない範囲で正規表現だけを調整する場合）
 
@@ -322,7 +325,7 @@ Expected: 画像テストだけがPASSし、記事テストは`src/content/blog/
 ```yaml
 ---
 title: Kimi K3とは？2.8兆パラメータの新AIモデルを公式情報とベンチマークから解説
-description: Moonshot AIが発表したKimi K3とは何か。2.8兆パラメータ、100万トークンのコンテキスト、得意分野、料金、Artificial Analysisによる第三者評価を公式情報に基づいて解説します。
+description: Moonshot AIが発表したKimi K3とは何か。2.8兆パラメータ、100万トークンのコンテキスト、得意分野、料金を公式情報とArtificial Analysisの第三者評価をもとに解説します。
 publishedAt: '2026-07-22'
 category: AI
 tags:
@@ -353,7 +356,7 @@ featured: true
 
 1. 「Kimi K3はMoonshot AIの最新モデル」では、発表日、開発元、Kimi製品群での位置づけを書く。
 2. 「大規模な情報を扱うための設計が目立つ」を最も厚くし、2.8兆パラメータ、Mixture of Expertsで16/896 expertを有効化すること、Kimi Delta Attention、Attention Residuals、100万トークン、画像入力を平易に説明する。パラメータ数だけで性能は決まらないと補足する。
-3. 「第三者評価では知能が高く、速度と料金には弱点がある」へ、設計書の4行の比較表を置く。Intelligence Index 57を2026年7月22日時点で高い評価を示すスコアとして記載し、35.2 tokens/s、入力$3.00、出力$15.00も同日時点の値として記載する。開発元の自己評価とは別であること、単一指標は実務能力のすべてを表さないことを書く。
+3. 「第三者評価では知能が高く、速度と料金には弱点がある」へ、設計書の4行の比較表を置く。2026年7月22日（公開前最終確認時点）の値として、Intelligence Index 57はArtificial Analysis独自の複合評価、37.3 tokens/sはKimi APIでの速度測定、キャッシュミス入力$3.00と出力$15.00は同ページが報告するKimi API価格として分けて記載する。速度と料金は、同価格帯の推論モデルにおける中央値79.0 tokens/sとの比較であることも示す。開発元の自己評価とは別であること、単一指標は実務能力のすべてを表さないことを書く。
 4. 「長いコードや資料を扱う仕事が有力な用途になる」では、公式が挙げる長時間のコーディング、知識作業、推論を紹介し、大規模コード、長い資料、複数段階の調査は仕様から導いた筆者の整理だと示す。
 5. 「料金と利用条件は使う場所によって異なる」では、Kimi.com、Kimi Work、Kimi Code、Kimi APIを紹介する。API料金はキャッシュヒット入力$0.30、通常入力$3.00、出力$15.00／100万トークンとする。会員プランの細かな料金表は転載しない。
 6. 「『オープン』の現状には注意が必要」では、公式の`open 3T-class model`という表現と、7月22日時点でフルウェイト未公開、7月27日までに公開予定という事実を隣接させる。すでにローカル実行できるとは書かない。
@@ -390,6 +393,7 @@ git commit -m "docs: add Kimi K3 overview article"
 ### Task 4: 日本語と事実関係を仕上げる
 
 **Files:**
+
 - Modify: `src/content/blog/kimi-k3-overview.md`
 
 - [ ] **Step 1: natural-japaneseで静的検査する**
@@ -437,6 +441,7 @@ git commit -m "docs: refine Kimi K3 article wording"
 ### Task 5: サイト全体で検証する
 
 **Files:**
+
 - Modify: `src/content/blog/kimi-k3-overview.md`（整形または検証で問題が出た場合だけ）
 - Modify: `tests/unit/kimi-k3-article.test.ts`（事実に反しないテスト修正が必要な場合だけ）
 
