@@ -24,6 +24,7 @@ const articles = posts.map(toArticleView);
 
 <ListingLayout
   title={`${category.label}の記事`}
+  seoTitle={`${category.label}カテゴリーの記事一覧`}
   description={`カテゴリー「${category.label}」の記事です。`}
   {articles}
   count={posts.length}

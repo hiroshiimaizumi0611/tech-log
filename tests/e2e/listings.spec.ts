@@ -33,6 +33,7 @@ test('記事一覧は公開日の降順で公開記事を表示する', async ({
 test('タグ一覧の全リンクが共有ルートの詳細へ解決される', async ({ page, request }) => {
   await page.goto('/tags/');
 
+  await expect(page).toHaveTitle('タグ一覧 | テックログ');
   await expect(page.getByRole('heading', { level: 1, name: 'タグ一覧' })).toBeVisible();
   const tagLinks = page.locator('main [data-tag-index] a');
   expect(await tagLinks.count()).toBeGreaterThan(0);
@@ -60,11 +61,16 @@ test('タグ一覧の全リンクが共有ルートの詳細へ解決される',
     '2026年7月AWS CloudFront障害を解説｜VPCオリジンとは？回避策まで整理',
     'Terraformで手動変更されたリソースを追従する方法',
   ]);
+
+  await page.goto('/tags/ai/');
+  await expect(page).toHaveTitle('AIタグの記事一覧 | テックログ');
+  await expect(page.getByRole('heading', { level: 1, name: 'AIの記事' })).toBeVisible();
 });
 
 test('カテゴリー一覧は0件を含む6種類を表示し、全詳細ルートを生成する', async ({ page, request }) => {
   await page.goto('/categories/');
 
+  await expect(page).toHaveTitle('カテゴリー一覧 | テックログ');
   await expect(page.getByRole('heading', { level: 1, name: 'カテゴリー一覧' })).toBeVisible();
   const categoryLinks = page.locator('main [data-category-index] a');
   await expect(categoryLinks).toHaveCount(6);
@@ -87,6 +93,28 @@ test('カテゴリー一覧は0件を含む6種類を表示し、全詳細ルー
   await expect(page.locator('main [data-article-card]').getByRole('heading')).toHaveText([
     '2026年7月AWS CloudFront障害を解説｜VPCオリジンとは？回避策まで整理',
     'Terraformで手動変更されたリソースを追従する方法',
+  ]);
+
+  await page.goto('/categories/ai/');
+  await expect(page).toHaveTitle('AIカテゴリーの記事一覧 | テックログ');
+  await expect(page.getByRole('heading', { level: 1, name: 'AIの記事' })).toBeVisible();
+});
+
+test('カテゴリーとタグのSEOタイトルはサイト名を一度だけ含み、用途を区別する', async ({ request }) => {
+  const paths = ['/categories/', '/tags/', '/categories/ai/', '/tags/ai/'] as const;
+  const titles = await Promise.all(
+    paths.map(async (path) => {
+      const response = await request.get(path);
+      expect(response.status(), path).toBe(200);
+      return (await response.text()).match(/<title>([^<]+)<\/title>/)?.[1];
+    }),
+  );
+
+  expect(titles).toEqual([
+    'カテゴリー一覧 | テックログ',
+    'タグ一覧 | テックログ',
+    'AIカテゴリーの記事一覧 | テックログ',
+    'AIタグの記事一覧 | テックログ',
   ]);
 });
 
