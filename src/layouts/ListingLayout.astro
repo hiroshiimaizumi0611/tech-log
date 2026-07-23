@@ -8,6 +8,7 @@ import type { PaginationModel } from '@/lib/content/pagination';
 
 interface Props {
   title: string;
+  seoTitle?: string;
   description: string;
   articles: readonly ArticleView[];
   count?: number;
@@ -21,6 +22,7 @@ interface Props {
 
 const {
   title,
+  seoTitle = title,
   description,
   articles,
   count = articles.length,
@@ -30,7 +32,7 @@ const {
 } = Astro.props;
 ---
 
-<BaseLayout title={`${title} | テックログ`} {description}>
+<BaseLayout title={seoTitle} {description}>
   <Container class="listing-shell">
     <header class="listing-header">
       <p class="eyebrow">INDEX</p>

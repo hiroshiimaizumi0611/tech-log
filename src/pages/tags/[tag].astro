@@ -20,6 +20,7 @@ const articles = tagPage.posts.map(toArticleView);
 
 <ListingLayout
   title={`${tagPage.label}の記事`}
+  seoTitle={`${tagPage.label}タグの記事一覧`}
   description={`タグ「${tagPage.label}」が付いた記事です。`}
   {articles}
   count={tagPage.count}
