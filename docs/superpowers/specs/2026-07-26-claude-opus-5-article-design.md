@@ -24,6 +24,8 @@ Anthropicの公式発表と公式ドキュメントを一次情報とし、Artif
 - カテゴリー: `AI`
 - タグ: `Claude`、`Anthropic`、`AIモデル`、`Claude Code`
 - 注目記事: `featured: true`
+- ヒーロー画像: `heroImage: ../../assets/blog/claude-opus-5-evolution.webp`
+- OGP画像: `ogImage: ../../assets/blog/claude-opus-5-evolution.webp`
 - メタディスクリプション: `Claude Opus 5とは何か。Opus 4.8から強化された推論・コーディング性能、料金、ベンチマーク、Fable 5・Sonnet 5との違い、API移行時の注意点を解説します。`
 
 ## 主メッセージ
@@ -69,10 +71,12 @@ API・機能面では、次の差分を比較表にする。
 | effort | 利用可能 | `low`から`max`の5段階が結果へ強く影響 | まず`high`を基準に実測して調整する |
 | thinkingの無効化 | effortと独立 | `high`以下でのみ可能 | `xhigh`・`max`と無効化の併用は400エラーになる |
 | プロンプトキャッシュ最小長 | 1,024トークン | 512トークン | 短いプロンプトもキャッシュ対象にしやすい |
-| 会話中のツール変更 | 固定が基本 | キャッシュを保った追加・削除がベータ提供 | 対応ベータヘッダーと仕様を確認する |
-| Fast mode | 利用可能 | 約2.5倍速、基本料金の2倍 | 対応プラットフォームと費用を確認する |
 
 thinkingがデフォルトになったことで、`max_tokens`が思考と最終回答を合わせた出力上限になる点を注意事項として扱う。API移行ではモデルIDだけを変更して終わらせず、既存のトークン上限、thinking、effort、テスト結果を確認する必要がある。
+
+会話中のツール変更はOpus 5の公開と同時に導入されたベータ機能だが、Opus 4.8、Fable 5、Mythos 5でも利用できる。Opus 5固有のモデル能力とは区別する。Fast modeもOpus 4.8とOpus 5の両方に対応し、最大約2.5倍の出力速度、$10 / $50の料金であるため、進化点ではなく継続機能として補足する。
+
+挙動面では、Opus 5はOpus 4.8より標準の回答や文書成果物が長く、エージェント作業中の進捗説明とサブエージェントへの委任も増えやすい。自発的な検証も強いため、旧モデル向けに追加した「最後に必ず検証する」「検証用サブエージェントを使う」といった指示は、過剰な再確認を招く場合がある。これらは能力評価ではなく、既存プロンプトを見直すための挙動差として説明する。
 
 ### 料金と基本仕様はOpus 4.8から据え置き
 
@@ -128,9 +132,12 @@ Sonnet 5には2026年8月31日まで$2 / $10の導入価格があるため、記
 1. モデルIDを`claude-opus-5`へ変更する
 2. thinkingがデフォルトで有効になる前提で`max_tokens`を見直す
 3. `high`を基準にeffortを変え、品質・時間・費用を測る
-4. thinkingを無効にする場合は`high`以下にする
-5. ツール呼び出し、構造化出力、長時間タスクの回帰テストを行う
-6. Bedrock、Google Cloud、Microsoft Foundryでは利用可能な機能差を確認する
+4. thinkingを無効にする場合は`high`以下にし、ツール呼び出しが本文に出る、内部XMLが見えるといった出力上の問題も確認する
+5. 回答の長さ、進捗説明、サブエージェント委任の増加を確認し、必要ならプロンプトで制御する
+6. 旧モデル向けの明示的な検証・再確認指示を外し、過剰検証が起きないか比較する
+7. ツール呼び出し、構造化出力、長時間タスクの回帰テストを行う
+8. Opus 5ではWeb fetchとPriority Tierを利用できないため、依存している処理の代替策を用意する
+9. Bedrock、Google Cloud、Microsoft Foundryでは利用可能な機能差を確認する
 
 会話中のツール変更や自動フォールバックはベータ機能なので、記事内の基本移行コードには組み込まず、存在と確認先だけを紹介する。
 
@@ -148,13 +155,14 @@ Opus 5は、料金と基本的なコンテキスト条件をOpus 4.8から据え
 - オレンジと紫を中心とした発光アクセント
 - 中央に大きく`CLAUDE OPUS 5`
 - `4.8 → 5`の進化が直感的に伝わる、前方へ進む動きのある構図
-- 補助情報として`1M CONTEXT`、`5 EFFORT LEVELS`、`$5 / $25`、`AGENTIC CODING`を短く配置
+- 据え置きの要素は`SAME CORE: 1M CONTEXT / $5 · $25`として一つにまとめる
+- 強化点は`IMPROVED: DEEP REASONING / AGENTIC CODING / EFFORT SCALING`として、据え置き要素より強く見せる
 - 細い光線、粒子、抽象的なコード断片で長時間動くエージェントを表現
 - モバイルのカード表示でも主題が読める文字サイズとコントラスト
 - Anthropicの製品画面や公式ベンチマーク画像は模倣・転載しない
 - 写真調ではなく、テックログのダークUIに合う精密なテクノロジー系グラフィックにする
 
-画像内の日本語は生成崩れを避けるため使わず、英数字だけにする。生成後に文字の誤り、端の欠け、縮小時の可読性を目視確認する。必要なら、背景ビジュアルと文字要素を分けて実装側で重ねる。
+画像内の日本語は生成崩れを避けるため使わず、英数字だけにする。生成後に文字の誤り、端の欠け、縮小時の可読性を目視確認する。必要なら、背景ビジュアルと文字要素を分けて実装側で重ねる。同じ画像をFrontmatterの`heroImage`と`ogImage`へ設定し、本文冒頭にもMarkdown画像として挿入する。
 
 ## 出典
 
@@ -162,7 +170,13 @@ Opus 5は、料金と基本的なコンテキスト条件をOpus 4.8から据え
 
 - [Anthropic: Introducing Claude Opus 5](https://www.anthropic.com/news/claude-opus-5)
 - [Claude Platform Docs: What's new in Claude Opus 5](https://platform.claude.com/docs/en/about-claude/models/whats-new-opus-5)
+- [Claude Platform Docs: What's new in Claude Opus 4.8](https://platform.claude.com/docs/en/about-claude/models/whats-new-claude-4-8)
+- [Claude Platform Docs: Migration guide](https://platform.claude.com/docs/en/about-claude/models/migration-guide)
 - [Claude Platform Docs: Models overview](https://platform.claude.com/docs/en/about-claude/models/overview)
+- [Claude Platform Docs: Effort](https://platform.claude.com/docs/en/build-with-claude/effort)
+- [Claude Platform Docs: Fast mode](https://platform.claude.com/docs/en/build-with-claude/fast-mode)
+- [Claude Platform Docs: Mid-conversation system messages and tool changes](https://platform.claude.com/docs/en/build-with-claude/mid-conversation-system-messages)
+- [Claude Platform Docs: Prompting Claude Opus 5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5)
 - [Artificial Analysis: Claude Opus 5—the new leader in agentic knowledge work](https://artificialanalysis.ai/articles/claude-opus-5-leader-agentic-knowledge-work)
 
 公式発表と公式ドキュメントで表現や数値が異なる場合は、詳細仕様を扱う公式ドキュメントを優先し、記事の取得日を示す。公開前に各ページを再確認し、異なる取得時点の値を混在させない。
