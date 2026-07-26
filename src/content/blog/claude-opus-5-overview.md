@@ -105,7 +105,7 @@ Sonnet 5には2026年8月31日まで、入力$2、出力$10の導入価格が適
 
 基本の変更はモデルIDの差し替えです。[公式の移行ガイド](https://platform.claude.com/docs/en/about-claude/models/migration-guide)も、まず次の変更を案内しています。
 
-```python
+```text
 model = "claude-opus-4-8"  # 変更前
 model = "claude-opus-5"    # 変更後
 ```

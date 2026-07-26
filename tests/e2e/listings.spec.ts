@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 const articleTitles = [
+  'Claude Opus 5とは？Opus 4.8からの進化・料金・性能を分かりやすく解説',
   'Kimi K3とは？2.8兆パラメータの新AIモデルを公式情報とベンチマークから解説',
   '2026年7月AWS CloudFront障害を解説｜VPCオリジンとは？回避策まで整理',
   'HTTP QUERYメソッドとは？GET・POSTとの違いとcurlでの試し方',
@@ -22,9 +23,9 @@ test('記事一覧は公開日の降順で公開記事を表示する', async ({
   await page.goto('/blog/');
 
   await expect(page.getByRole('heading', { level: 1, name: '記事一覧' })).toBeVisible();
-  await expect(page.getByText('9件の記事')).toBeVisible();
+  await expect(page.getByText('10件の記事')).toBeVisible();
   const cards = page.locator('main [data-article-card]');
-  await expect(cards).toHaveCount(9);
+  await expect(cards).toHaveCount(10);
   await expect(cards.getByRole('heading')).toHaveText(articleTitles);
   await expect(page.getByRole('navigation', { name: 'ページネーション' })).toHaveCount(0);
   await expectNoHighImpactAxeViolations(page);
@@ -76,7 +77,7 @@ test('カテゴリー一覧は0件を含む6種類を表示し、全詳細ルー
   await expect(categoryLinks).toHaveCount(6);
   await expect(categoryLinks.filter({ hasText: 'クラウド / AWS' })).toContainText('0件');
   await expect(categoryLinks.filter({ hasText: 'インフラ / IaC' })).toContainText('2件');
-  await expect(categoryLinks.filter({ hasText: 'AI' })).toContainText('5件');
+  await expect(categoryLinks.filter({ hasText: 'AI' })).toContainText('6件');
 
   const hrefs = await categoryLinks.evaluateAll((links) => links.map((link) => link.getAttribute('href') ?? ''));
   for (const href of hrefs) {

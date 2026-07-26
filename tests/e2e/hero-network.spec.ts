@@ -171,7 +171,7 @@ test('navigates through the Featured link while the network is active', async ({
     .getByRole('link', { name: /記事を読む/ })
     .click();
 
-  await expect(page).toHaveURL(/\/blog\/kimi-k3-overview\/$/);
+  await expect(page).toHaveURL(/\/blog\/claude-opus-5-overview\/$/);
   expect(errors).toEqual([]);
 });
 
