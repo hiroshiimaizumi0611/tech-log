@@ -119,6 +119,7 @@ describe('Claude Opus 5 overview article', () => {
     const pricingSection = extractH2Section(body, '料金と基本仕様はOpus 4.8から据え置き');
     const benchmarkSection = extractH2Section(body, 'ベンチマークは公式評価と第三者評価を分けて読む');
     const migrationSection = extractH2Section(body, 'Opus 4.8からAPIを移行するときの確認事項');
+    const summarySection = extractH2Section(body, 'まとめ');
 
     expect(links).toEqual(expect.arrayContaining([...requiredSources]));
 
@@ -155,6 +156,8 @@ describe('Claude Opus 5 overview article', () => {
       .toMatch(
         /コンテキストウィンドウは(?=[^。\n]*入力)(?=[^。\n]*会話履歴)(?=[^。\n]*生成出力)(?=[^。\n]*thinking)(?=[^。\n]*(?:合計|総量|合わせて))[^。\n]*上限/,
       );
+    expect.soft(summarySection).toContain('100万トークンのコンテキストウィンドウ');
+    expect.soft(summarySection).not.toContain('100万トークンの入力枠');
     expect.soft(benchmarkSection).toMatch(/Eloは[^。\n]*高いほど[^。\n]*他モデルとの相対評価[^。\n]*高い[^。\n]*指標/);
     expect.soft(migrationSection).toMatch(/Priority Tierは[^。\n]*APIリクエスト[^。\n]*優先して処理[^。\n]*処理枠/);
 
