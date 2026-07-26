@@ -49,6 +49,12 @@ const { tags } = Astro.props;
     gap: var(--space-3);
   }
 
+  @media (min-width: 70.01rem) {
+    .tag-list {
+      column-gap: var(--space-2);
+    }
+  }
+
   .tag-list :global(.tag-chip) {
     min-block-size: 2rem;
     padding-inline: var(--space-3);

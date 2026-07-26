@@ -110,6 +110,18 @@ test('人気タグを件数付きで最大10件表示する', async ({ page }) =
   await expect(tagLinks.first()).toHaveAttribute('href', /^\/tags\//);
 });
 
+test('デスクトップではフォント幅が変わっても人気タグを1行に保つ', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1200 });
+  await page.addStyleTag({
+    content: '.popular-tags .tag-chip { letter-spacing: 0.02em; }',
+  });
+
+  const tagLinks = page.getByRole('region', { name: '人気のタグ' }).getByRole('link');
+  const topPositions = await tagLinks.evaluateAll((links) => links.map((link) => Math.round(link.getBoundingClientRect().top)));
+
+  expect(new Set(topPositions).size).toBe(1);
+});
+
 test('著者名を表示し根拠のない統計を表示しない', async ({ page }) => {
   const author = page.getByRole('region', { name: '著者プロフィール' });
 
