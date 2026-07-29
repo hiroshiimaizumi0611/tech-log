@@ -5,7 +5,7 @@ const blenderRoomArticleTitle = 'Blenderでラックを並べて3Dサーバー�
 const opusArticleTitle = 'Claude Opus 5とは？Opus 4.8からの進化・料金・性能を分かりやすく解説';
 const kimiArticleTitle = 'Kimi K3とは？2.8兆パラメータの新AIモデルを公式情報とベンチマークから解説';
 
-const latestArticleTitles = [blenderArticleTitle, blenderRoomArticleTitle, opusArticleTitle, kimiArticleTitle] as const;
+const latestArticleTitles = [blenderRoomArticleTitle, blenderArticleTitle, opusArticleTitle, kimiArticleTitle] as const;
 
 const featuredArticleTitle = opusArticleTitle;
 

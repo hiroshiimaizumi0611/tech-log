@@ -45,6 +45,12 @@ describe('blogMetadataSchema', () => {
     expect(result.publishedAt).toEqual(new Date('2024-02-29T00:00:00+09:00'));
   });
 
+  it('accepts a strict ISO datetime with an offset', () => {
+    const result = blogMetadataSchema.parse({ ...validMetadata, publishedAt: '2026-01-02T17:08:00+09:00' });
+
+    expect(result.publishedAt).toEqual(new Date('2026-01-02T17:08:00+09:00'));
+  });
+
   it('accepts a valid Date object unchanged in value', () => {
     const publishedAt = new Date('2026-01-02T00:00:00Z');
     const result = blogMetadataSchema.parse({ ...validMetadata, publishedAt });
@@ -52,12 +58,9 @@ describe('blogMetadataSchema', () => {
     expect(result.publishedAt).toEqual(publishedAt);
   });
 
-  it.each(['2026-02-30', '2026/01/02', 'January 2, 2026', '1', '2026-01-02T00:00:00+09:00'])(
-    'rejects non-strict or invalid calendar date %s',
-    (publishedAt) => {
-      expect(blogMetadataSchema.safeParse({ ...validMetadata, publishedAt }).success).toBe(false);
-    },
-  );
+  it.each(['2026-02-30', '2026/01/02', 'January 2, 2026', '1'])('rejects non-strict or invalid calendar date %s', (publishedAt) => {
+    expect(blogMetadataSchema.safeParse({ ...validMetadata, publishedAt }).success).toBe(false);
+  });
 
   it('rejects an invalid Date object', () => {
     expect(blogMetadataSchema.safeParse({ ...validMetadata, publishedAt: new Date(Number.NaN) }).success).toBe(false);

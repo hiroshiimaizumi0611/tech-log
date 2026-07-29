@@ -1,7 +1,7 @@
 ---
 title: Blender完全初心者がCubeだけでサーバーラックを作る
 description: Blenderを初めて触るインフラ／Webエンジニア向けに、Macのトラックパッドで視点を動かし、Cubeの変形と複製でサーバーラックを1台作る手順を紹介します。
-publishedAt: '2026-07-29'
+publishedAt: '2026-07-29T09:52:32+09:00'
 category: Frontend
 tags:
   - Blender
