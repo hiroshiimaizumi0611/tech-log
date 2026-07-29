@@ -15,7 +15,8 @@
 - 第2回のモデルからGLBを1ファイル書き出している。
 - 床、壁、ラック、サーバーだけがGLBに含まれている。
 - CameraとLightはGLBに含まれていない。
-- 25個のMeshに対応するノードが個別に残っている。
+- デフォルトsceneから到達でき、Meshを参照するノードが25個ある。
+- `meshes`配列にも25個のMeshがあり、25ノードから1対1で参照されている。
 - 14台のサーバー名が`server_01_*`、`server_02_*`の形式で保持されている。
 - 4種類のマテリアルと割り当て先が保持されている。
 - Khronos glTF Validatorでエラーがない。
@@ -43,17 +44,21 @@ models/episode-03-server-room.glb
 
 書き出し設定は次のとおり。
 
-| 項目 | 設定 |
+Blender 5.2.0 LTSのエクスポーターに表示される項目名と状態を、次のように固定する。
+
+| Blender 5.2の項目 | 状態 |
 | --- | --- |
-| 形式 | glTF Binary（`.glb`） |
-| 対象 | 選択したオブジェクトのみ |
-| Mesh | 含める |
-| Material | 含める |
-| Camera | 含めない |
-| Light | 含めない |
-| Animation | 含めない |
-| Draco圧縮 | 使用しない |
-| 座標変換 | Blenderの標準glTF変換 |
+| Format | `glTF Binary (.glb)` |
+| Include > Selected Objects | ON |
+| Include > Cameras | OFF |
+| Include > Punctual Lights | OFF |
+| Transform > +Y Up | ON |
+| Data > Mesh > Apply Modifiers | OFF |
+| Data > Materials | `Export` |
+| Data > Draco Mesh Compression | OFF |
+| Animation | OFF |
+
+`Selected Objects`をONにし、25個のMeshオブジェクトだけを選択することで、CameraとArea Lightを対象外にする。`Cameras`と`Punctual Lights`もOFFにし、設定の意図を画面と学習ログへ残す。
 
 CameraとLightは、第4回でReact Three Fiberのシーンに設定する。BlenderとWebでは画面サイズや操作方法が異なるため、Web側で管理したほうが調整しやすい。
 
@@ -66,17 +71,37 @@ GLB node: server_01_01
 JSON id:  server_01_01
 ```
 
-検証では、次の名前がGLBのノードとして保持されていることを確認する。
+検証では、次の25名がGLBのノード名として重複なく保持され、想定外のMeshノードがないことを確認する。
 
-- `rack_01_frame_*`
-- `rack_02_frame_*`
-- `server_01_01`から`server_01_06`
-- `server_02_01`から`server_02_08`
-- `room_floor`
-- `room_wall_back`
-- `room_wall_left`
+```text
+rack_01_frame_bottom
+rack_01_frame_left
+rack_01_frame_right
+rack_01_frame_top
+rack_02_frame_bottom
+rack_02_frame_left
+rack_02_frame_right
+rack_02_frame_top
+room_floor
+room_wall_back
+room_wall_left
+server_01_01
+server_01_02
+server_01_03
+server_01_04
+server_01_05
+server_01_06
+server_02_01
+server_02_02
+server_02_03
+server_02_04
+server_02_05
+server_02_06
+server_02_07
+server_02_08
+```
 
-ノードを統合する最適化は行わない。25個の形状を個別に選択できる状態を優先する。
+ノードを統合する最適化やGPU instancingは行わない。各サーバーが一意な名前を持つノードであり、各ノードが別々のMeshを参照する状態を優先する。
 
 ## 5. 基本マテリアルは共有し、状態色はReactで設定する
 
@@ -89,12 +114,7 @@ GLBには、第2回で作成した4種類のマテリアルを含める。
 
 14台のサーバーは`mat_server_gray`を共有したまま書き出す。Blender側でサーバーごとにマテリアルを複製すると、GLB内に同じ内容のマテリアルが増えるためである。
 
-React側で共有マテリアルの色を直接変更すると、同じマテリアルを使うサーバーがまとめて変色する可能性がある。第4回では読み込み後に各サーバーのマテリアルを複製し、監視状態に応じて個別に色を設定する。
-
-```ts
-server.material = server.material.clone();
-server.material.color.set(statusColor);
-```
+React側で共有マテリアルの色を直接変更すると、同じマテリアルを使うサーバーがまとめて変色する可能性がある。第4回では読み込み後に各サーバーのマテリアルを複製し、監視状態に応じて個別に色を設定する。第3回では方針の説明にとどめ、Reactの実装コードは載せない。
 
 第3回の検証では、サーバーが共有マテリアルを使っていることも記録する。形状と基本色はBlender、動的な状態色はReactという役割分担にする。
 
@@ -104,38 +124,63 @@ GLBは3段階で検証する。
 
 ### 6.1 形式の検証
 
-Khronos glTF Validatorを使い、glTF 2.0として解釈できることを確認する。エラーは0件を完成条件とし、警告が出た場合は内容を確認して学習ログへ残す。
+Khronos Groupの`gltf-validator` npmパッケージ`2.0.0-dev.3.10`を固定して使い、glTF 2.0として解釈できることを確認する。3D制作リポジトリへNode.js用の実行スクリプトを置き、JSONレポートを次の場所へ保存する。
+
+```text
+reports/episode-03-server-room.validator.json
+```
+
+Validatorの`numErrors`が0であることを完成条件とする。警告が出た場合は、警告コード、対象、採用または修正の判断理由を学習ログへ記録する。ブラウザ版Validatorは補助確認に使えるが、合否判定と保存レポートは固定バージョンのローカル実行を正とする。
 
 ### 6.2 React向け構造の検証
 
-`scripts/verify_episode_03.py`を追加し、GLBのJSONチャンクを読み取って次を確認する。
+`scripts/verify_episode_03.py`を追加し、GLBのJSONチャンクを読み取る。検証では`scenes[scene].nodes`のルートだけでなく、`children`を再帰的にたどり、デフォルトsceneから到達できるノードを対象にする。
 
 - GLB 2.0である。
-- シーン内に想定した25個の形状ノードがある。
-- サーバーノードが14個ある。
-- 必須のオブジェクト名がすべて存在する。
+- Meshを参照するノードがちょうど25個あり、想定した25名と完全一致する。
+- 25個のノード名がグローバルに一意である。
+- `meshes`配列がちょうど25個あり、25ノードが別々のMeshを参照する。
+- サーバーノードが14個あり、想定した14個のID集合と完全一致する。
 - `.001`形式の名前が残っていない。
-- 4種類のマテリアルが存在する。
-- サーバーに`mat_server_gray`が割り当てられている。
-- Cameraが存在しない。
-- Light用の拡張が存在しない。
-- Animationが存在しない。
+- `materials`配列に4種類のマテリアルがあり、想定外のマテリアルがない。
+- 各形状ノードについて、`node.mesh`から`meshes[meshIndex]`を参照できる。
+- 各Meshは単一のprimitiveを持ち、その`primitive.material`から想定したマテリアルを参照できる。
+- 14個のサーバーノードすべてが`mat_server_gray`を参照する。
+- `cameras`が存在しないか空であり、全ノードに`camera`プロパティがない。
+- `animations`が存在しないか空である。
+- `KHR_lights_punctual`が`extensionsUsed`、`extensionsRequired`、トップレベルと各ノードの`extensions`に存在しない。
+- 全primitiveに`KHR_draco_mesh_compression`が存在しない。
 
 この検証は、GLBが壊れていないことだけでなく、第4回で名前によるノード検索ができることを保証する。
 
 ### 6.3 見た目の検証
 
-ブラウザのGLBビューアーへファイルをドラッグ＆ドロップし、次を目視で確認する。
+Khronos glTF Sample Viewer（`https://github.khronos.org/glTF-Sample-Viewer/`）へローカルのGLBをドラッグ＆ドロップし、次を目視で確認する。
 
 - 床、壁、ラック2台、サーバー14台が表示される。
 - 壁、床、ラック、サーバーの色を見分けられる。
 - モデルを回転、ズームできる。
 - 上下や前後が反転していない。
-- ノード名を確認できるビューアーでは、代表として`server_01_01`と`server_02_08`を確認する。
+- Viewer独自の環境光で表示するため、BlenderのArea Lightを使った完成画像と明るさが完全に一致することは求めない。
 
-オンラインビューアーのURLと操作項目は、実施時点で利用可能なものを公式情報から選ぶ。外部サービスへアップロードするのではなく、ブラウザ内でローカルファイルを読み込む方式を優先する。
+Sample Viewerはブラウザ内でローカルファイルを読み込む。サーバーへファイルを保存する操作は行わない。代表ノード名は構造検証スクリプトの出力で`server_01_01`と`server_02_08`を確認し、画面を証跡として残す。
 
 ## 7. 問題は書き出し設定とGLB構造を照合して直す
+
+作業対象は3D制作リポジトリ`/Users/hiroshiimaizumi/Documents/3d-server-room-dashboard`とする。Blenderは第2回と同じ5.2.0 LTSを使う。
+
+基本の再現コマンドは次のとおり。
+
+```sh
+cd /Users/hiroshiimaizumi/Documents/3d-server-room-dashboard
+
+/Applications/Blender.app/Contents/MacOS/Blender \
+  --background blender/episode-02-server-room.blend \
+  --python scripts/verify_episode_02.py
+
+npm run validate:episode-03
+python3 scripts/verify_episode_03.py models/episode-03-server-room.glb
+```
 
 確認時の切り分けは次のとおり。
 
@@ -168,15 +213,16 @@ Codexは次を担当する。
 
 ## 9. 記事画像は書き出しから確認までの5枚に絞る
 
-記事用の画像は次の5枚を基本とする。
+記事用の画像は次の6枚を基本とする。
 
 1. 第2回の完成モデルとOutliner
 2. 25個のMeshだけを選択した状態
 3. GLBの書き出し設定
 4. Validatorの結果
 5. ブラウザビューアーで表示した完成モデル
+6. 構造検証で`server_01_01`と`server_02_08`を確認した結果
 
-ノード名を確認する画面が、完成モデルの画像だけでは伝わらない場合は6枚目として追加する。公開画像はブログ用に軽量化し、設定項目やノード名を読める解像度を保つ。
+公開画像はブログ用に軽量化し、設定項目やノード名を読める解像度を保つ。
 
 記事は丁寧な「です・ます調」で書く。AIに相談しながらBlenderとWeb 3Dの境界を学ぶ流れは残すが、第1回と第2回の導入を長く繰り返さない。
 
@@ -186,9 +232,13 @@ Codexは次を担当する。
 
 ```text
 models/episode-03-server-room.glb
+reports/episode-03-server-room.validator.json
 scripts/verify_episode_03.py
+scripts/validate_episode_03.mjs
 docs/learning-log.md
 README.md
+package.json
+package-lock.json
 ```
 
 検証がすべて完了した時点で`episode-03`タグを付ける。
@@ -217,3 +267,10 @@ src/assets/blog/blender-03-*.png
 - Meshの結合や軽量化
 
 これらは第4回で扱う。第3回では、Reactから個別に扱える名前と構造を保ったGLBを作ることに集中する。
+
+## 12. 参照資料
+
+- [Blender Manual: glTF 2.0](https://docs.blender.org/manual/en/latest/addons/import_export/scene_gltf2.html)
+- [Khronos glTF 2.0 Specification](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html)
+- [KhronosGroup/glTF-Validator](https://github.com/KhronosGroup/glTF-Validator)
+- [Khronos glTF Sample Viewer](https://github.khronos.org/glTF-Sample-Viewer/)
