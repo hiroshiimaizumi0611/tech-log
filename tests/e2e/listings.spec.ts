@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 const articleTitles = [
   'Blender完全初心者がCubeだけでサーバーラックを作る',
+  'Blenderでラックを並べて3Dサーバールームを作る',
   'Claude Opus 5とは？Opus 4.8からの進化・料金・性能を分かりやすく解説',
   'Kimi K3とは？2.8兆パラメータの新AIモデルを公式情報とベンチマークから解説',
   '2026年7月AWS CloudFront障害を解説｜VPCオリジンとは？回避策まで整理',
@@ -24,9 +25,9 @@ test('記事一覧は公開日の降順で公開記事を表示する', async ({
   await page.goto('/blog/');
 
   await expect(page.getByRole('heading', { level: 1, name: '記事一覧' })).toBeVisible();
-  await expect(page.getByText('11件の記事')).toBeVisible();
+  await expect(page.getByText('12件の記事')).toBeVisible();
   const cards = page.locator('main [data-article-card]');
-  await expect(cards).toHaveCount(11);
+  await expect(cards).toHaveCount(12);
   await expect(cards.getByRole('heading')).toHaveText(articleTitles);
   await expect(page.getByRole('navigation', { name: 'ページネーション' })).toHaveCount(0);
   await expectNoHighImpactAxeViolations(page);
