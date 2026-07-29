@@ -56,7 +56,7 @@ Blender 5.2.0 LTSのエクスポーターに表示される項目名と状態を
 | Data > Mesh > Apply Modifiers | OFF |
 | Data > Materials | `Export` |
 | Data > Draco Mesh Compression | OFF |
-| Animation | OFF |
+| Animations | OFF |
 
 `Selected Objects`をONにし、25個のMeshオブジェクトだけを選択することで、CameraとArea Lightを対象外にする。`Cameras`と`Punctual Lights`もOFFにし、設定の意図を画面と学習ログへ残す。
 
@@ -112,6 +112,15 @@ GLBには、第2回で作成した4種類のマテリアルを含める。
 - `mat_rack_dark_gray`
 - `mat_server_gray`
 
+割り当ては次のとおりとする。
+
+| 対象 | 個数 | マテリアル |
+| --- | ---: | --- |
+| `room_floor` | 1 | `mat_floor_gray` |
+| `room_wall_back`、`room_wall_left` | 2 | `mat_wall_light_gray` |
+| `rack_01_frame_*`、`rack_02_frame_*` | 8 | `mat_rack_dark_gray` |
+| `server_01_*`、`server_02_*` | 14 | `mat_server_gray` |
+
 14台のサーバーは`mat_server_gray`を共有したまま書き出す。Blender側でサーバーごとにマテリアルを複製すると、GLB内に同じ内容のマテリアルが増えるためである。
 
 React側で共有マテリアルの色を直接変更すると、同じマテリアルを使うサーバーがまとめて変色する可能性がある。第4回では読み込み後に各サーバーのマテリアルを複製し、監視状態に応じて個別に色を設定する。第3回では方針の説明にとどめ、Reactの実装コードは載せない。
@@ -137,6 +146,8 @@ Validatorの`numErrors`が0であることを完成条件とする。警告が�
 `scripts/verify_episode_03.py`を追加し、GLBのJSONチャンクを読み取る。検証では`scenes[scene].nodes`のルートだけでなく、`children`を再帰的にたどり、デフォルトsceneから到達できるノードを対象にする。
 
 - GLB 2.0である。
+- `scenes`配列が1件で、トップレベルの`scene`がその有効なindexを参照する。
+- `nodes`配列がちょうど25件で、全ノードがデフォルトsceneから到達できる。
 - Meshを参照するノードがちょうど25個あり、想定した25名と完全一致する。
 - 25個のノード名がグローバルに一意である。
 - `meshes`配列がちょうど25個あり、25ノードが別々のMeshを参照する。
@@ -149,7 +160,8 @@ Validatorの`numErrors`が0であることを完成条件とする。警告が�
 - `cameras`が存在しないか空であり、全ノードに`camera`プロパティがない。
 - `animations`が存在しないか空である。
 - `KHR_lights_punctual`が`extensionsUsed`、`extensionsRequired`、トップレベルと各ノードの`extensions`に存在しない。
-- 全primitiveに`KHR_draco_mesh_compression`が存在しない。
+- `KHR_draco_mesh_compression`が`extensionsUsed`、`extensionsRequired`、全primitiveの`extensions`に存在しない。
+- `EXT_mesh_gpu_instancing`が`extensionsUsed`、`extensionsRequired`、全ノードの`extensions`に存在しない。
 
 この検証は、GLBが壊れていないことだけでなく、第4回で名前によるノード検索ができることを保証する。
 
