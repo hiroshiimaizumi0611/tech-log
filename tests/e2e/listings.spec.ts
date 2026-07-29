@@ -2,8 +2,8 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 const articleTitles = [
-  'Blender完全初心者がCubeだけでサーバーラックを作る',
   'Blenderでラックを並べて3Dサーバールームを作る',
+  'Blender完全初心者がCubeだけでサーバーラックを作る',
   'Claude Opus 5とは？Opus 4.8からの進化・料金・性能を分かりやすく解説',
   'Kimi K3とは？2.8兆パラメータの新AIモデルを公式情報とベンチマークから解説',
   '2026年7月AWS CloudFront障害を解説｜VPCオリジンとは？回避策まで整理',

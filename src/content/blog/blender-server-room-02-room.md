@@ -1,7 +1,7 @@
 ---
 title: Blenderでラックを並べて3Dサーバールームを作る
 description: Blender初心者が、第1回で作ったサーバーラックを複製し、床と壁、マテリアル、照明、カメラを加えて3Dサーバールームへ広げる手順を紹介します。
-publishedAt: '2026-07-29'
+publishedAt: '2026-07-29T17:08:45+09:00'
 category: Frontend
 tags:
   - Blender
