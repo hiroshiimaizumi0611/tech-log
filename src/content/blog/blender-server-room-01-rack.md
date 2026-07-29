@@ -6,7 +6,7 @@ category: Frontend
 tags:
   - Blender
   - 3D
-draft: true
+draft: false
 heroImage: ../../assets/blog/blender-01-completed-rack.png
 ---
 
