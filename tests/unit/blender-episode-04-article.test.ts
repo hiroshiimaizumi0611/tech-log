@@ -64,30 +64,37 @@ describe('Blender server room episode four article', () => {
 
   it('explains the React and GLB implementation', () => {
     for (const term of [
-      'public',
       'Vite',
       'React Three Fiber',
       'Drei',
       'useGLTF',
       'OrbitControls',
       'event.object.name',
-      '14台',
       'select',
       'material.clone()',
     ]) {
       expect(body).toContain(term);
     }
+    expect(body).toContain('public/models/server-room.glb');
+    expect(body).toContain('14台分のモックデータ');
     expect(body).toMatch(/第4回[\s\S]{0,80}Blender(?:自体)?は触ら/);
   });
 
+  it('records why AI made the author start learning 3D', () => {
+    expect(body).toMatch(/AI[\s\S]{0,80}3Dへのハードルが以前より下がっていると思い[\s\S]{0,40}Blenderの勉強を始めました/);
+  });
+
   it('records alarm behavior and the limits of the local prototype', () => {
-    for (const term of ['#22C55E', '#EF4444', 'アラーム発生', '正常に戻す', '読み込み中', '読み込み失敗', 'Production build', '500KB']) {
+    for (const term of ['#22C55E', '#EF4444', 'アラーム発生', '正常に戻す']) {
       expect(body).toContain(term);
     }
-    expect(body).toMatch(/AWS[\s\S]{0,100}接続していません/);
-    expect(body).toContain('CloudWatch');
+    expect(body).toMatch(/読み込み中[\s\S]{0,100}「3Dモデルを読み込んでいます」/);
+    expect(body).toMatch(/読み込み失敗[\s\S]{0,100}「3Dモデルを読み込めませんでした」[\s\S]{0,100}`\/models\/server-room\.glb`/);
+    expect(body).toMatch(/AWSやCloudWatch、監視APIには接続していません/);
     expect(body).toMatch(/ローカル(?:の)?state/);
-    expect(body).toMatch(/実際のブラウザ|実ブラウザ/);
+    expect(body).toContain('TypeScriptとViteのProduction buildは成功しました');
+    expect(body).toMatch(/チャンクが500KBを超えるという警告/);
+    expect(body).toMatch(/実ブラウザでも[\s\S]{0,100}を選択し、回転、ズーム、アラーム発生、正常復帰を確認/);
   });
 
   it('updates episode three to describe healthy servers as green', async () => {
