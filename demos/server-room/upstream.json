@@ -1,0 +1,118 @@
+{
+  "schema": "server-room-demo-upstream",
+  "version": 1,
+  "upstream": {
+    "tag": "episode-04-demo",
+    "commit": "13bf472051782ff3373e52b1e312b2b380363bc5"
+  },
+  "files": [
+    {
+      "path": "index.html",
+      "sha256": "21e4a25c5eac59f773bc8b860bb5bb2980993ee2edb132d1dd3ef927d43d437d"
+    },
+    {
+      "path": "public/models/server-room.glb",
+      "sha256": "42114017b88bc45862e598de271ca05ce7df0e3f227197fc65941658794e552a"
+    },
+    {
+      "path": "src/App.css",
+      "sha256": "99b4cf4a4a8b18ddaf0bf24013e84fb4452a6bc9bce0cec509e7848439f4a26f"
+    },
+    {
+      "path": "src/App.test.tsx",
+      "sha256": "dfc1b2a372232fa333e24c69ac4bce8e553678b6a93dbdf3415eedb11e5eea7b"
+    },
+    {
+      "path": "src/App.tsx",
+      "sha256": "db10ced31126b35ea4c61b9f8226720c0702939e2c387352e514c6a6e0b234ed"
+    },
+    {
+      "path": "src/components/ModelErrorBoundary.test.tsx",
+      "sha256": "5df3dd60c3b9ceebddda9547619065a205daa9fed7a79f658ea4d5b33cf45a2e"
+    },
+    {
+      "path": "src/components/ModelErrorBoundary.tsx",
+      "sha256": "278af3ce7f9663da52cd7a37b060b4736f5f548d518bee3034dae967a8eac315"
+    },
+    {
+      "path": "src/components/dashboard/ServerDetailsPanel.test.tsx",
+      "sha256": "a883f94141e0bbbd74a9a3023d3f208a96eb0607bebf8580d42a647397654110"
+    },
+    {
+      "path": "src/components/dashboard/ServerDetailsPanel.tsx",
+      "sha256": "ae53299423364260d4eab52f9fead1ac74bf01113abc0ad39c38c40e7e575d45"
+    },
+    {
+      "path": "src/components/three/ServerRoomCanvas.test.tsx",
+      "sha256": "6418a55d0586d43e77b567a885afc7ea3cf9dd659e88c0d7cec25adb6d27a3ee"
+    },
+    {
+      "path": "src/components/three/ServerRoomCanvas.tsx",
+      "sha256": "693a449c92f36ba358f4d14494e7a0f93020b43b741927f921a396ed6d7a03c6"
+    },
+    {
+      "path": "src/components/three/ServerRoomModel.test.tsx",
+      "sha256": "30cbfb156e2fe4318fbe4988d8fafad8c0c44b5a47b8daad110cee14cce0e784"
+    },
+    {
+      "path": "src/components/three/ServerRoomModel.tsx",
+      "sha256": "ae96310777f0c28519861ab3f40dd8a2f3957d10dbbf48779c946883d1e750ac"
+    },
+    {
+      "path": "src/data/servers.test.ts",
+      "sha256": "cf281b44e912b0a9bc4d9d1bd6541a92c041091e0617aa9f4e57896a361b6d91"
+    },
+    {
+      "path": "src/data/servers.ts",
+      "sha256": "6f87730a396aee30c9d276be3a3c367fd6e0c86488a62dab64f3a4df9bfa591f"
+    },
+    {
+      "path": "src/main.tsx",
+      "sha256": "f93ea76a151de595a8e5bdc8f2744b8eb9bc37f53df2557756763400d6f35852"
+    },
+    {
+      "path": "src/test/setup.ts",
+      "sha256": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de"
+    },
+    {
+      "path": "src/three/serverRoomScene.test.ts",
+      "sha256": "7b3cb76a2a5965963854e2b6bd352394306b119cd1c66ce0984184f415cd01bf"
+    },
+    {
+      "path": "src/three/serverRoomScene.ts",
+      "sha256": "ba35a92a7431856fb80b9c233665fd0adf78939f92505f03892de0f46cfb2a6b"
+    },
+    {
+      "path": "src/types/server.ts",
+      "sha256": "76d6683e818d626560db1daa4ec644952ca35b29009d070aed2dbc841e845a0f"
+    },
+    {
+      "path": "src/utils/modelUrl.test.ts",
+      "sha256": "28c93b9a4b0a2557b5c82add5109e86588dd4e5eb43d2390e678af62508ccd3d"
+    },
+    {
+      "path": "src/utils/modelUrl.ts",
+      "sha256": "dc325a9f0767886a3d994e36155144fd3e13caeb3b3798ea3e31f07d676d1de4"
+    },
+    {
+      "path": "src/utils/objectName.test.ts",
+      "sha256": "a9205f2678d71e96056aaaffa18f3e95be9314f099d5810d54d3e259bbe4eb9e"
+    },
+    {
+      "path": "src/utils/objectName.ts",
+      "sha256": "2d4a31e06bcb43e306e65bb7f181a68229d6c8d69eace14180f021905a79b387"
+    },
+    {
+      "path": "src/utils/statusVisual.test.ts",
+      "sha256": "7993dc0e4b7b6f6725671bb885006c3ffb934e05810b21cf67ed74c9bdc71db2"
+    },
+    {
+      "path": "src/utils/statusVisual.ts",
+      "sha256": "bbf44444f4a51675096a89636845032c5b2a6726b5783093299c3bf4bc207ff2"
+    },
+    {
+      "path": "src/vite-env.d.ts",
+      "sha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5"
+    }
+  ]
+}

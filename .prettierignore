@@ -2,3 +2,7 @@ docs/superpowers/
 .agents/
 tests/e2e/fixtures/.astro/
 tests/e2e/fixtures/.dist/
+demos/server-room/index.html
+demos/server-room/src/
+demos/server-room/public/
+demos/server-room/upstream.json
