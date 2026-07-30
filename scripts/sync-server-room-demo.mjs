@@ -19,6 +19,7 @@ const BLOG_OWNED_CONFIGS = ['vite.config.ts', 'vitest.config.ts', 'tsconfig.json
 const PIN_OVERRIDE_KEYS = ['expectedTag', 'expectedCommit', 'expectedGlbSha256', 'expectedSnapshotSha256', 'contract', 'hooks'];
 const LOCK_NAME = '.server-room-sync.lock';
 const TRANSACTION_NAME = '.server-room-sync-transaction';
+const TOMBSTONE_NAME = '.server-room-sync-tombstone';
 const JOURNAL_STATES = new Set(['prepared', 'backing-up', 'installing', 'installed', 'committed', 'rolling-back', 'restored']);
 
 // Threat boundary: the lock coordinates cooperating sync processes and the journal
@@ -104,6 +105,21 @@ async function syncDirectory(path) {
     await handle.sync();
   } finally {
     await handle.close();
+  }
+}
+
+async function durableRename(source, destination, hooks, label) {
+  await rename(source, destination);
+  hooks?.onRenameDurabilityEvent?.({ type: 'rename', label });
+  const parents = [...new Set([dirname(source), dirname(destination)])];
+  for (const path of parents) {
+    await hooks?.beforeRenameParentFsync?.({ label, path });
+    await syncDirectory(path);
+    hooks?.onRenameDurabilityEvent?.({
+      type: 'parent-fsync',
+      label,
+      path,
+    });
   }
 }
 
@@ -324,6 +340,43 @@ async function fsyncStagedTree(root, hooks) {
   await visit(root);
 }
 
+async function removeTombstone(tombstone, parent, hooks) {
+  await hooks?.beforeTombstoneRemove?.(tombstone);
+  await rm(tombstone, { recursive: true });
+  await hooks?.beforeCleanupParentFsync?.({
+    label: 'tombstone-remove',
+    path: parent,
+  });
+  await syncDirectory(parent);
+}
+
+async function cleanupLeftoverTombstone(parent, hooks) {
+  const tombstone = join(parent, TOMBSTONE_NAME);
+  const stat = await lstat(tombstone).catch(() => undefined);
+  if (!stat) return;
+  if (!stat.isDirectory() || stat.isSymbolicLink()) {
+    throw new Error(`Unsafe tombstone entry; preserving it at ${tombstone}`);
+  }
+  await removeTombstone(tombstone, parent, hooks);
+}
+
+async function tombstoneTransaction(transactionRoot, hooks, { bestEffort = false } = {}) {
+  const parent = dirname(transactionRoot);
+  const tombstone = join(parent, TOMBSTONE_NAME);
+  try {
+    if (await lstat(tombstone).catch(() => undefined)) {
+      throw new Error(`Tombstone path is already occupied: ${tombstone}`);
+    }
+    await durableRename(transactionRoot, tombstone, hooks, 'transaction-to-tombstone');
+    await removeTombstone(tombstone, parent, hooks);
+    return undefined;
+  } catch (error) {
+    if (!bestEffort) throw error;
+    hooks?.onCleanupWarning?.(error);
+    return error;
+  }
+}
+
 async function restoreOldDestination({ destination, transactionRoot, journal, hooks, assertLockHealthy = () => {} }) {
   const backup = join(transactionRoot, 'backup');
   const interrupted = join(transactionRoot, 'interrupted-new');
@@ -343,12 +396,10 @@ async function restoreOldDestination({ destination, transactionRoot, journal, ho
             throw new Error('both destination and interrupted-new exist during rollback');
           }
           assertLockHealthy();
-          await rename(destination, interrupted);
-          await syncDirectory(dirname(destination));
+          await durableRename(destination, interrupted, hooks, 'destination-to-interrupted');
         }
         assertLockHealthy();
-        await rename(backup, destination);
-        await syncDirectory(dirname(destination));
+        await durableRename(backup, destination, hooks, 'backup-to-destination');
         hooks?.afterBackupRestored?.();
       } else if (!destinationExists || (!interruptedExists && !['prepared', 'backing-up', 'rolling-back'].includes(startingState))) {
         throw new Error('old destination backup is missing');
@@ -358,20 +409,18 @@ async function restoreOldDestination({ destination, transactionRoot, journal, ho
         throw new Error('both destination and interrupted-new exist during rollback');
       }
       assertLockHealthy();
-      await rename(destination, interrupted);
-      await syncDirectory(dirname(destination));
+      await durableRename(destination, interrupted, hooks, 'destination-to-interrupted');
     }
     journal = { ...journal, state: 'restored' };
     await writeJournal(transactionRoot, journal, hooks);
     assertLockHealthy();
-    await rm(transactionRoot, { recursive: true });
-    await syncDirectory(dirname(destination));
+    await tombstoneTransaction(transactionRoot, hooks, { bestEffort: true });
   } catch (error) {
     throw new Error(`Demo sync rollback failed; backup retained at ${backup}: ${error.message}`, { cause: error });
   }
 }
 
-async function recoverOrphanTransaction({ destination, transactionRoot, assertLockHealthy }) {
+async function recoverOrphanTransaction({ destination, transactionRoot, hooks, assertLockHealthy }) {
   const stat = await lstat(transactionRoot).catch(() => undefined);
   if (!stat) return;
   if (!stat.isDirectory() || stat.isSymbolicLink()) {
@@ -380,14 +429,14 @@ async function recoverOrphanTransaction({ destination, transactionRoot, assertLo
   const journal = await readJournal(transactionRoot);
   if (journal.state === 'committed' || journal.state === 'restored') {
     assertLockHealthy();
-    await rm(transactionRoot, { recursive: true });
-    await syncDirectory(dirname(destination));
+    await tombstoneTransaction(transactionRoot, hooks);
     return;
   }
   await restoreOldDestination({
     destination,
     transactionRoot,
     journal,
+    hooks,
     assertLockHealthy,
   });
 }
@@ -395,6 +444,7 @@ async function recoverOrphanTransaction({ destination, transactionRoot, assertLo
 async function replaceDirectory({ destination, transactionRoot, stageDestination, hadDestination, hooks, assertLockHealthy }) {
   const backup = join(transactionRoot, 'backup');
   let journal = { state: 'prepared', hadDestination };
+  let committed = false;
   try {
     await writeJournal(transactionRoot, journal, hooks);
     journal = { ...journal, state: 'backing-up' };
@@ -402,25 +452,21 @@ async function replaceDirectory({ destination, transactionRoot, stageDestination
     hooks?.beforeBackup?.();
     if (hadDestination) {
       assertLockHealthy();
-      await rename(destination, backup);
-      await syncDirectory(dirname(destination));
+      await durableRename(destination, backup, hooks, 'destination-to-backup');
     }
 
     journal = { ...journal, state: 'installing' };
     await writeJournal(transactionRoot, journal, hooks);
     hooks?.beforeInstall?.();
     assertLockHealthy();
-    await rename(stageDestination, destination);
-    await syncDirectory(dirname(destination));
+    await durableRename(stageDestination, destination, hooks, 'stage-to-destination');
 
     journal = { ...journal, state: 'installed' };
     await writeJournal(transactionRoot, journal, hooks);
     hooks?.afterInstall?.();
     journal = { ...journal, state: 'committed' };
     await writeJournal(transactionRoot, journal, hooks);
-    assertLockHealthy();
-    await rm(transactionRoot, { recursive: true });
-    await syncDirectory(dirname(destination));
+    committed = true;
   } catch (error) {
     if (error?.simulatedCrash) throw error;
     await restoreOldDestination({
@@ -431,6 +477,10 @@ async function replaceDirectory({ destination, transactionRoot, stageDestination
       assertLockHealthy,
     });
     throw error;
+  }
+  if (committed) {
+    assertLockHealthy();
+    await tombstoneTransaction(transactionRoot, hooks, { bestEffort: true });
   }
 }
 
@@ -452,9 +502,11 @@ async function syncWithContract(options, contract, hooks = {}) {
   const transactionRoot = join(parent, TRANSACTION_NAME);
   const stageDestination = join(transactionRoot, 'stage');
   try {
+    await cleanupLeftoverTombstone(parent, hooks);
     await recoverOrphanTransaction({
       destination,
       transactionRoot,
+      hooks,
       assertLockHealthy: () => heldLock.assertHealthy(),
     });
     const destinationStat = await lstat(destination).catch(() => undefined);
@@ -491,7 +543,9 @@ async function syncWithContract(options, contract, hooks = {}) {
     } catch (error) {
       const journalExists = await lstat(join(transactionRoot, 'journal.json')).catch(() => undefined);
       if (!journalExists && !error?.simulatedCrash) {
-        await rm(transactionRoot, { recursive: true }).catch(() => {});
+        await tombstoneTransaction(transactionRoot, hooks, {
+          bestEffort: true,
+        });
       }
       throw error;
     }
@@ -516,6 +570,7 @@ export async function syncServerRoomDemo(options) {
 export const __testing = Object.freeze({
   syncServerRoomDemo: syncWithContract,
   transactionName: TRANSACTION_NAME,
+  tombstoneName: TOMBSTONE_NAME,
   lockName: LOCK_NAME,
 });
 

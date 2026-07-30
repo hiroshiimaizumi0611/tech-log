@@ -413,6 +413,69 @@ describe('server room demo synchronization', () => {
     });
   });
 
+  test('fsyncs both unique parents after every cross-directory rename', async () => {
+    const fixture = await makeFixture();
+    await syncFixture(fixture);
+    const events: Array<{ type: string; label: string; path?: string }> = [];
+
+    await expect(
+      syncFixture(fixture, {
+        hooks: {
+          onRenameDurabilityEvent(event: { type: string; label: string; path?: string }) {
+            events.push(event);
+          },
+          afterInstall() {
+            throw new Error('force installed rollback');
+          },
+        },
+      }),
+    ).rejects.toThrow('force installed rollback');
+
+    for (const label of [
+      'destination-to-backup',
+      'stage-to-destination',
+      'destination-to-interrupted',
+      'backup-to-destination',
+      'transaction-to-tombstone',
+    ]) {
+      const renameIndex = events.findIndex((event) => event.type === 'rename' && event.label === label);
+      const parentFsyncs = events.filter((event) => event.type === 'parent-fsync' && event.label === label);
+      expect(renameIndex).toBeGreaterThanOrEqual(0);
+      expect(parentFsyncs.length).toBeGreaterThanOrEqual(1);
+      for (const event of parentFsyncs) {
+        expect(events.indexOf(event)).toBeGreaterThan(renameIndex);
+      }
+    }
+  });
+
+  test.each([
+    ['destination-to-backup', 'backing-up'],
+    ['stage-to-destination', 'installing'],
+  ] as const)('keeps journal at %s boundary when %s parent fsync crashes', async (renameLabel, expectedState) => {
+    const fixture = await makeFixture();
+    await syncFixture(fixture);
+    const crash = Object.assign(new Error(`crash during ${renameLabel} fsync`), {
+      simulatedCrash: true,
+    });
+    let fsyncCount = 0;
+    await expect(
+      syncFixture(fixture, {
+        hooks: {
+          beforeRenameParentFsync(event: { label: string }) {
+            if (event.label === renameLabel && ++fsyncCount === 2) throw crash;
+          },
+        },
+      }),
+    ).rejects.toThrow(`crash during ${renameLabel} fsync`);
+    const transaction = join(fixture.blogRoot, 'demos', syncTesting.transactionName);
+    const journal = JSON.parse(await readFile(join(transaction, 'journal.json'), 'utf8'));
+    expect(journal.state).toBe(expectedState);
+
+    await syncFixture(fixture);
+
+    await expect(verifyFixture(fixture)).resolves.toBeDefined();
+  });
+
   test('rejects symlinked destination ancestors without changing the linked directory', async () => {
     const fixture = await makeFixture();
     const outside = join(fixture.root, 'outside');
@@ -451,6 +514,37 @@ describe('server room demo synchronization', () => {
       expect(await treeSnapshot(fixture.destination)).toEqual(before);
     },
   );
+
+  test.each([
+    ['destination-to-interrupted', 'afterInstall'],
+    ['backup-to-destination', 'beforeInstall'],
+  ] as const)('recovers a rolling-back journal when %s parent fsync crashes', async (renameLabel, failureHook) => {
+    const fixture = await makeFixture();
+    await syncFixture(fixture);
+    const crash = Object.assign(new Error(`crash during ${renameLabel} fsync`), {
+      simulatedCrash: true,
+    });
+    let fsyncCount = 0;
+    await expect(
+      syncFixture(fixture, {
+        hooks: {
+          [failureHook]() {
+            throw new Error(`force ${failureHook} rollback`);
+          },
+          beforeRenameParentFsync(event: { label: string }) {
+            if (event.label === renameLabel && ++fsyncCount === 2) throw crash;
+          },
+        },
+      }),
+    ).rejects.toThrow(`crash during ${renameLabel} fsync`);
+    const transaction = join(fixture.blogRoot, 'demos', syncTesting.transactionName);
+    const journal = JSON.parse(await readFile(join(transaction, 'journal.json'), 'utf8'));
+    expect(journal.state).toBe('rolling-back');
+
+    await syncFixture(fixture);
+
+    await expect(verifyFixture(fixture)).resolves.toBeDefined();
+  });
 
   test.each(['prepared', 'backing-up', 'installing', 'installed', 'committed'] as const)(
     'recovers an orphan transaction in journal state %s before the next sync',
@@ -591,6 +685,59 @@ describe('server room demo synchronization', () => {
     const transaction = join(fixture.blogRoot, 'demos', syncTesting.transactionName);
     expect((await lstat(join(transaction, 'backup'))).isDirectory()).toBe(true);
     expect((await lstat(join(transaction, 'journal.json'))).isFile()).toBe(true);
+  });
+
+  test.each(['before-remove', 'journal-deleted', 'rename-parent-fsync', 'remove-parent-fsync'] as const)(
+    'does not roll back committed output when tombstone cleanup fails at %s',
+    async (failurePoint) => {
+      const fixture = await makeFixture();
+      await syncFixture(fixture);
+      const hooks: Record<string, unknown> = {};
+      if (failurePoint === 'before-remove') {
+        hooks.beforeTombstoneRemove = () => {
+          throw new Error('cleanup remove failed');
+        };
+      } else if (failurePoint === 'journal-deleted') {
+        hooks.beforeTombstoneRemove = async (tombstone: string) => {
+          await rm(join(tombstone, 'journal.json'));
+          throw new Error('cleanup crashed after journal deletion');
+        };
+      } else if (failurePoint === 'rename-parent-fsync') {
+        hooks.beforeRenameParentFsync = (event: { label: string }) => {
+          if (event.label === 'transaction-to-tombstone') {
+            throw new Error('cleanup parent fsync failed');
+          }
+        };
+      } else {
+        hooks.beforeCleanupParentFsync = () => {
+          throw new Error('cleanup remove parent fsync failed');
+        };
+      }
+
+      await expect(syncFixture(fixture, { hooks })).resolves.toBeDefined();
+      expect(await lstat(join(fixture.blogRoot, 'demos', syncTesting.transactionName)).catch(() => undefined)).toBeUndefined();
+      const tombstone = join(fixture.blogRoot, 'demos', syncTesting.tombstoneName);
+      if (failurePoint === 'remove-parent-fsync') {
+        expect(await lstat(tombstone).catch(() => undefined)).toBeUndefined();
+      } else {
+        expect((await lstat(tombstone)).isDirectory()).toBe(true);
+      }
+
+      await syncFixture(fixture);
+
+      await expect(verifyFixture(fixture)).resolves.toBeDefined();
+      expect(await lstat(tombstone).catch(() => undefined)).toBeUndefined();
+    },
+  );
+
+  test('preserves an unknown non-directory at the fixed tombstone path', async () => {
+    const fixture = await makeFixture();
+    await mkdir(join(fixture.blogRoot, 'demos'));
+    const tombstone = join(fixture.blogRoot, 'demos', syncTesting.tombstoneName);
+    await writeFile(tombstone, 'unknown\n');
+
+    await expect(syncFixture(fixture)).rejects.toThrow(/unsafe tombstone/i);
+    await expect(readFile(tombstone, 'utf8')).resolves.toBe('unknown\n');
   });
 
   test('does not mutate an existing snapshot when source validation fails', async () => {
