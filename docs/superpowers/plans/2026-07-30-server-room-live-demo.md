@@ -4,7 +4,7 @@
 
 **Goal:** 第4回で作った3Dサーバールームを、ブログと同じドメインの`/demos/server-room/`で読者が操作できるデモとして公開します。
 
-**Architecture:** 3Dリポジトリでサブパス・公開シェル・アクセシビリティ対応を実装し、`episode-04-demo`タグを公開版の原本とします。ブログリポジトリはmanifest付き同期スクリプトで検証済みソースを取り込み、Astroの後にViteで`dist/demos/server-room/`へ追加出力し、同じCloudflare Workerから配信します。
+**Architecture:** ローカルの3Dリポジトリでサブパス・公開シェル・アクセシビリティ対応を実装し、確定commitから公開ファイルを抽出します。ブログリポジトリはmanifest付き同期スクリプトで検証済みソースを取り込み、公開版の正式な保存先として管理します。Astroの後にViteで`dist/demos/server-room/`へ追加出力し、同じCloudflare Workerから配信します。
 
 **Tech Stack:** Blender GLB, React 19, TypeScript 5.9, Three.js, React Three Fiber, Drei, Vite 8, Astro 7, Vitest 4, Testing Library, Playwright 1.61, glTF Validator, Cloudflare Workers Static Assets
 
@@ -17,7 +17,7 @@
 - Worktree: `/Users/hiroshiimaizumi/Documents/3d-server-room-dashboard/.worktrees/episode-04-react-dashboard`
 - 開始点: `episode-04` / `c44b0dba97260f159f0af791338c6bffd5d2f22c`
 - 新ブランチ: `codex/episode-04-live-demo`
-- 完了タグ: `episode-04-demo`
+- 制作来歴のローカルタグ: `episode-04-demo`
 
 ### ブログ
 
@@ -37,7 +37,7 @@ Primary 3D worktreeの既存差分`blender/episode-02-server-room.blend`には�
 - `src/utils/modelUrl.test.ts`: ルートとサブパスのURL契約を検証します。
 - `src/components/three/ServerRoomModel.tsx`: URL注入とモデルready通知を担当します。
 - `src/components/three/ServerRoomCanvas.tsx`: 読み込み状態とカメラ変更通知を担当します。
-- `src/components/ModelErrorBoundary.tsx`: 実際の取得URLをエラー表示へ渡します。
+- `src/components/ModelErrorBoundary.tsx`: 実際の取得URLと失敗通知を扱います。
 - `src/App.tsx`: ready状態とデモ画面の公開用案内を接続します。
 - `src/App.css`: 静的ヘッダー、モバイル案内、状態表示を整えます。
 - `index.html`: robots、canonical、静的な戻るリンク、no-JS案内を追加します。
@@ -64,7 +64,7 @@ Primary 3D worktreeの既存差分`blender/episode-02-server-room.blend`には�
 - `scripts/verify-build.mjs`: デモ成果物とPagefind除外を検証。
 - `scripts/smoke-production.mjs`: 本番のデモHTML、asset、GLB、headerを検証。
 - `tests/unit/deployment.test.ts`: 本番smokeの契約を更新。
-- `public/_headers`: デモパスのセキュリティヘッダー。
+- `public/_headers`: デモパスのセキュリティヘッダーとして新規作成します。
 - `src/content/blog/blender-server-room-04-react-dashboard.md`: 「3Dデモを開く」導線。
 - `tests/unit/blender-episode-04-article.test.ts`: デモリンクの契約。
 - `README.md`: デモ同期、ローカル確認、公開手順。
@@ -106,11 +106,8 @@ git switch -c codex/episode-04-live-demo episode-04
 - [ ] **Step 4: Node 24で基準テストを実行する**
 
 ```bash
-npx -y node@24 --version
-npm run lint
-npm test
-npm run validate:episode-03
-npm run build
+npx -y -p node@24 -c \
+  'node --version && npm run lint && npm test && npm run validate:episode-03 && npm run build'
 ```
 
 Expected: Python 36件、Vitest 48件、GLB errors 0 / warnings 0、build成功です。500KB超のchunk警告は記録します。
@@ -146,7 +143,7 @@ describe('serverRoomModelUrl', () => {
 })
 ```
 
-App testには、ErrorBoundaryが同じURLを表示する契約を追加します。
+App testには、ErrorBoundaryが同じURLを表示し、失敗通知でloading表示を終える契約を追加します。
 
 - [ ] **Step 2: REDを確認する**
 
@@ -167,7 +164,7 @@ export function serverRoomModelUrl(baseUrl: string): string {
 }
 ```
 
-`App`で`serverRoomModelUrl(import.meta.env.BASE_URL)`を一度作り、`ServerRoomCanvas`と`ModelErrorBoundary`へ渡します。`ServerRoomModel`は文字列propを`useGLTF`へ渡し、ErrorBoundaryは同じ文字列を`code`内に表示します。
+`App`で`serverRoomModelUrl(import.meta.env.BASE_URL)`を一度作り、`ServerRoomCanvas`と`ModelErrorBoundary`へ渡します。`ServerRoomModel`は文字列propを`useGLTF`へ渡し、ErrorBoundaryは同じ文字列を`code`内に表示します。ErrorBoundaryには`modelUrl`と`onError`を明示的なpropsとして追加し、`componentDidCatch`から失敗を一度通知します。
 
 - [ ] **Step 4: GREENを確認する**
 
@@ -198,9 +195,9 @@ git commit -m "feat: resolve the server room model from the app base"
 
 - [ ] **Step 1: 失敗テストを書く**
 
-App testで初期表示に`role="status"`の「3Dモデルを読み込んでいます」があり、canvas bridgeの`onReady`後に「3Dモデルを読み込みました」へ変わることを検証します。
+App testで初期表示に`role="status"`の「3Dモデルを読み込んでいます」があり、canvas bridgeの`onReady`後に「3Dモデルを読み込みました」へ変わることを検証します。`onError`後はloading statusが消え、`role="alert"`とbase付きURLだけが残ることも検証します。
 
-Canvas testではOrbitControlsの`onChange`を呼び、ラッパーの`data-camera-change-count`が`0`から`1`へ増えることを検証します。
+Canvas testでは`@react-three/fiber`の`Canvas`をchildrenを返すcomponent、Dreiの`Html`をchildrenを返すcomponent、`OrbitControls`を受け取った`onChange`を公開するtest double、`ServerRoomModel`をready通知だけ行うtest doubleへmockします。OrbitControls mockの`onChange`を呼び、ラッパーの`data-camera-change-count`が`0`から`1`へ増えることを検証します。WebGLは起動しません。
 
 - [ ] **Step 2: REDを確認する**
 
@@ -214,7 +211,7 @@ Expected: ready文言とdata属性がないため失敗します。
 
 `ServerRoomModel`へ`onReady: () => void`を追加し、prepared sceneがcommitされた後のeffectで一度通知します。既知のrender破棄時のresource leakを避けるため、scene準備とcleanupの所有関係も同じeffectへ寄せるか、commitされなかったrenderで生成物を残さない構成にします。
 
-`App`は`modelState: 'loading' | 'ready'`を持ち、次を表示します。
+`App`は`modelState: 'loading' | 'ready' | 'error'`を持ち、loadingとreadyのときだけstatusを表示します。
 
 ```tsx
 <p className="model-status" role="status" aria-live="polite">
@@ -223,6 +220,8 @@ Expected: ready文言とdata属性がないため失敗します。
     : '3Dモデルを読み込んでいます'}
 </p>
 ```
+
+error時はこの`p`を描画せず、ErrorBoundaryのalertだけを表示します。
 
 - [ ] **Step 4: カメラ変更契約を実装する**
 
@@ -268,7 +267,7 @@ git commit -m "feat: expose model and camera readiness"
 
 - [ ] **Step 1: HTML契約の失敗テストを書く**
 
-`index.html`を読み、次を検証します。
+`index.html`をJSDOMで読み、次を検証します。
 
 ```ts
 expect(html).toContain('name="robots" content="noindex, follow"')
@@ -279,6 +278,8 @@ expect(html).toContain('JavaScript')
 expect(html).toContain('デスクトップ')
 expect(html).toContain('data-pagefind-ignore')
 ```
+
+`noscript`要素の中だけを解析し、ページタイトル、正しいブログへ戻るURL、モックデータ、デスクトップ推奨の4項目を個別にassertします。
 
 Vite設定テストでは、`SERVER_ROOM_BASE_PATH=/demos/server-room/`と`SITE_URL=https://example.invalid`でbuildしたHTMLのcanonicalとasset pathを確認します。
 
@@ -320,22 +321,26 @@ git commit -m "feat: prepare the dashboard for public subpath hosting"
 
 **Files:**
 
+- Create: `scripts/validate_demo_glb.mjs`
+- Create: `tests/demo-glb-contract.test.ts`
 - Modify: `README.md`
 - Modify: `docs/learning-log.md`
 - Tag: `episode-04-demo`
 
-- [ ] **Step 1: Node 24で全検証する**
+- [ ] **Step 1: 公開GLBの専用validatorをTDDで追加する**
+
+対象は`public/models/server-room.glb`です。SHA違い、warningあり、server node欠落、重複nodeのfixtureで失敗するテストを先に作ります。実装はSHA-256、`numErrors === 0`、`numWarnings === 0`、14台のnode名の完全一致と重複なしをメモリまたは一時ファイルで検証します。追跡済みreportは変更しません。
+
+- [ ] **Step 2: Node 24で全検証する**
 
 ```bash
-npm run lint
-npm test
-npm run validate:episode-03
-SERVER_ROOM_BASE_PATH=/demos/server-room/ SITE_URL=https://example.invalid npm run build
+npx -y -p node@24 -c \
+  'node --version && npm run lint && npm test && npm run validate:demo-glb && SERVER_ROOM_BASE_PATH=/demos/server-room/ SITE_URL=https://example.invalid npm run build'
 ```
 
 Expected: lint、Python、Vitest、GLB Validator、TypeScript、Vite buildが成功します。
 
-- [ ] **Step 2: 実ブラウザで確認する**
+- [ ] **Step 3: 実ブラウザで確認する**
 
 本番相当baseでpreviewし、1440×1000と390×844で次を確認します。
 
@@ -347,14 +352,16 @@ Expected: lint、Python、Vitest、GLB Validator、TypeScript、Vite buildが成
 - 横overflowなし
 - console errorなし
 
-- [ ] **Step 3: 学習ログへ公開対応を記録してコミットする**
+- [ ] **Step 4: 公開対応の来歴を文書へ記録してコミットする**
+
+READMEへbase環境変数、公開用build、`validate:demo-glb`を追記します。学習ログへ公開シェル、ready/camera契約、GLB SHA、テスト件数、既知のchunk警告を記録します。
 
 ```bash
 git add README.md docs/learning-log.md
 git commit -m "docs: record the public demo contract"
 ```
 
-- [ ] **Step 4: annotated tagを作る**
+- [ ] **Step 5: annotated tagを作る**
 
 ```bash
 git tag -a episode-04-demo -m "Episode 04 public interactive demo"
@@ -363,7 +370,7 @@ git rev-parse episode-04-demo^{}
 
 Expected: tagは検証済みHEADを指します。
 
-- [ ] **Step 5: Primaryが未変更であることを再確認する**
+- [ ] **Step 6: Primaryが未変更であることを再確認する**
 
 Task 1と同じstatus・SHAを確認します。
 
@@ -407,11 +414,15 @@ node scripts/sync-server-room-demo.mjs \
   --tag episode-04-demo
 ```
 
-allowlistは`index.html`、`src/**/*.{ts,tsx,css}`、`public/models/server-room.glb`です。symlink、allowlist外、絶対path、`..`を拒否します。コピー先を明示的に空にしてから同期しますが、削除対象は検証済みの`demos/server-room/index.html`、`src`、`public`に限定します。
+allowlistは`index.html`、`src/**/*.{ts,tsx,css}`、`public/models/server-room.glb`です。スクリプトは`git rev-parse <tag>^{}`と`git ls-tree`でcommitとfile modeを確認し、`git show <commit>:<path>`でimmutable treeから同一filesystem上の一時ディレクトリへ抽出します。working treeは読みません。symlink、allowlist外、絶対path、`..`を拒否します。
+
+一時領域でsnapshotとmanifestの検証が完了してから、ブログrootとdestinationのrealpath、各祖先がsymlinkでないことを確認し、`index.html`、`src`、`public`だけを置換します。source不正や途中失敗時は既存snapshotをbyte-for-byte維持します。
 
 - [ ] **Step 4: verifyスクリプトを実装する**
 
-`upstream.json`のschema、tag、commit、path、SHA、GLB期待SHAを検証します。実ファイル集合がmanifestと完全一致することを確認します。
+`upstream.json`のschema、tag、commit、path、SHA、GLB期待SHAを検証します。manifest管理範囲は`index.html`、`src/**`、`public/**`です。`upstream.json`とブログ所有の`vite.config.ts`、`vitest.config.ts`、`tsconfig.json`は別の許可集合とし、それ以外の未知ファイルを拒否します。
+
+テストにはdirty working treeがtag同期へ混ざらないこと、失敗時に既存snapshotが不変であること、Task 7のconfig追加後もverifyが通り未知ファイルでは失敗することを含めます。
 
 - [ ] **Step 5: GREENを確認し、本物を同期する**
 
@@ -453,6 +464,7 @@ git commit -m "feat: sync the interactive server room demo"
 - `build:demo`が専用Vite configを使う
 - `verify`にsync verify、型、unit、GLBが含まれる
 - root/base/publicDir/outDir/emptyOutDirが設計値
+- root Vitestが`demos/server-room/**`を除外し、demo Vitestと対象ファイルが重複しない
 
 - [ ] **Step 2: REDを確認する**
 
@@ -475,7 +487,7 @@ ReactとReact DOMはブログルートの版を使い、peer dependency warning�
 
 `demos/server-room/vite.config.ts`は`fileURLToPath`と`resolve`でブログroot・demo root・outDirを絶対化します。`base`は固定、`publicDir`は`public`、`emptyOutDir`はfalseです。canonical placeholderは`SITE_URL`から置換します。
 
-`vitest.config.ts`はjsdom、`src/test/setup.ts`、CSS、demo配下の`.test.ts/.test.tsx`を対象にします。
+ブログrootの`vitest.config.ts`へ`exclude: ['demos/server-room/**', ...configDefaults.exclude]`を追加します。`demos/server-room/vitest.config.ts`はjsdom、`src/test/setup.ts`、CSS、demo配下の`.test.ts/.test.tsx`だけを対象にします。契約テストでrootとdemoの収集ファイルが重複しないことを確認します。
 
 - [ ] **Step 5: 型とunitを実行する**
 
@@ -514,7 +526,8 @@ git commit -m "build: integrate the server room demo toolchain"
 - GLBなしまたはSHA違い
 - blog index/RSS/sitemap消失
 - robots/canonical誤り
-- Pagefind entryにdemo URLが入る
+- Pagefind実行後の`page_count`が15へ増える
+- デモ固有titleまたはURLの検索結果が1件以上になる
 - sitemapにdemo URLが入る
 
 - [ ] **Step 2: REDを確認する**
@@ -533,11 +546,11 @@ npm test -- tests/unit/server-room-demo-build.test.ts
 }
 ```
 
-`verify-build.mjs`は既存のブログ検査を保ったまま、デモ検査関数を呼びます。
+`verify-build.mjs`は既存のブログ検査を保ったまま、デモ検査関数を呼びます。Pagefind実行後の日本語`page_count`が公開記事数14から増えていないこと、demo HTMLに`data-pagefind-body`がないこと、sitemap indexが参照する全sitemapにdemo URLがないことを検証します。
 
 - [ ] **Step 4: GLB Validator契約を追加する**
 
-公開コピーをメモリまたは一時ファイルで検証し、`numErrors === 0 && numWarnings === 0`をassertします。node名は期待する14件と完全一致し、重複がないことを検証します。
+公開コピーをメモリまたは一時ファイルで検証し、`numErrors === 0 && numWarnings === 0`をassertします。node名は期待する14件と完全一致し、重複がないことを検証します。追跡済みreportへは出力しません。
 
 - [ ] **Step 5: GREENと本番buildを確認する**
 
@@ -547,6 +560,8 @@ SITE_URL=https://example.invalid npm run build
 ```
 
 Expected: 既存ブログ成果物とデモ成果物が共存し、Pagefindは14記事のままです。
+
+PagefindのブラウザAPIでデモ固有titleとURLを検索し、結果が0件であることも統合テストへ追加します。
 
 - [ ] **Step 6: コミットする**
 
@@ -561,7 +576,7 @@ git commit -m "build: publish the server room demo with the blog"
 
 **Files:**
 
-- Modify: `public/_headers`
+- Create: `public/_headers`
 - Modify: `src/content/blog/blender-server-room-04-react-dashboard.md`
 - Modify: `tests/unit/blender-episode-04-article.test.ts`
 - Test: `tests/unit/server-room-demo-build.test.ts`
@@ -620,6 +635,7 @@ git commit -m "feat: link the article to the interactive demo"
 - Create: `tests/e2e/server-room-demo.spec.ts`
 - Modify: `scripts/smoke-production.mjs`
 - Modify: `tests/unit/deployment.test.ts`
+- Modify: `playwright.config.ts`
 - Modify: `README.md`
 
 - [ ] **Step 1: 本番smokeの失敗テストを書く**
@@ -645,6 +661,16 @@ npm test -- tests/unit/deployment.test.ts
 
 `fetchWithRetry`、`assertHeader`、`extractDemoAssets`、`sha256Response`を個別関数にし、既存ブログsmokeを壊さずdemo checksを追加します。
 
+- slashなしURLは307、`Location`は正確な`/demos/server-room/`
+- HTMLは`text/html`
+- JavaScriptは`text/javascript`または`application/javascript`
+- CSSは`text/css`
+- GLBは`model/gltf-binary`
+- charsetは分離してMIMEだけを比較
+- 6つのsecurity headerはHTML、JS、CSS、GLBのすべてで完全一致
+- 4 assetのCache-Controlは`public, max-age=0, must-revalidate`
+- GLBは取得bytesからSHA-256を計算
+
 - [ ] **Step 4: E2Eを書く**
 
 Playwrightで次を実行します。
@@ -652,14 +678,18 @@ Playwrightで次を実行します。
 1. `/demos/server-room/`を開く
 2. ready statusを待つ
 3. selectで`server_01_01`を選ぶ
-4. 「アラーム発生」と「正常に戻す」を押して文字状態を確認
+4. 「アラーム発生」と「正常に戻す」を押し、文字状態とstatus badgeのcomputed colorを確認
 5. Canvasをdragしwheelを送り、camera count増加を確認
 6. 戻るリンクと記事CTAを確認
 7. keyboardだけでselectとbuttonを操作
-8. JavaScript無効contextで静的案内を確認
+8. JavaScript無効contextでページタイトル、正しい戻るURL、モックデータ、デスクトップ推奨を個別確認
 9. axe検査
 10. 390×844で横overflowなし、Canvas外の縦スクロールを確認
 11. console errorとpageerrorが0
+
+HTML badgeの期待色は既存CSSの実値を取得して契約化します。3D materialのhealthy `#22C55E`とcritical `#EF4444`はscene unit testの責務とし、E2Eでは選択中1台だけの状態更新とDOM badgeを確認します。`securitypolicyviolation`を収集し、本番CSPと同じheaderを適用した環境および公開後の実環境で0件であることを確認します。
+
+`playwright.config.ts`へ`wrangler dev --port 4323`のwebServerを追加します。通常の操作はAstro previewの4321で検証し、header、CSP、末尾slash redirect、MIMEはWorkers Static Assetsを再現する4323で検証します。
 
 - [ ] **Step 5: GREENを確認する**
 
@@ -690,8 +720,8 @@ git commit -m "test: verify the public server room demo"
 - [ ] **Step 1: Node 24でclean installと全検証を行う**
 
 ```bash
-npm ci
-SITE_URL=https://example.invalid npm run verify
+npx -y -p node@24 -c \
+  'node --version && npm ci && SITE_URL=https://example.invalid npm run verify'
 git diff --check
 git status --short
 ```
@@ -706,11 +736,11 @@ git -C /Users/hiroshiimaizumi/Documents/3d-server-room-dashboard/.worktrees/epis
   rev-parse episode-04-demo^{}
 ```
 
-Expected: tag commitとmanifestのcommitが一致します。
+Expected: ローカルtagの制作来歴とmanifestのcommitが一致し、ブログ内のmanifest管理ファイルがすべて一致します。公開版の正式な保存先はブログremoteです。
 
 - [ ] **Step 3: 最終コードレビューを行う**
 
-両リポジトリのbase差分をレビューし、Critical/Importantが0になるまで修正・再検証します。
+両リポジトリのbase差分をレビューし、Critical/Importantが0になるまで修正・再検証します。修正は失敗テストを追加してから実装し、対象repoごとにcommitします。両repoの関連検証を再実行します。
 
 - [ ] **Step 4: ブログbranchをpushしDraft PRを作る**
 
