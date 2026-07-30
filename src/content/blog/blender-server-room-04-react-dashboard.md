@@ -1,13 +1,13 @@
 ---
 title: React Three Fiberで3Dサーバールームを表示し、アラームで色を変える
 description: Blenderで作ったGLBをReact Three Fiberで表示し、サーバーの選択と詳細表示、アラームに応じた色の切り替えを実装します。
-publishedAt: '2026-07-30'
+publishedAt: '2026-07-30T15:12:44+09:00'
 category: Frontend
 tags:
   - Blender
   - React
   - 3D
-draft: true
+draft: false
 heroImage: ../../assets/blog/blender-04-alarm-state.png
 ---
 

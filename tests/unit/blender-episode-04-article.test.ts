@@ -23,12 +23,12 @@ const source = await readFile(articlePath, 'utf8');
 const { metadata, body } = splitArticle(source);
 
 describe('Blender server room episode four article', () => {
-  it('keeps the approved frontmatter as a draft', () => {
+  it('keeps the approved frontmatter published', () => {
     expect(metadata).toMatchObject({
       title: 'React Three Fiberで3Dサーバールームを表示し、アラームで色を変える',
-      publishedAt: '2026-07-30',
+      publishedAt: '2026-07-30T15:12:44+09:00',
       category: 'Frontend',
-      draft: true,
+      draft: false,
       heroImage: '../../assets/blog/blender-04-alarm-state.png',
     });
     expect(metadata.description).toEqual(expect.any(String));

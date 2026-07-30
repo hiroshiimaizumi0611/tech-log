@@ -3,9 +3,10 @@ import { expect, test } from '@playwright/test';
 const blenderArticleTitle = 'Blender完全初心者がCubeだけでサーバーラックを作る';
 const blenderRoomArticleTitle = 'Blenderでラックを並べて3Dサーバールームを作る';
 const blenderGlbArticleTitle = 'Blenderの3DサーバールームをGLBで書き出して検証する';
+const blenderDashboardArticleTitle = 'React Three Fiberで3Dサーバールームを表示し、アラームで色を変える';
 const opusArticleTitle = 'Claude Opus 5とは？Opus 4.8からの進化・料金・性能を分かりやすく解説';
 
-const latestArticleTitles = [blenderGlbArticleTitle, blenderRoomArticleTitle, blenderArticleTitle, opusArticleTitle] as const;
+const latestArticleTitles = [blenderDashboardArticleTitle, blenderGlbArticleTitle, blenderRoomArticleTitle, blenderArticleTitle] as const;
 
 const featuredArticleTitle = opusArticleTitle;
 
@@ -57,8 +58,8 @@ test('最新記事を公開日順に4件だけ表示しカード全体を一つ�
 
 test('記事画像をカテゴリーアート上の装飾レイヤーとして表示する', async ({ page }) => {
   const cards = page.getByRole('region', { name: '最新の記事' }).locator('[data-article-card]');
-  const opusCard = cards.filter({ hasText: opusArticleTitle });
-  const customArtwork = opusCard.locator('[data-custom-hero]');
+  const dashboardCard = cards.filter({ hasText: blenderDashboardArticleTitle });
+  const customArtwork = dashboardCard.locator('[data-custom-hero]');
 
   await expect(cards.locator('[data-category-artwork]')).toHaveCount(4);
   await expect(customArtwork).toBeVisible();
@@ -67,12 +68,15 @@ test('記事画像をカテゴリーアート上の装飾レイヤーとして�
   await expect(customArtwork).toHaveAttribute('data-image-width', '640');
   await expect(customArtwork).toHaveAttribute('data-image-height', '360');
   await expect(customArtwork).toHaveAttribute('data-image-format', 'webp');
-  await expect(opusCard.locator('[data-category-artwork]')).toBeVisible();
+  await expect(dashboardCard.locator('[data-category-artwork]')).toBeVisible();
   await expect(page.locator('script[data-image-fallback]')).toHaveCount(0);
 });
 
 test('記事カードの画像取得失敗時も固定比率のカテゴリーアートとリンクを利用できる', async ({ page }) => {
-  const initialCard = page.getByRole('region', { name: '最新の記事' }).locator('[data-article-card]').filter({ hasText: opusArticleTitle });
+  const initialCard = page
+    .getByRole('region', { name: '最新の記事' })
+    .locator('[data-article-card]')
+    .filter({ hasText: blenderDashboardArticleTitle });
   const cardImageUrl = await backgroundImageUrl(initialCard.locator('[data-custom-hero]'));
   let abortedRequests = 0;
   await page.route(cardImageUrl, async (route) => {
@@ -81,15 +85,18 @@ test('記事カードの画像取得失敗時も固定比率のカテゴリー�
   });
   await page.goto('/?hero-image=failure');
 
-  const opusCard = page.getByRole('region', { name: '最新の記事' }).locator('[data-article-card]').filter({ hasText: opusArticleTitle });
-  const fallback = opusCard.locator('[data-category-artwork]');
-  const customArtwork = opusCard.locator('[data-custom-hero]');
+  const dashboardCard = page
+    .getByRole('region', { name: '最新の記事' })
+    .locator('[data-article-card]')
+    .filter({ hasText: blenderDashboardArticleTitle });
+  const fallback = dashboardCard.locator('[data-category-artwork]');
+  const customArtwork = dashboardCard.locator('[data-custom-hero]');
   expect(await backgroundImageUrl(customArtwork)).toBe(cardImageUrl);
   await expect(fallback).toBeVisible();
   await expect(customArtwork).toBeVisible();
   expect(await customArtwork.boundingBox()).toEqual(await fallback.boundingBox());
-  await expect(opusCard.getByRole('heading', { name: opusArticleTitle })).toBeVisible();
-  await expect(opusCard.getByRole('link')).toHaveAttribute('href', '/blog/claude-opus-5-overview/');
+  await expect(dashboardCard.getByRole('heading', { name: blenderDashboardArticleTitle })).toBeVisible();
+  await expect(dashboardCard.getByRole('link')).toHaveAttribute('href', '/blog/blender-server-room-04-react-dashboard/');
   expect(abortedRequests).toBeGreaterThan(0);
   await expect(page.locator('script[data-image-fallback], [onerror]')).toHaveCount(0);
 });

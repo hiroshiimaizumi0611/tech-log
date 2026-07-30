@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 const articleTitles = [
+  'React Three Fiberで3Dサーバールームを表示し、アラームで色を変える',
   'Blenderの3DサーバールームをGLBで書き出して検証する',
   'Blenderでラックを並べて3Dサーバールームを作る',
   'Blender完全初心者がCubeだけでサーバーラックを作る',
@@ -26,7 +27,7 @@ test('記事一覧は公開日の降順で公開記事を表示する', async ({
   await page.goto('/blog/');
 
   await expect(page.getByRole('heading', { level: 1, name: '記事一覧' })).toBeVisible();
-  await expect(page.getByText('13件の記事')).toBeVisible();
+  await expect(page.getByText('14件の記事')).toBeVisible();
   const cards = page.locator('main [data-article-card]');
   await expect(cards).toHaveCount(12);
   await expect(cards.getByRole('heading')).toHaveText(articleTitles.slice(0, 12));
