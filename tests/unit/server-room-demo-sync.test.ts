@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
+import { spawn, spawnSync } from 'node:child_process';
 import { lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 
 import { __testing as syncTesting, syncServerRoomDemo } from '../../scripts/sync-server-room-demo.mjs';
@@ -110,6 +110,66 @@ async function treeSnapshot(root: string): Promise<Record<string, string>> {
   }
   if ((await lstat(root).catch(() => undefined))?.isDirectory()) await visit(root);
   return result;
+}
+
+function spawnSyncChild(fixture: Fixture, mode: 'crash' | 'normal', marker?: string) {
+  const childSource = `
+    import { writeFileSync } from 'node:fs';
+    const { __testing } = await import(process.env.SYNC_MODULE);
+    const payload = JSON.parse(process.env.SYNC_PAYLOAD);
+    const hooks = {
+      lockOptions: {
+        stale: 2000,
+        update: 1000,
+        retries: { retries: 40, minTimeout: 100, maxTimeout: 200 },
+      },
+    };
+    if (process.env.SYNC_MODE === 'crash') {
+      hooks.afterJournal = (state) => {
+        if (state === 'installing') {
+          writeFileSync(process.env.SYNC_MARKER, 'ready');
+          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);
+        }
+      };
+    }
+    await __testing.syncServerRoomDemo(payload.options, payload.contract, hooks);
+  `;
+  return spawn(process.execPath, ['--input-type=module', '--eval', childSource], {
+    env: {
+      ...process.env,
+      SYNC_MODULE: new URL(`file://${resolve('scripts/sync-server-room-demo.mjs')}`).href,
+      SYNC_PAYLOAD: JSON.stringify({
+        options: {
+          source: fixture.source,
+          tag: 'episode-04-demo',
+          blogRoot: fixture.blogRoot,
+        },
+        contract: fixtureContract(fixture),
+      }),
+      SYNC_MODE: mode,
+      ...(marker ? { SYNC_MARKER: marker } : {}),
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+}
+
+async function waitForChild(child: ReturnType<typeof spawn>) {
+  let stderr = '';
+  child.stderr?.on('data', (chunk) => {
+    stderr += chunk.toString();
+  });
+  return new Promise<{ code: number | null; signal: NodeJS.Signals | null; stderr: string }>((resolvePromise, reject) => {
+    child.once('error', reject);
+    child.once('exit', (code, signal) => resolvePromise({ code, signal, stderr }));
+  });
+}
+
+async function waitForPath(path: string) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    if (await lstat(path).catch(() => undefined)) return;
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 25));
+  }
+  throw new Error(`Timed out waiting for ${path}`);
 }
 
 afterEach(async () => {
@@ -300,6 +360,59 @@ describe('server room demo synchronization', () => {
     await expect(syncFixture(fixture)).rejects.toThrow(/unknown/i);
   });
 
+  test('rejects an unknown empty directory without deleting it', async () => {
+    const fixture = await makeFixture();
+    await syncFixture(fixture);
+    const unknown = join(fixture.destination, 'notes');
+    await mkdir(unknown);
+
+    await expect(syncFixture(fixture)).rejects.toThrow(/unknown directory/i);
+    expect((await lstat(unknown)).isDirectory()).toBe(true);
+  });
+
+  test('fsyncs every staged file and the directory tree before the first swap rename', async () => {
+    const fixture = await makeFixture();
+    await syncFixture(fixture);
+    for (const name of ['vite.config.ts', 'vitest.config.ts', 'tsconfig.json']) {
+      await writeFile(join(fixture.destination, name), `${name}\n`);
+    }
+    const events: Array<{ type: string; path: string }> = [];
+    const expectedFiles = Object.keys(await treeSnapshot(fixture.destination)).sort();
+
+    await syncFixture(fixture, {
+      hooks: {
+        onDurabilityEvent(event: { type: string; path: string }) {
+          events.push(event);
+        },
+        beforeBackup() {
+          expect(
+            events
+              .filter((event) => event.type === 'file')
+              .map((event) => event.path)
+              .sort(),
+          ).toEqual(expectedFiles);
+          expect(events.at(-1)).toEqual({ type: 'directory', path: '.' });
+          const directoryIndices = new Map(
+            events
+              .map((event, index) => ({ ...event, index }))
+              .filter((event) => event.type === 'directory')
+              .map((event) => [event.path, event.index]),
+          );
+          events.forEach((event, fileIndex) => {
+            if (event.type !== 'file') return;
+            const parts = event.path.split('/');
+            parts.pop();
+            while (parts.length) {
+              const ancestor = parts.join('/');
+              expect(directoryIndices.get(ancestor)).toBeGreaterThan(fileIndex);
+              parts.pop();
+            }
+          });
+        },
+      },
+    });
+  });
+
   test('rejects symlinked destination ancestors without changing the linked directory', async () => {
     const fixture = await makeFixture();
     const outside = join(fixture.root, 'outside');
@@ -339,7 +452,7 @@ describe('server room demo synchronization', () => {
     },
   );
 
-  test.each(['prepared', 'backing-up', 'installing', 'installed'] as const)(
+  test.each(['prepared', 'backing-up', 'installing', 'installed', 'committed'] as const)(
     'recovers an orphan transaction in journal state %s before the next sync',
     async (crashState) => {
       const fixture = await makeFixture();
@@ -366,6 +479,99 @@ describe('server room demo synchronization', () => {
       expect(await lstat(join(fixture.blogRoot, 'demos', syncTesting.lockName)).catch(() => undefined)).toBeUndefined();
     },
   );
+
+  test.each(['rolling-back', 'restored'] as const)('idempotently resumes a crash at rollback journal state %s', async (crashState) => {
+    const fixture = await makeFixture();
+    await syncFixture(fixture);
+    const crash = Object.assign(new Error(`simulated crash at ${crashState}`), {
+      simulatedCrash: true,
+    });
+    await expect(
+      syncFixture(fixture, {
+        hooks: {
+          beforeInstall() {
+            throw new Error('force rollback');
+          },
+          afterJournal(state: string) {
+            if (state === crashState) throw crash;
+          },
+        },
+      }),
+    ).rejects.toThrow(`simulated crash at ${crashState}`);
+
+    await syncFixture(fixture);
+
+    await expect(verifyFixture(fixture)).resolves.toBeDefined();
+    expect(await lstat(join(fixture.blogRoot, 'demos', syncTesting.transactionName)).catch(() => undefined)).toBeUndefined();
+  });
+
+  test('recovers when crashing after backup restoration but before the restored journal', async () => {
+    const fixture = await makeFixture();
+    await syncFixture(fixture);
+    const crash = Object.assign(new Error('crash after backup restore'), {
+      simulatedCrash: true,
+    });
+    await expect(
+      syncFixture(fixture, {
+        hooks: {
+          beforeInstall() {
+            throw new Error('force rollback');
+          },
+          afterBackupRestored() {
+            throw crash;
+          },
+        },
+      }),
+    ).rejects.toThrow('crash after backup restore');
+
+    await syncFixture(fixture);
+
+    await expect(verifyFixture(fixture)).resolves.toBeDefined();
+  });
+
+  test.each(['prepared', 'installing'] as const)('recovers safely from a fsynced %s journal temp file', async (crashState) => {
+    const fixture = await makeFixture();
+    await syncFixture(fixture);
+    const crash = Object.assign(new Error(`journal temp crash at ${crashState}`), {
+      simulatedCrash: true,
+    });
+    await expect(
+      syncFixture(fixture, {
+        hooks: {
+          afterJournalTempSynced(state: string) {
+            if (state === crashState) throw crash;
+          },
+        },
+      }),
+    ).rejects.toThrow(`journal temp crash at ${crashState}`);
+
+    await syncFixture(fixture);
+
+    await expect(verifyFixture(fixture)).resolves.toBeDefined();
+  });
+
+  test('reclaims a SIGKILLed process lock and serializes concurrent recovery processes', async () => {
+    const fixture = await makeFixture();
+    await syncFixture(fixture);
+    const marker = join(fixture.root, 'child-ready');
+    const killedChild = spawnSyncChild(fixture, 'crash', marker);
+    await waitForPath(marker);
+    const lockPath = join(fixture.blogRoot, 'demos', syncTesting.lockName);
+    expect((await lstat(lockPath)).isDirectory()).toBe(true);
+    killedChild.kill('SIGKILL');
+    const killed = await waitForChild(killedChild);
+    expect(killed.signal).toBe('SIGKILL');
+
+    const contenders = [spawnSyncChild(fixture, 'normal'), spawnSyncChild(fixture, 'normal')];
+    const results = await Promise.all(contenders.map(waitForChild));
+
+    expect(results).toEqual([
+      expect.objectContaining({ code: 0, signal: null, stderr: '' }),
+      expect.objectContaining({ code: 0, signal: null, stderr: '' }),
+    ]);
+    await expect(verifyFixture(fixture)).resolves.toBeDefined();
+    expect(await lstat(lockPath).catch(() => undefined)).toBeUndefined();
+  }, 30_000);
 
   test('retains the durable backup and journal when rollback itself fails', async () => {
     const fixture = await makeFixture();

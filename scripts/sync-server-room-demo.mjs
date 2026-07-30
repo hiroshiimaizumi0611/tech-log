@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { copyFile, lstat, mkdir, open, readFile, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import lockfile from 'proper-lockfile';
 
 import {
   MANIFEST_SCHEMA,
@@ -18,13 +19,16 @@ const BLOG_OWNED_CONFIGS = ['vite.config.ts', 'vitest.config.ts', 'tsconfig.json
 const PIN_OVERRIDE_KEYS = ['expectedTag', 'expectedCommit', 'expectedGlbSha256', 'expectedSnapshotSha256', 'contract', 'hooks'];
 const LOCK_NAME = '.server-room-sync.lock';
 const TRANSACTION_NAME = '.server-room-sync-transaction';
-const JOURNAL_STATES = new Set(['prepared', 'backing-up', 'installing', 'installed']);
+const JOURNAL_STATES = new Set(['prepared', 'backing-up', 'installing', 'installed', 'committed', 'rolling-back', 'restored']);
 
 // Threat boundary: the lock coordinates cooperating sync processes and the journal
 // recovers process/host crashes. A separate process with arbitrary filesystem write
 // access is out of scope. After destination validation/config preservation, the
 // transaction only renames the whole destination directory; it does not traverse
 // destination children after the final check.
+// proper-lockfile uses atomic mkdir plus an mtime heartbeat. Only a lock whose
+// heartbeat exceeded the stale threshold is reclaimed; compromised heartbeat
+// updates gate every destructive rename below.
 
 function runGit(source, args, { binary = false } = {}) {
   return new Promise((resolvePromise, reject) => {
@@ -103,20 +107,53 @@ async function syncDirectory(path) {
   }
 }
 
-async function writeJournal(transactionRoot, journal) {
+function validateJournal(journal, transactionRoot) {
+  if (!JOURNAL_STATES.has(journal?.state) || typeof journal?.hadDestination !== 'boolean') {
+    throw new Error(`Invalid orphan demo transaction journal; preserving it at ${transactionRoot}`);
+  }
+  return journal;
+}
+
+async function writeJournal(transactionRoot, journal, hooks) {
   const path = join(transactionRoot, 'journal.json');
-  const handle = await open(path, 'w', 0o600);
+  const temporaryPath = join(transactionRoot, 'journal.json.tmp');
+  const handle = await open(temporaryPath, 'wx', 0o600);
   try {
     await handle.writeFile(`${JSON.stringify(journal)}\n`);
     await handle.sync();
+    hooks?.afterJournalTempSynced?.(journal.state);
   } finally {
     await handle.close();
   }
+  await rename(temporaryPath, path);
   await syncDirectory(transactionRoot);
+  hooks?.afterJournal?.(journal.state);
 }
 
 async function readJournal(transactionRoot) {
   const path = join(transactionRoot, 'journal.json');
+  const temporaryPath = join(transactionRoot, 'journal.json.tmp');
+  const temporaryStat = await lstat(temporaryPath).catch(() => undefined);
+  const pathStat = await lstat(path).catch(() => undefined);
+  if (temporaryStat) {
+    if (!temporaryStat.isFile() || temporaryStat.isSymbolicLink()) {
+      throw new Error(`Unsafe temporary journal; preserving it at ${temporaryPath}`);
+    }
+    if (pathStat) {
+      await rm(temporaryPath);
+      await syncDirectory(transactionRoot);
+    } else {
+      let temporaryJournal;
+      try {
+        temporaryJournal = validateJournal(JSON.parse(await readFile(temporaryPath, 'utf8')), transactionRoot);
+      } catch (error) {
+        throw new Error(`Cannot recover temporary journal; preserving ${transactionRoot}: ${error.message}`);
+      }
+      await rename(temporaryPath, path);
+      await syncDirectory(transactionRoot);
+      return temporaryJournal;
+    }
+  }
   const stat = await lstat(path).catch(() => undefined);
   if (!stat?.isFile() || stat.isSymbolicLink()) {
     throw new Error(`Orphan demo transaction has no safe journal; preserving it at ${transactionRoot}`);
@@ -127,47 +164,35 @@ async function readJournal(transactionRoot) {
   } catch (error) {
     throw new Error(`Cannot read orphan demo transaction journal; preserving ${transactionRoot}: ${error.message}`);
   }
-  if (!JOURNAL_STATES.has(journal.state) || typeof journal.hadDestination !== 'boolean') {
-    throw new Error(`Invalid orphan demo transaction journal; preserving it at ${transactionRoot}`);
-  }
-  return journal;
+  return validateJournal(journal, transactionRoot);
 }
 
-async function acquireLock(parent) {
+async function acquireLock(parent, options = {}) {
   const lockPath = join(parent, LOCK_NAME);
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const handle = await open(lockPath, 'wx', 0o600);
-      await handle.writeFile(`${JSON.stringify({ pid: process.pid })}\n`);
-      await handle.sync();
-      return async () => {
-        await handle.close();
-        await rm(lockPath).catch(() => {});
-        await syncDirectory(parent);
-      };
-    } catch (error) {
-      if (error.code !== 'EEXIST') throw error;
-      let pid;
-      try {
-        pid = JSON.parse(await readFile(lockPath, 'utf8')).pid;
-      } catch {
-        throw new Error(`Demo sync lock is unreadable: ${lockPath}`);
+  let compromised;
+  const release = await lockfile.lock(parent, {
+    realpath: true,
+    lockfilePath: lockPath,
+    stale: options.stale ?? 10_000,
+    update: options.update ?? 2_000,
+    retries: options.retries ?? { retries: 20, minTimeout: 250, maxTimeout: 500 },
+    onCompromised(error) {
+      compromised = error;
+    },
+  });
+  return {
+    assertHealthy() {
+      if (compromised) {
+        throw new Error(`Demo sync lock was compromised: ${compromised.message}`, {
+          cause: compromised,
+        });
       }
-      let alive = Number.isInteger(pid) && pid > 0;
-      if (alive) {
-        try {
-          process.kill(pid, 0);
-        } catch (killError) {
-          if (killError.code === 'ESRCH') alive = false;
-          else if (killError.code !== 'EPERM') throw killError;
-        }
-      }
-      if (alive) throw new Error(`Another demo sync is active with pid ${pid}`);
-      await rm(lockPath);
+    },
+    async release() {
+      await release();
       await syncDirectory(parent);
-    }
-  }
-  throw new Error(`Cannot acquire demo sync lock: ${lockPath}`);
+    },
+  };
 }
 
 async function extractSnapshot({ source, tag, contract, stageDestination, hooks }) {
@@ -248,6 +273,7 @@ async function preserveBlogOwnedConfigs(destination, stageDestination) {
 
 async function validateExistingDestinationShape(destination) {
   const allowedBlogFiles = new Set(['upstream.json', ...BLOG_OWNED_CONFIGS]);
+  const isAllowedDirectory = (path) => path === 'src' || path.startsWith('src/') || path === 'public' || path === 'public/models';
   async function visit(directory, prefix = '') {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const path = prefix ? `${prefix}/${entry.name}` : entry.name;
@@ -256,6 +282,9 @@ async function validateExistingDestinationShape(destination) {
         throw new Error(`Symbolic link is not allowed in existing demo: ${path}`);
       }
       if (entry.isDirectory()) {
+        if (!isAllowedDirectory(path)) {
+          throw new Error(`Unknown directory in existing demo snapshot: ${path}`);
+        }
         await visit(absolute, path);
       } else if (!entry.isFile()) {
         throw new Error(`Non-regular file is not allowed in existing demo: ${path}`);
@@ -267,27 +296,74 @@ async function validateExistingDestinationShape(destination) {
   await visit(destination);
 }
 
-async function restoreOldDestination({ destination, transactionRoot, journal, hooks }) {
+async function fsyncStagedTree(root, hooks) {
+  async function visit(directory, prefix = '') {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = prefix ? `${prefix}/${entry.name}` : entry.name;
+      const absolute = join(directory, entry.name);
+      if (entry.isDirectory()) {
+        await visit(absolute, path);
+      } else if (entry.isFile()) {
+        const handle = await open(absolute, 'r');
+        try {
+          await handle.sync();
+        } finally {
+          await handle.close();
+        }
+        hooks?.onDurabilityEvent?.({ type: 'file', path });
+      } else {
+        throw new Error(`Cannot fsync non-regular staged entry: ${path}`);
+      }
+    }
+    await syncDirectory(directory);
+    hooks?.onDurabilityEvent?.({
+      type: 'directory',
+      path: prefix || '.',
+    });
+  }
+  await visit(root);
+}
+
+async function restoreOldDestination({ destination, transactionRoot, journal, hooks, assertLockHealthy = () => {} }) {
   const backup = join(transactionRoot, 'backup');
   const interrupted = join(transactionRoot, 'interrupted-new');
+  const startingState = journal.state;
   try {
+    assertLockHealthy();
     hooks?.beforeRollbackRestore?.();
+    journal = { ...journal, state: 'rolling-back' };
+    await writeJournal(transactionRoot, journal, hooks);
     const destinationExists = Boolean(await lstat(destination).catch(() => undefined));
     const backupExists = Boolean(await lstat(backup).catch(() => undefined));
+    const interruptedExists = Boolean(await lstat(interrupted).catch(() => undefined));
     if (journal.hadDestination) {
-      if (!backupExists) {
-        if (destinationExists && ['prepared', 'backing-up'].includes(journal.state)) {
-          await rm(transactionRoot, { recursive: true });
-          return;
+      if (backupExists) {
+        if (destinationExists) {
+          if (interruptedExists) {
+            throw new Error('both destination and interrupted-new exist during rollback');
+          }
+          assertLockHealthy();
+          await rename(destination, interrupted);
+          await syncDirectory(dirname(destination));
         }
+        assertLockHealthy();
+        await rename(backup, destination);
+        await syncDirectory(dirname(destination));
+        hooks?.afterBackupRestored?.();
+      } else if (!destinationExists || (!interruptedExists && !['prepared', 'backing-up', 'rolling-back'].includes(startingState))) {
         throw new Error('old destination backup is missing');
       }
-      if (destinationExists) await rename(destination, interrupted);
-      await rename(backup, destination);
     } else if (destinationExists) {
+      if (interruptedExists) {
+        throw new Error('both destination and interrupted-new exist during rollback');
+      }
+      assertLockHealthy();
       await rename(destination, interrupted);
+      await syncDirectory(dirname(destination));
     }
-    await syncDirectory(dirname(destination));
+    journal = { ...journal, state: 'restored' };
+    await writeJournal(transactionRoot, journal, hooks);
+    assertLockHealthy();
     await rm(transactionRoot, { recursive: true });
     await syncDirectory(dirname(destination));
   } catch (error) {
@@ -295,46 +371,54 @@ async function restoreOldDestination({ destination, transactionRoot, journal, ho
   }
 }
 
-async function recoverOrphanTransaction({ destination, transactionRoot }) {
+async function recoverOrphanTransaction({ destination, transactionRoot, assertLockHealthy }) {
   const stat = await lstat(transactionRoot).catch(() => undefined);
   if (!stat) return;
   if (!stat.isDirectory() || stat.isSymbolicLink()) {
     throw new Error(`Unsafe orphan demo transaction; preserving it at ${transactionRoot}`);
   }
   const journal = await readJournal(transactionRoot);
+  if (journal.state === 'committed' || journal.state === 'restored') {
+    assertLockHealthy();
+    await rm(transactionRoot, { recursive: true });
+    await syncDirectory(dirname(destination));
+    return;
+  }
   await restoreOldDestination({
     destination,
     transactionRoot,
     journal,
+    assertLockHealthy,
   });
 }
 
-async function replaceDirectory({ destination, transactionRoot, stageDestination, hadDestination, hooks }) {
+async function replaceDirectory({ destination, transactionRoot, stageDestination, hadDestination, hooks, assertLockHealthy }) {
   const backup = join(transactionRoot, 'backup');
   let journal = { state: 'prepared', hadDestination };
   try {
-    await writeJournal(transactionRoot, journal);
-    hooks?.afterJournal?.('prepared');
+    await writeJournal(transactionRoot, journal, hooks);
     journal = { ...journal, state: 'backing-up' };
-    await writeJournal(transactionRoot, journal);
-    hooks?.afterJournal?.('backing-up');
+    await writeJournal(transactionRoot, journal, hooks);
     hooks?.beforeBackup?.();
     if (hadDestination) {
+      assertLockHealthy();
       await rename(destination, backup);
       await syncDirectory(dirname(destination));
     }
 
     journal = { ...journal, state: 'installing' };
-    await writeJournal(transactionRoot, journal);
-    hooks?.afterJournal?.('installing');
+    await writeJournal(transactionRoot, journal, hooks);
     hooks?.beforeInstall?.();
+    assertLockHealthy();
     await rename(stageDestination, destination);
     await syncDirectory(dirname(destination));
 
     journal = { ...journal, state: 'installed' };
-    await writeJournal(transactionRoot, journal);
-    hooks?.afterJournal?.('installed');
+    await writeJournal(transactionRoot, journal, hooks);
     hooks?.afterInstall?.();
+    journal = { ...journal, state: 'committed' };
+    await writeJournal(transactionRoot, journal, hooks);
+    assertLockHealthy();
     await rm(transactionRoot, { recursive: true });
     await syncDirectory(dirname(destination));
   } catch (error) {
@@ -344,6 +428,7 @@ async function replaceDirectory({ destination, transactionRoot, stageDestination
       transactionRoot,
       journal,
       hooks,
+      assertLockHealthy,
     });
     throw error;
   }
@@ -363,11 +448,15 @@ async function syncWithContract(options, contract, hooks = {}) {
   const { blogRoot, destination } = await validateDestination(options.blogRoot ?? defaultBlogRoot, options.destination);
   const parent = dirname(destination);
   await mkdir(parent, { recursive: true });
-  const releaseLock = await acquireLock(parent);
+  const heldLock = await acquireLock(parent, hooks.lockOptions);
   const transactionRoot = join(parent, TRANSACTION_NAME);
   const stageDestination = join(transactionRoot, 'stage');
   try {
-    await recoverOrphanTransaction({ destination, transactionRoot });
+    await recoverOrphanTransaction({
+      destination,
+      transactionRoot,
+      assertLockHealthy: () => heldLock.assertHealthy(),
+    });
     const destinationStat = await lstat(destination).catch(() => undefined);
     const hadDestination = Boolean(destinationStat);
     if (destinationStat && (!destinationStat.isDirectory() || destinationStat.isSymbolicLink())) {
@@ -388,21 +477,26 @@ async function syncWithContract(options, contract, hooks = {}) {
         await preserveBlogOwnedConfigs(destination, stageDestination);
       }
       await verifierTesting.verifyServerRoomDemo({ blogRoot, destination: relative(blogRoot, stageDestination) }, contract);
+      await fsyncStagedTree(stageDestination, hooks);
+      heldLock.assertHealthy();
       await replaceDirectory({
         destination,
         transactionRoot,
         stageDestination,
         hadDestination,
         hooks,
+        assertLockHealthy: () => heldLock.assertHealthy(),
       });
       return { destination, manifest };
     } catch (error) {
       const journalExists = await lstat(join(transactionRoot, 'journal.json')).catch(() => undefined);
-      if (!journalExists) await rm(transactionRoot, { recursive: true }).catch(() => {});
+      if (!journalExists && !error?.simulatedCrash) {
+        await rm(transactionRoot, { recursive: true }).catch(() => {});
+      }
       throw error;
     }
   } finally {
-    await releaseLock();
+    await heldLock.release();
   }
 }
 
