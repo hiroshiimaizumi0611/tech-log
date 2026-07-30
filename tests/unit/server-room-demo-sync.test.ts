@@ -5,8 +5,14 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { afterEach, describe, expect, test } from 'vitest';
 
-import { syncServerRoomDemo } from '../../scripts/sync-server-room-demo.mjs';
-import { verifyServerRoomDemo } from '../../scripts/verify-server-room-demo.mjs';
+import { __testing as syncTesting, syncServerRoomDemo } from '../../scripts/sync-server-room-demo.mjs';
+import {
+  MANIFEST_SCHEMA,
+  MANIFEST_VERSION,
+  __testing as verifyTesting,
+  computeSnapshotSha256,
+  verifyServerRoomDemo,
+} from '../../scripts/verify-server-room-demo.mjs';
 
 const GLB_SHA256 = '42114017b88bc45862e598de271ca05ce7df0e3f227197fc65941658794e552a';
 const roots: string[] = [];
@@ -18,6 +24,29 @@ type Fixture = {
   destination: string;
   commit: string;
 };
+
+function fixtureContract(fixture: Fixture) {
+  const files = [
+    ['index.html', '<main>tagged</main>\n'],
+    ['public/models/server-room.glb', 'fixture glb\n'],
+    ['src/components/panel.css', '.panel { color: red; }\n'],
+    ['src/main.tsx', 'export const tagged = true;\n'],
+  ].map(([path, contents]) => ({
+    path,
+    sha256: createHash('sha256').update(contents).digest('hex'),
+  }));
+  return {
+    tag: 'episode-04-demo',
+    commit: fixture.commit,
+    glbSha256: createHash('sha256').update('fixture glb\n').digest('hex'),
+    snapshotSha256: computeSnapshotSha256({
+      schema: MANIFEST_SCHEMA,
+      version: MANIFEST_VERSION,
+      upstream: { tag: 'episode-04-demo', commit: fixture.commit },
+      files,
+    }),
+  };
+}
 
 function git(cwd: string, ...args: string[]) {
   const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
@@ -36,7 +65,7 @@ async function makeFixture(): Promise<Fixture> {
   await mkdir(join(source, 'src/components'), { recursive: true });
   await mkdir(join(source, 'public/models'), { recursive: true });
   await mkdir(blogRoot, { recursive: true });
-  git(source, 'init', '-q');
+  git(source, 'init', '-q', '--object-format=sha1');
   git(source, 'config', 'user.email', 'test@example.com');
   git(source, 'config', 'user.name', 'Test');
   await writeFile(join(source, 'index.html'), '<main>tagged</main>\n');
@@ -52,22 +81,21 @@ async function makeFixture(): Promise<Fixture> {
 }
 
 async function syncFixture(fixture: Fixture, options: Record<string, unknown> = {}) {
-  return syncServerRoomDemo({
-    source: fixture.source,
-    tag: 'episode-04-demo',
-    expectedCommit: fixture.commit,
-    blogRoot: fixture.blogRoot,
-    expectedGlbSha256: createHash('sha256').update('fixture glb\n').digest('hex'),
-    ...options,
-  });
+  const { hooks, ...syncOptions } = options;
+  return syncTesting.syncServerRoomDemo(
+    {
+      source: fixture.source,
+      tag: 'episode-04-demo',
+      blogRoot: fixture.blogRoot,
+      ...syncOptions,
+    },
+    fixtureContract(fixture),
+    hooks,
+  );
 }
 
 async function verifyFixture(fixture: Fixture) {
-  return verifyServerRoomDemo({
-    blogRoot: fixture.blogRoot,
-    expectedCommit: fixture.commit,
-    expectedGlbSha256: createHash('sha256').update('fixture glb\n').digest('hex'),
-  });
+  return verifyTesting.verifyServerRoomDemo({ blogRoot: fixture.blogRoot }, fixtureContract(fixture));
 }
 
 async function treeSnapshot(root: string): Promise<Record<string, string>> {
@@ -89,6 +117,23 @@ afterEach(async () => {
 });
 
 describe('server room demo synchronization', () => {
+  test('uses the documented code-point-sorted canonical snapshot SHA-256 encoding', () => {
+    expect(
+      computeSnapshotSha256({
+        schema: 'server-room-demo-upstream',
+        version: 1,
+        upstream: {
+          tag: 'episode-04-demo',
+          commit: '0'.repeat(40),
+        },
+        files: [
+          { path: 'src/app.tsx', sha256: '2'.repeat(64) },
+          { path: 'src/App.tsx', sha256: '1'.repeat(64) },
+        ],
+      }),
+    ).toBe('a6fa97dd100ea05fca5f2a953386c54fc234a4c0dcc8c842206d8a27b148a29a');
+  });
+
   test('Prettier ignores only the immutable managed snapshot and not future blog-owned configs', async () => {
     const lines = (await readFile(join(process.cwd(), '.prettierignore'), 'utf8')).split(/\r?\n/).filter(Boolean);
     expect(lines).toEqual(
@@ -113,6 +158,7 @@ describe('server room demo synchronization', () => {
       schema: 'server-room-demo-upstream',
       version: 1,
       upstream: { tag: 'episode-04-demo', commit: fixture.commit },
+      snapshotSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
     });
     expect(manifest.files.map(({ path }: { path: string }) => path)).toEqual([
       'index.html',
@@ -138,15 +184,12 @@ describe('server room demo synchronization', () => {
     ['unexpected commit', 'episode-04-demo', '0'.repeat(40)],
   ])('rejects a %s', async (_name, tag, expectedCommit) => {
     const fixture = await makeFixture();
-    await expect(
-      syncServerRoomDemo({
-        source: fixture.source,
-        tag,
-        expectedCommit: expectedCommit ?? fixture.commit,
-        blogRoot: fixture.blogRoot,
-        expectedGlbSha256: createHash('sha256').update('fixture glb\n').digest('hex'),
-      }),
-    ).rejects.toThrow();
+    const contract = {
+      ...fixtureContract(fixture),
+      tag,
+      commit: expectedCommit ?? fixture.commit,
+    };
+    await expect(syncTesting.syncServerRoomDemo({ source: fixture.source, tag, blogRoot: fixture.blogRoot }, contract)).rejects.toThrow();
   });
 
   test('rejects a lightweight tag', async () => {
@@ -154,13 +197,14 @@ describe('server room demo synchronization', () => {
     git(fixture.source, 'tag', '-d', 'episode-04-demo');
     git(fixture.source, 'tag', 'episode-04-demo');
     await expect(
-      syncServerRoomDemo({
-        source: fixture.source,
-        tag: 'episode-04-demo',
-        expectedCommit: fixture.commit,
-        blogRoot: fixture.blogRoot,
-        expectedGlbSha256: createHash('sha256').update('fixture glb\n').digest('hex'),
-      }),
+      syncTesting.syncServerRoomDemo(
+        {
+          source: fixture.source,
+          tag: 'episode-04-demo',
+          blogRoot: fixture.blogRoot,
+        },
+        fixtureContract(fixture),
+      ),
     ).rejects.toThrow(/annotated/i);
   });
 
@@ -171,9 +215,7 @@ describe('server room demo synchronization', () => {
       syncServerRoomDemo({
         source: fixture.source,
         tag: 'alias-demo',
-        expectedCommit: fixture.commit,
         blogRoot: fixture.blogRoot,
-        expectedGlbSha256: createHash('sha256').update('fixture glb\n').digest('hex'),
       }),
     ).rejects.toThrow(/expected tag/i);
   });
@@ -211,6 +253,40 @@ describe('server room demo synchronization', () => {
     await expect(verifyFixture(fixture)).rejects.toThrow(/unknown/i);
   });
 
+  test('rejects tampered bytes even when the manifest file SHA is updated to match', async () => {
+    const fixture = await makeFixture();
+    await syncFixture(fixture);
+    const target = join(fixture.destination, 'src/main.tsx');
+    const manifestPath = join(fixture.destination, 'upstream.json');
+    await writeFile(target, 'tampered with matching manifest\n');
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+    manifest.files.find((file: { path: string }) => file.path === 'src/main.tsx').sha256 = createHash('sha256')
+      .update('tampered with matching manifest\n')
+      .digest('hex');
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+
+    await expect(verifyFixture(fixture)).rejects.toThrow(/snapshot sha-256/i);
+  });
+
+  test('public verifier refuses provenance pin overrides', async () => {
+    const fixture = await makeFixture();
+    await syncFixture(fixture);
+    await expect(
+      verifyServerRoomDemo({
+        blogRoot: fixture.blogRoot,
+        expectedCommit: fixture.commit,
+      }),
+    ).rejects.toThrow(/override/i);
+    await expect(
+      syncServerRoomDemo({
+        source: fixture.source,
+        tag: 'episode-04-demo',
+        blogRoot: fixture.blogRoot,
+        expectedCommit: fixture.commit,
+      }),
+    ).rejects.toThrow(/override/i);
+  });
+
   test('preserves future blog-owned configs while rejecting any other extra file', async () => {
     const fixture = await makeFixture();
     await syncFixture(fixture);
@@ -221,6 +297,7 @@ describe('server room demo synchronization', () => {
     await expect(verifyFixture(fixture)).resolves.toBeDefined();
     await writeFile(join(fixture.destination, 'notes.txt'), 'unknown\n');
     await expect(verifyFixture(fixture)).rejects.toThrow(/unknown/i);
+    await expect(syncFixture(fixture)).rejects.toThrow(/unknown/i);
   });
 
   test('rejects symlinked destination ancestors without changing the linked directory', async () => {
@@ -243,20 +320,71 @@ describe('server room demo synchronization', () => {
     await expect(verifyFixture(fixture)).rejects.toThrow(/symbolic link/i);
   });
 
-  test.each([0, 1, 2, 3])('rolls back all four targets when replacement phase %i fails', async (failurePhase) => {
+  test.each(['beforeBackup', 'beforeInstall', 'afterInstall'] as const)(
+    'rolls back the whole destination when directory-swap phase %s fails',
+    async (failureHook) => {
+      const fixture = await makeFixture();
+      await syncFixture(fixture);
+      const before = await treeSnapshot(fixture.destination);
+      await expect(
+        syncFixture(fixture, {
+          hooks: {
+            [failureHook]() {
+              throw new Error(`injected ${failureHook}`);
+            },
+          },
+        }),
+      ).rejects.toThrow(`injected ${failureHook}`);
+      expect(await treeSnapshot(fixture.destination)).toEqual(before);
+    },
+  );
+
+  test.each(['prepared', 'backing-up', 'installing', 'installed'] as const)(
+    'recovers an orphan transaction in journal state %s before the next sync',
+    async (crashState) => {
+      const fixture = await makeFixture();
+      await syncFixture(fixture);
+      const crash = Object.assign(new Error(`simulated crash at ${crashState}`), {
+        simulatedCrash: true,
+      });
+      await expect(
+        syncFixture(fixture, {
+          hooks: {
+            afterJournal(state: string) {
+              if (state === crashState) throw crash;
+            },
+          },
+        }),
+      ).rejects.toThrow(`simulated crash at ${crashState}`);
+      const transaction = join(fixture.blogRoot, 'demos', syncTesting.transactionName);
+      expect((await lstat(transaction)).isDirectory()).toBe(true);
+
+      await syncFixture(fixture);
+
+      await expect(verifyFixture(fixture)).resolves.toBeDefined();
+      expect(await lstat(transaction).catch(() => undefined)).toBeUndefined();
+      expect(await lstat(join(fixture.blogRoot, 'demos', syncTesting.lockName)).catch(() => undefined)).toBeUndefined();
+    },
+  );
+
+  test('retains the durable backup and journal when rollback itself fails', async () => {
     const fixture = await makeFixture();
     await syncFixture(fixture);
-    const before = await treeSnapshot(fixture.destination);
     await expect(
       syncFixture(fixture, {
         hooks: {
-          beforeReplacement(phase: number) {
-            if (phase === failurePhase) throw new Error(`injected phase ${phase}`);
+          beforeInstall() {
+            throw new Error('install failed');
+          },
+          beforeRollbackRestore() {
+            throw new Error('restore failed');
           },
         },
       }),
-    ).rejects.toThrow(`injected phase ${failurePhase}`);
-    expect(await treeSnapshot(fixture.destination)).toEqual(before);
+    ).rejects.toThrow(/backup retained/i);
+    const transaction = join(fixture.blogRoot, 'demos', syncTesting.transactionName);
+    expect((await lstat(join(transaction, 'backup'))).isDirectory()).toBe(true);
+    expect((await lstat(join(transaction, 'journal.json'))).isFile()).toBe(true);
   });
 
   test('does not mutate an existing snapshot when source validation fails', async () => {
@@ -310,12 +438,7 @@ describe('server room demo synchronization', () => {
     ];
     for (const manifest of invalidManifests) {
       await writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`);
-      await expect(
-        verifyServerRoomDemo({
-          blogRoot: fixture.blogRoot,
-          expectedGlbSha256: createHash('sha256').update('fixture glb\n').digest('hex'),
-        }),
-      ).rejects.toThrow();
+      await expect(verifyTesting.verifyServerRoomDemo({ blogRoot: fixture.blogRoot }, fixtureContract(fixture))).rejects.toThrow();
     }
   });
 

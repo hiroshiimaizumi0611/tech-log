@@ -1,22 +1,30 @@
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { copyFile, lstat, mkdir, mkdtemp, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
+import { copyFile, lstat, mkdir, open, readFile, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  EXPECTED_COMMIT,
-  EXPECTED_GLB_SHA256,
-  EXPECTED_TAG,
   MANIFEST_SCHEMA,
   MANIFEST_VERSION,
+  PRODUCTION_CONTRACT,
+  __testing as verifierTesting,
+  computeSnapshotSha256,
   isAllowlistedPath,
   isSafeRelativePath,
-  verifyServerRoomDemo,
 } from './verify-server-room-demo.mjs';
 
-const REPLACEMENT_TARGETS = ['index.html', 'src', 'public', 'upstream.json'];
 const BLOG_OWNED_CONFIGS = ['vite.config.ts', 'vitest.config.ts', 'tsconfig.json'];
+const PIN_OVERRIDE_KEYS = ['expectedTag', 'expectedCommit', 'expectedGlbSha256', 'expectedSnapshotSha256', 'contract', 'hooks'];
+const LOCK_NAME = '.server-room-sync.lock';
+const TRANSACTION_NAME = '.server-room-sync-transaction';
+const JOURNAL_STATES = new Set(['prepared', 'backing-up', 'installing', 'installed']);
+
+// Threat boundary: the lock coordinates cooperating sync processes and the journal
+// recovers process/host crashes. A separate process with arbitrary filesystem write
+// access is out of scope. After destination validation/config preservation, the
+// transaction only renames the whole destination directory; it does not traverse
+// destination children after the final check.
 
 function runGit(source, args, { binary = false } = {}) {
   return new Promise((resolvePromise, reject) => {
@@ -55,7 +63,6 @@ async function validateDestination(blogRootOption, destinationOption) {
   if (!destination.startsWith(`${blogRoot}${sep}`)) {
     throw new Error(`Demo destination must remain inside the blog repository: ${destination}`);
   }
-
   let cursor = blogRoot;
   for (const part of relative(blogRoot, destination).split(sep)) {
     cursor = join(cursor, part);
@@ -87,7 +94,83 @@ async function sha256(path) {
     .digest('hex');
 }
 
-async function extractSnapshot({ source, tag, expectedCommit, expectedGlbSha256, stageDestination, hooks }) {
+async function syncDirectory(path) {
+  const handle = await open(path, 'r');
+  try {
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+}
+
+async function writeJournal(transactionRoot, journal) {
+  const path = join(transactionRoot, 'journal.json');
+  const handle = await open(path, 'w', 0o600);
+  try {
+    await handle.writeFile(`${JSON.stringify(journal)}\n`);
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  await syncDirectory(transactionRoot);
+}
+
+async function readJournal(transactionRoot) {
+  const path = join(transactionRoot, 'journal.json');
+  const stat = await lstat(path).catch(() => undefined);
+  if (!stat?.isFile() || stat.isSymbolicLink()) {
+    throw new Error(`Orphan demo transaction has no safe journal; preserving it at ${transactionRoot}`);
+  }
+  let journal;
+  try {
+    journal = JSON.parse(await readFile(path, 'utf8'));
+  } catch (error) {
+    throw new Error(`Cannot read orphan demo transaction journal; preserving ${transactionRoot}: ${error.message}`);
+  }
+  if (!JOURNAL_STATES.has(journal.state) || typeof journal.hadDestination !== 'boolean') {
+    throw new Error(`Invalid orphan demo transaction journal; preserving it at ${transactionRoot}`);
+  }
+  return journal;
+}
+
+async function acquireLock(parent) {
+  const lockPath = join(parent, LOCK_NAME);
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const handle = await open(lockPath, 'wx', 0o600);
+      await handle.writeFile(`${JSON.stringify({ pid: process.pid })}\n`);
+      await handle.sync();
+      return async () => {
+        await handle.close();
+        await rm(lockPath).catch(() => {});
+        await syncDirectory(parent);
+      };
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      let pid;
+      try {
+        pid = JSON.parse(await readFile(lockPath, 'utf8')).pid;
+      } catch {
+        throw new Error(`Demo sync lock is unreadable: ${lockPath}`);
+      }
+      let alive = Number.isInteger(pid) && pid > 0;
+      if (alive) {
+        try {
+          process.kill(pid, 0);
+        } catch (killError) {
+          if (killError.code === 'ESRCH') alive = false;
+          else if (killError.code !== 'EPERM') throw killError;
+        }
+      }
+      if (alive) throw new Error(`Another demo sync is active with pid ${pid}`);
+      await rm(lockPath);
+      await syncDirectory(parent);
+    }
+  }
+  throw new Error(`Cannot acquire demo sync lock: ${lockPath}`);
+}
+
+async function extractSnapshot({ source, tag, contract, stageDestination, hooks }) {
   validateTag(tag);
   const tagType = await runGit(source, ['cat-file', '-t', tag]).catch((error) => {
     throw new Error(`Cannot resolve annotated tag ${tag}: ${error.message}`);
@@ -99,31 +182,26 @@ async function extractSnapshot({ source, tag, expectedCommit, expectedGlbSha256,
   if (!/^[a-f0-9]{40}$/.test(commit)) {
     throw new Error(`Tag ${tag} did not resolve to a 40-character commit`);
   }
-  if (commit !== expectedCommit) {
-    throw new Error(`Tag ${tag} resolved to unexpected commit ${commit}; expected ${expectedCommit}`);
+  if (commit !== contract.commit) {
+    throw new Error(`Tag ${tag} resolved to unexpected commit ${commit}; expected ${contract.commit}`);
   }
   if ((await runGit(source, ['cat-file', '-t', commit])) !== 'commit') {
     throw new Error(`Annotated tag ${tag} does not point to a commit`);
   }
-
   const tree = parseTree(await runGit(source, ['ls-tree', '-r', '-z', commit], { binary: true }));
   const candidates = tree.filter((entry) => isAllowlistedPath(entry.path));
   for (const entry of candidates) {
     if (!isSafeRelativePath(entry.path)) {
       throw new Error(`Unsafe extraction path: ${entry.path}`);
     }
-    if (entry.mode !== '100644' && entry.mode !== '100755') {
-      throw new Error(`Allowlisted candidate must be a regular file: ${entry.path} has mode ${entry.mode}`);
-    }
-    if (entry.type !== 'blob') {
-      throw new Error(`Allowlisted candidate must be a regular file blob: ${entry.path} has type ${entry.type}`);
+    if ((entry.mode !== '100644' && entry.mode !== '100755') || entry.type !== 'blob') {
+      throw new Error(`Allowlisted candidate must be a regular file: ${entry.path} has mode ${entry.mode} and type ${entry.type}`);
     }
   }
   const paths = candidates.map((entry) => entry.path).sort();
   for (const required of ['index.html', 'public/models/server-room.glb']) {
     if (!paths.includes(required)) throw new Error(`Upstream tree is missing ${required}`);
   }
-
   const files = [];
   for (const path of paths) {
     hooks?.beforeExtract?.(path);
@@ -133,13 +211,23 @@ async function extractSnapshot({ source, tag, expectedCommit, expectedGlbSha256,
     files.push({ path, sha256: await sha256(output) });
   }
   const glb = files.find((file) => file.path === 'public/models/server-room.glb');
-  if (glb.sha256 !== expectedGlbSha256) {
-    throw new Error(`GLB SHA-256 mismatch: expected ${expectedGlbSha256}, got ${glb.sha256}`);
+  if (glb.sha256 !== contract.glbSha256) {
+    throw new Error(`GLB SHA-256 mismatch: expected ${contract.glbSha256}, got ${glb.sha256}`);
+  }
+  const snapshotSha256 = computeSnapshotSha256({
+    schema: MANIFEST_SCHEMA,
+    version: MANIFEST_VERSION,
+    upstream: { tag, commit },
+    files,
+  });
+  if (snapshotSha256 !== contract.snapshotSha256) {
+    throw new Error(`Snapshot SHA-256 mismatch: expected ${contract.snapshotSha256}, got ${snapshotSha256}`);
   }
   const manifest = {
     schema: MANIFEST_SCHEMA,
     version: MANIFEST_VERSION,
     upstream: { tag, commit },
+    snapshotSha256,
     files,
   };
   await writeFile(join(stageDestination, 'upstream.json'), `${JSON.stringify(manifest, null, 2)}\n`);
@@ -158,102 +246,184 @@ async function preserveBlogOwnedConfigs(destination, stageDestination) {
   }
 }
 
-async function replaceTransaction({ destination, stageDestination, transactionRoot, hooks }) {
-  const backupRoot = join(transactionRoot, 'backup');
-  await mkdir(backupRoot);
-  const states = [];
+async function validateExistingDestinationShape(destination) {
+  const allowedBlogFiles = new Set(['upstream.json', ...BLOG_OWNED_CONFIGS]);
+  async function visit(directory, prefix = '') {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = prefix ? `${prefix}/${entry.name}` : entry.name;
+      const absolute = join(directory, entry.name);
+      if (entry.isSymbolicLink()) {
+        throw new Error(`Symbolic link is not allowed in existing demo: ${path}`);
+      }
+      if (entry.isDirectory()) {
+        await visit(absolute, path);
+      } else if (!entry.isFile()) {
+        throw new Error(`Non-regular file is not allowed in existing demo: ${path}`);
+      } else if (!allowedBlogFiles.has(path) && !isAllowlistedPath(path)) {
+        throw new Error(`Unknown file in existing demo snapshot: ${path}`);
+      }
+    }
+  }
+  await visit(destination);
+}
+
+async function restoreOldDestination({ destination, transactionRoot, journal, hooks }) {
+  const backup = join(transactionRoot, 'backup');
+  const interrupted = join(transactionRoot, 'interrupted-new');
   try {
-    for (let phase = 0; phase < REPLACEMENT_TARGETS.length; phase += 1) {
-      hooks?.beforeReplacement?.(phase);
-      const name = REPLACEMENT_TARGETS[phase];
-      const current = join(destination, name);
-      const staged = join(stageDestination, name);
-      const backup = join(backupRoot, name);
-      const existed = Boolean(await lstat(current).catch(() => undefined));
-      const state = { name, current, staged, backup, existed, installed: false };
-      states.push(state);
-      if (existed) {
-        await mkdir(dirname(backup), { recursive: true });
-        await rename(current, backup);
-      }
-      await rename(staged, current);
-      state.installed = true;
-    }
-  } catch (error) {
-    const rollbackErrors = [];
-    for (const state of states.reverse()) {
-      try {
-        if (state.installed) await rm(state.current, { recursive: true });
-        if (state.existed && (await lstat(state.backup).catch(() => undefined))) {
-          await mkdir(dirname(state.current), { recursive: true });
-          await rename(state.backup, state.current);
+    hooks?.beforeRollbackRestore?.();
+    const destinationExists = Boolean(await lstat(destination).catch(() => undefined));
+    const backupExists = Boolean(await lstat(backup).catch(() => undefined));
+    if (journal.hadDestination) {
+      if (!backupExists) {
+        if (destinationExists && ['prepared', 'backing-up'].includes(journal.state)) {
+          await rm(transactionRoot, { recursive: true });
+          return;
         }
-      } catch (rollbackError) {
-        rollbackErrors.push(`${state.name}: ${rollbackError.message}`);
+        throw new Error('old destination backup is missing');
       }
+      if (destinationExists) await rename(destination, interrupted);
+      await rename(backup, destination);
+    } else if (destinationExists) {
+      await rename(destination, interrupted);
     }
-    if (rollbackErrors.length) {
-      throw new Error(`${error.message}; rollback also failed (${rollbackErrors.join(', ')})`, { cause: error });
+    await syncDirectory(dirname(destination));
+    await rm(transactionRoot, { recursive: true });
+    await syncDirectory(dirname(destination));
+  } catch (error) {
+    throw new Error(`Demo sync rollback failed; backup retained at ${backup}: ${error.message}`, { cause: error });
+  }
+}
+
+async function recoverOrphanTransaction({ destination, transactionRoot }) {
+  const stat = await lstat(transactionRoot).catch(() => undefined);
+  if (!stat) return;
+  if (!stat.isDirectory() || stat.isSymbolicLink()) {
+    throw new Error(`Unsafe orphan demo transaction; preserving it at ${transactionRoot}`);
+  }
+  const journal = await readJournal(transactionRoot);
+  await restoreOldDestination({
+    destination,
+    transactionRoot,
+    journal,
+  });
+}
+
+async function replaceDirectory({ destination, transactionRoot, stageDestination, hadDestination, hooks }) {
+  const backup = join(transactionRoot, 'backup');
+  let journal = { state: 'prepared', hadDestination };
+  try {
+    await writeJournal(transactionRoot, journal);
+    hooks?.afterJournal?.('prepared');
+    journal = { ...journal, state: 'backing-up' };
+    await writeJournal(transactionRoot, journal);
+    hooks?.afterJournal?.('backing-up');
+    hooks?.beforeBackup?.();
+    if (hadDestination) {
+      await rename(destination, backup);
+      await syncDirectory(dirname(destination));
     }
+
+    journal = { ...journal, state: 'installing' };
+    await writeJournal(transactionRoot, journal);
+    hooks?.afterJournal?.('installing');
+    hooks?.beforeInstall?.();
+    await rename(stageDestination, destination);
+    await syncDirectory(dirname(destination));
+
+    journal = { ...journal, state: 'installed' };
+    await writeJournal(transactionRoot, journal);
+    hooks?.afterJournal?.('installed');
+    hooks?.afterInstall?.();
+    await rm(transactionRoot, { recursive: true });
+    await syncDirectory(dirname(destination));
+  } catch (error) {
+    if (error?.simulatedCrash) throw error;
+    await restoreOldDestination({
+      destination,
+      transactionRoot,
+      journal,
+      hooks,
+    });
     throw error;
   }
 }
 
-export async function syncServerRoomDemo(options) {
+async function syncWithContract(options, contract, hooks = {}) {
   const sourceOption = options?.source;
   if (!sourceOption || !isAbsolute(sourceOption)) {
     throw new Error('--source must be an absolute path');
   }
   const source = await realpath(sourceOption);
   const tag = options.tag;
-  if (tag !== EXPECTED_TAG) {
-    throw new Error(`Invalid upstream tag; expected tag ${EXPECTED_TAG}`);
+  if (tag !== contract.tag) {
+    throw new Error(`Invalid upstream tag; expected tag ${contract.tag}`);
   }
-  const expectedCommit = options.expectedCommit ?? EXPECTED_COMMIT;
-  const expectedGlbSha256 = options.expectedGlbSha256 ?? EXPECTED_GLB_SHA256;
   const defaultBlogRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
   const { blogRoot, destination } = await validateDestination(options.blogRoot ?? defaultBlogRoot, options.destination);
-  const destinationParent = dirname(destination);
-  await mkdir(destinationParent, { recursive: true });
-  const transactionRoot = await mkdtemp(join(destinationParent, '.server-room-sync-'));
-  const stageDestination = join(transactionRoot, 'snapshot');
-  await mkdir(stageDestination);
+  const parent = dirname(destination);
+  await mkdir(parent, { recursive: true });
+  const releaseLock = await acquireLock(parent);
+  const transactionRoot = join(parent, TRANSACTION_NAME);
+  const stageDestination = join(transactionRoot, 'stage');
   try {
-    const manifest = await extractSnapshot({
-      source,
-      tag,
-      expectedCommit,
-      expectedGlbSha256,
-      stageDestination,
-      hooks: options.hooks,
-    });
-    const existingDestinationStat = await lstat(destination).catch(() => undefined);
-    if (existingDestinationStat) {
-      if (!existingDestinationStat.isDirectory() || existingDestinationStat.isSymbolicLink()) {
-        throw new Error(`Demo destination must be a real directory: ${destination}`);
-      }
-      await preserveBlogOwnedConfigs(destination, stageDestination);
+    await recoverOrphanTransaction({ destination, transactionRoot });
+    const destinationStat = await lstat(destination).catch(() => undefined);
+    const hadDestination = Boolean(destinationStat);
+    if (destinationStat && (!destinationStat.isDirectory() || destinationStat.isSymbolicLink())) {
+      throw new Error(`Demo destination must be a real directory: ${destination}`);
     }
-    await verifyServerRoomDemo({
-      blogRoot,
-      destination: relative(blogRoot, stageDestination),
-      expectedTag: tag,
-      expectedCommit,
-      expectedGlbSha256,
-    });
-
-    await mkdir(destination, { recursive: true });
-    await replaceTransaction({
-      destination,
-      stageDestination,
-      transactionRoot,
-      hooks: options.hooks,
-    });
-    return { destination, manifest };
+    if (hadDestination) await validateExistingDestinationShape(destination);
+    await mkdir(transactionRoot);
+    await mkdir(stageDestination);
+    try {
+      const manifest = await extractSnapshot({
+        source,
+        tag,
+        contract,
+        stageDestination,
+        hooks,
+      });
+      if (hadDestination) {
+        await preserveBlogOwnedConfigs(destination, stageDestination);
+      }
+      await verifierTesting.verifyServerRoomDemo({ blogRoot, destination: relative(blogRoot, stageDestination) }, contract);
+      await replaceDirectory({
+        destination,
+        transactionRoot,
+        stageDestination,
+        hadDestination,
+        hooks,
+      });
+      return { destination, manifest };
+    } catch (error) {
+      const journalExists = await lstat(join(transactionRoot, 'journal.json')).catch(() => undefined);
+      if (!journalExists) await rm(transactionRoot, { recursive: true }).catch(() => {});
+      throw error;
+    }
   } finally {
-    await rm(transactionRoot, { recursive: true }).catch(() => {});
+    await releaseLock();
   }
 }
+
+function rejectPinOverrides(options) {
+  for (const key of PIN_OVERRIDE_KEYS) {
+    if (Object.hasOwn(options, key)) {
+      throw new Error(`Public sync does not allow provenance override: ${key}`);
+    }
+  }
+}
+
+export async function syncServerRoomDemo(options) {
+  rejectPinOverrides(options ?? {});
+  return syncWithContract(options, PRODUCTION_CONTRACT);
+}
+
+export const __testing = Object.freeze({
+  syncServerRoomDemo: syncWithContract,
+  transactionName: TRANSACTION_NAME,
+  lockName: LOCK_NAME,
+});
 
 function parseArguments(argv) {
   const result = {};

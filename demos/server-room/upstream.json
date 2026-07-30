@@ -5,6 +5,7 @@
     "tag": "episode-04-demo",
     "commit": "13bf472051782ff3373e52b1e312b2b380363bc5"
   },
+  "snapshotSha256": "32ef5b3f89ecbd35dfee62daf0ab69349aea48ddda7826dd36068da41afb9385",
   "files": [
     {
       "path": "index.html",
