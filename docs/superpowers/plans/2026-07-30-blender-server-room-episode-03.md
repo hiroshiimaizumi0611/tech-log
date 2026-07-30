@@ -549,7 +549,7 @@ representative_servers=server_01_01,server_02_08
 ブラウザで次を開く。
 
 ```text
-https://github.khronos.org/glTF-Sample-Viewer/
+https://github.khronos.org/glTF-Sample-Viewer-Release/
 ```
 
 `models/episode-03-server-room.glb`をドラッグ＆ドロップし、次をユーザーと確認する。

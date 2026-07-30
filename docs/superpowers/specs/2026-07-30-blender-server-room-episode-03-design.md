@@ -167,7 +167,7 @@ Validatorの`numErrors`が0であることを完成条件とする。警告が�
 
 ### 6.3 見た目の検証
 
-Khronos glTF Sample Viewer（`https://github.khronos.org/glTF-Sample-Viewer/`）へローカルのGLBをドラッグ＆ドロップし、次を目視で確認する。
+Khronos glTF Sample Viewer（`https://github.khronos.org/glTF-Sample-Viewer-Release/`）へローカルのGLBをドラッグ＆ドロップし、次を目視で確認する。
 
 - 床、壁、ラック2台、サーバー14台が表示される。
 - 壁、床、ラック、サーバーの色を見分けられる。
@@ -285,4 +285,4 @@ src/assets/blog/blender-03-*.png
 - [Blender Manual: glTF 2.0](https://docs.blender.org/manual/en/latest/addons/import_export/scene_gltf2.html)
 - [Khronos glTF 2.0 Specification](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html)
 - [KhronosGroup/glTF-Validator](https://github.com/KhronosGroup/glTF-Validator)
-- [Khronos glTF Sample Viewer](https://github.khronos.org/glTF-Sample-Viewer/)
+- [Khronos glTF Sample Viewer](https://github.khronos.org/glTF-Sample-Viewer-Release/)
