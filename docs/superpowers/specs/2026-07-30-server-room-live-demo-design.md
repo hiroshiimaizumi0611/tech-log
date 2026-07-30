@@ -38,8 +38,8 @@ Blenderファイルと3Dアプリの制作原本は、引き続き`3d-server-roo
 
 - `root`: `demos/server-room`
 - `base`: `/demos/server-room/`
-- `publicDir`: `demos/server-room/public`
-- `build.outDir`: ブログルートの`dist/demos/server-room`
+- `publicDir`: `public`。`root`を基準に`demos/server-room/public`を参照します。
+- `build.outDir`: ブログルートから絶対パスへ解決した`dist/demos/server-room`
 - `build.emptyOutDir`: `false`
 
 ルートの`build:demo`がこの設定を指定してViteを実行します。最終`build`の順序は`Astro → demo Vite → Pagefind → verify-build`とします。成果物検査では、Viteの実行後もブログの`index.html`、RSS、sitemap、Pagefindの前提ファイルが残り、GLBがデモ配下にだけ出力されたことを確認します。
@@ -121,16 +121,18 @@ React rootの外にある静的ヘッダーへ、ブログへ戻るリンクと�
 
 ## 検索、セキュリティ、キャッシュ
 
-デモは第4回記事の補助画面であり、単独の検索流入を目的にしません。`robots` metaと`X-Robots-Tag`を`noindex, follow`にし、Pagefindの検索対象から除外します。sitemapにも追加しません。HTMLには日本語のtitle、description、canonicalを設定します。
+デモは第4回記事の補助画面であり、単独の検索流入を目的にしません。`robots` metaと`X-Robots-Tag`を`noindex, follow`にし、Pagefindの検索対象から除外します。sitemapにも追加しません。HTMLには日本語のtitle、description、canonicalを設定します。canonicalは検証済みの`SITE_URL`と`/demos/server-room/`をViteのHTML変換処理で結合し、絶対URLとして出力します。
 
 ブログの`public/_headers`へ`/demos/server-room/*`のルールを追加します。
 
 - `X-Content-Type-Options: nosniff`
 - `X-Frame-Options: DENY`
 - `Referrer-Policy: strict-origin-when-cross-origin`
-- 不要な機能を無効にする`Permissions-Policy`
-- self配信だけを許可し、frame埋め込みを禁止するContent Security Policy
+- `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()`
+- `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'`
 - `X-Robots-Tag: noindex, follow`
+
+React Three FiberとDreiがDOM要素へ設定するstyle属性を動かせるよう、`style-src`に限って`'unsafe-inline'`を許可します。scriptは外部のハッシュ付きファイルだけを読み込み、`'unsafe-inline'`は許可しません。
 
 Cloudflare Workers Static Assetsの既定である`Cache-Control: public, max-age=0, must-revalidate`とETagを、HTML、ハッシュ付きJS/CSS、固定名GLBのすべてで維持します。今回は独自の長期immutable設定を追加せず、デプロイ直後の古いGLB残存を避けます。
 
@@ -147,6 +149,9 @@ Cloudflare Workers Static Assetsの既定である`Cache-Control: public, max-ag
 - 第4回記事のデモリンク、文言、属性
 - Viteの`base`とGLB公開パス
 - upstream manifestのファイル一覧とSHA-256
+- `robots` metaが`noindex, follow`であること
+- canonicalが`SITE_URL`配下の絶対URLであること
+- `_headers`の各セキュリティヘッダーが設計値と一致すること
 
 ### GLB検証
 
@@ -184,6 +189,8 @@ Validatorの出力は一時領域またはメモリ内で扱い、追跡済み�
 - HTMLとアセットURLが`/demos/server-room/`を参照すること
 - ブログの`index.html`、RSS、sitemapがVite build後も残ること
 - GLBが`dist/demos/server-room/models/`にだけ出力されること
+- PagefindのentryとindexにデモURLやデモ本文が含まれないこと
+- デモURLがsitemapに含まれないこと
 
 ### 本番スモークテスト
 
@@ -192,7 +199,8 @@ Validatorの出力は一時領域またはメモリ内で扱い、追跡済み�
 - HTMLからmodule scriptとstylesheetを抽出し、同じサブパス内のURLであること
 - JavaScriptとCSSがHTTP 2xxおよび期待MIMEを返すこと
 - GLBがHTTP 2xx、期待MIME、期待SHA-256を満たすこと
-- セキュリティヘッダーと`X-Robots-Tag`が付くこと
+- CSP、`X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`、`X-Robots-Tag`が設計した値と一致すること
+- HTML、JavaScript、CSS、GLBの`Cache-Control`が`public, max-age=0, must-revalidate`であること
 
 既存の`scripts/smoke-production.mjs`と対応単体テストへ、これらの検査を追加します。ローカルのAstro previewだけでなく、デプロイ後のWorkersレスポンスを確認します。
 
@@ -204,6 +212,7 @@ Validatorの出力は一時領域またはメモリ内で扱い、追跡済み�
 4. PRを作成し、CI成功を確認します。
 5. `main`へマージしてCloudflareへデプロイします。
 6. 公開URL、記事の導線、操作、スモークテストを確認します。
+7. `_headers`が適用された本番環境で、モデルready、選択、アラーム、正常復帰、回転、ズームまで到達できることを実ブラウザで確認します。
 
 ## 対象外
 
