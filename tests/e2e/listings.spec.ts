@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 const articleTitles = [
+  'Blenderの3DサーバールームをGLBで書き出して検証する',
   'Blenderでラックを並べて3Dサーバールームを作る',
   'Blender完全初心者がCubeだけでサーバーラックを作る',
   'Claude Opus 5とは？Opus 4.8からの進化・料金・性能を分かりやすく解説',
@@ -25,12 +26,22 @@ test('記事一覧は公開日の降順で公開記事を表示する', async ({
   await page.goto('/blog/');
 
   await expect(page.getByRole('heading', { level: 1, name: '記事一覧' })).toBeVisible();
-  await expect(page.getByText('12件の記事')).toBeVisible();
+  await expect(page.getByText('13件の記事')).toBeVisible();
   const cards = page.locator('main [data-article-card]');
   await expect(cards).toHaveCount(12);
-  await expect(cards.getByRole('heading')).toHaveText(articleTitles);
-  await expect(page.getByRole('navigation', { name: 'ページネーション' })).toHaveCount(0);
+  await expect(cards.getByRole('heading')).toHaveText(articleTitles.slice(0, 12));
+  const pagination = page.getByRole('navigation', { name: 'ページネーション' });
+  await expect(pagination.getByText('1 / 2')).toBeVisible();
+  await expect(pagination.getByRole('link', { name: '次のページ' })).toHaveAttribute('href', '/blog/page/2/');
   await expectNoHighImpactAxeViolations(page);
+
+  await pagination.getByRole('link', { name: '次のページ' }).click();
+  await expect(page).toHaveURL('/blog/page/2/');
+  await expect(page.locator('main [data-article-card]').getByRole('heading')).toHaveText(articleTitles.slice(12));
+  await expect(page.getByRole('navigation', { name: 'ページネーション' }).getByRole('link', { name: '前のページ' })).toHaveAttribute(
+    'href',
+    '/blog/',
+  );
 });
 
 test('タグ一覧の全リンクが共有ルートの詳細へ解決される', async ({ page, request }) => {

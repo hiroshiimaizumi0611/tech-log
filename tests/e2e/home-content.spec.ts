@@ -2,10 +2,10 @@ import { expect, test } from '@playwright/test';
 
 const blenderArticleTitle = 'Blender完全初心者がCubeだけでサーバーラックを作る';
 const blenderRoomArticleTitle = 'Blenderでラックを並べて3Dサーバールームを作る';
+const blenderGlbArticleTitle = 'Blenderの3DサーバールームをGLBで書き出して検証する';
 const opusArticleTitle = 'Claude Opus 5とは？Opus 4.8からの進化・料金・性能を分かりやすく解説';
-const kimiArticleTitle = 'Kimi K3とは？2.8兆パラメータの新AIモデルを公式情報とベンチマークから解説';
 
-const latestArticleTitles = [blenderRoomArticleTitle, blenderArticleTitle, opusArticleTitle, kimiArticleTitle] as const;
+const latestArticleTitles = [blenderGlbArticleTitle, blenderRoomArticleTitle, blenderArticleTitle, opusArticleTitle] as const;
 
 const featuredArticleTitle = opusArticleTitle;
 

@@ -1,12 +1,12 @@
 ---
 title: Blenderの3DサーバールームをGLBで書き出して検証する
 description: Blender初心者が、3DサーバールームをGLB形式へ書き出し、Khronos Validatorと構造検証、ブラウザビューアーでReact表示の準備を確認します。
-publishedAt: '2026-07-30T21:00:00+09:00'
+publishedAt: '2026-07-30T09:33:54+09:00'
 category: Frontend
 tags:
   - Blender
   - 3D
-draft: true
+draft: false
 heroImage: ../../assets/blog/blender-03-browser-viewer.png
 ---
 
