@@ -17,7 +17,7 @@ function post(id: string, index: number, draft = false): PostLike {
 
 describe('listing policy', () => {
   it('uses one 12-item policy to build page 1 and page 2 route models', () => {
-    const posts = Array.from({ length: 13 }, (_, index) => post(`post-${String(index + 1).padStart(2, '0')}`, index));
+    const posts = Array.from({ length: 14 }, (_, index) => post(`post-${String(index + 1).padStart(2, '0')}`, index));
     const pages = buildBlogListingPages(posts);
 
     expect(LISTING_PAGE_SIZE).toBe(12);
@@ -25,7 +25,7 @@ describe('listing policy', () => {
     expect(pages[0]).toMatchObject({ page: 1, path: '/blog/', pagination: { previousHref: undefined, nextHref: '/blog/page/2/' } });
     expect(pages[0].posts).toHaveLength(12);
     expect(pages[1]).toMatchObject({ page: 2, path: '/blog/page/2/', pagination: { previousHref: '/blog/', nextHref: undefined } });
-    expect(pages[1].posts).toHaveLength(1);
+    expect(pages[1].posts).toHaveLength(2);
   });
 
   it('excludes drafts and still returns an empty first-page model', () => {
