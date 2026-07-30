@@ -5,7 +5,9 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  EXPECTED_COMMIT,
   EXPECTED_GLB_SHA256,
+  EXPECTED_TAG,
   MANIFEST_SCHEMA,
   MANIFEST_VERSION,
   isAllowlistedPath,
@@ -13,7 +15,6 @@ import {
   verifyServerRoomDemo,
 } from './verify-server-room-demo.mjs';
 
-const EXPECTED_COMMIT = '13bf472051782ff3373e52b1e312b2b380363bc5';
 const REPLACEMENT_TARGETS = ['index.html', 'src', 'public', 'upstream.json'];
 const BLOG_OWNED_CONFIGS = ['vite.config.ts', 'vitest.config.ts', 'tsconfig.json'];
 
@@ -205,6 +206,9 @@ export async function syncServerRoomDemo(options) {
   }
   const source = await realpath(sourceOption);
   const tag = options.tag;
+  if (tag !== EXPECTED_TAG) {
+    throw new Error(`Invalid upstream tag; expected tag ${EXPECTED_TAG}`);
+  }
   const expectedCommit = options.expectedCommit ?? EXPECTED_COMMIT;
   const expectedGlbSha256 = options.expectedGlbSha256 ?? EXPECTED_GLB_SHA256;
   const defaultBlogRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -234,6 +238,7 @@ export async function syncServerRoomDemo(options) {
       blogRoot,
       destination: relative(blogRoot, stageDestination),
       expectedTag: tag,
+      expectedCommit,
       expectedGlbSha256,
     });
 

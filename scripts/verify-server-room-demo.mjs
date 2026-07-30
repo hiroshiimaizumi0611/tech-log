@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 export const MANIFEST_SCHEMA = 'server-room-demo-upstream';
 export const MANIFEST_VERSION = 1;
 export const EXPECTED_TAG = 'episode-04-demo';
+export const EXPECTED_COMMIT = '13bf472051782ff3373e52b1e312b2b380363bc5';
 export const EXPECTED_GLB_SHA256 = '42114017b88bc45862e598de271ca05ce7df0e3f227197fc65941658794e552a';
 
 const MANAGED_ROOTS = ['index.html', 'public', 'src'];
@@ -55,12 +56,18 @@ async function sha256(path) {
     .digest('hex');
 }
 
-function validateManifest(manifest, { expectedTag, expectedGlbSha256 }) {
+function validateManifest(manifest, { expectedTag, expectedCommit, expectedGlbSha256 }) {
   if (!manifest || manifest.schema !== MANIFEST_SCHEMA || manifest.version !== MANIFEST_VERSION) {
     throw new Error(`Invalid upstream manifest schema; expected ${MANIFEST_SCHEMA} version ${MANIFEST_VERSION}`);
   }
-  if (!manifest.upstream || manifest.upstream.tag !== expectedTag || !COMMIT_PATTERN.test(manifest.upstream.commit)) {
-    throw new Error('Invalid upstream tag or 40-character commit in manifest');
+  if (!manifest.upstream || manifest.upstream.tag !== expectedTag) {
+    throw new Error(`Invalid upstream tag; expected tag ${expectedTag}`);
+  }
+  if (!COMMIT_PATTERN.test(manifest.upstream.commit)) {
+    throw new Error('Invalid 40-character upstream commit in manifest');
+  }
+  if (manifest.upstream.commit !== expectedCommit) {
+    throw new Error(`Invalid upstream commit; expected commit ${expectedCommit}`);
   }
   if (!Array.isArray(manifest.files) || manifest.files.length === 0) {
     throw new Error('Manifest files must be a non-empty array');
@@ -134,6 +141,7 @@ export async function verifyServerRoomDemo(options = {}) {
   }
   const manifest = validateManifest(parsed, {
     expectedTag: options.expectedTag ?? EXPECTED_TAG,
+    expectedCommit: options.expectedCommit ?? EXPECTED_COMMIT,
     expectedGlbSha256: options.expectedGlbSha256 ?? EXPECTED_GLB_SHA256,
   });
 

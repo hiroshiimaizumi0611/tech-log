@@ -65,6 +65,7 @@ async function syncFixture(fixture: Fixture, options: Record<string, unknown> = 
 async function verifyFixture(fixture: Fixture) {
   return verifyServerRoomDemo({
     blogRoot: fixture.blogRoot,
+    expectedCommit: fixture.commit,
     expectedGlbSha256: createHash('sha256').update('fixture glb\n').digest('hex'),
   });
 }
@@ -150,16 +151,31 @@ describe('server room demo synchronization', () => {
 
   test('rejects a lightweight tag', async () => {
     const fixture = await makeFixture();
-    git(fixture.source, 'tag', 'lightweight');
+    git(fixture.source, 'tag', '-d', 'episode-04-demo');
+    git(fixture.source, 'tag', 'episode-04-demo');
     await expect(
       syncServerRoomDemo({
         source: fixture.source,
-        tag: 'lightweight',
+        tag: 'episode-04-demo',
         expectedCommit: fixture.commit,
         blogRoot: fixture.blogRoot,
         expectedGlbSha256: createHash('sha256').update('fixture glb\n').digest('hex'),
       }),
     ).rejects.toThrow(/annotated/i);
+  });
+
+  test('rejects an annotated alias even when it peels to the expected commit', async () => {
+    const fixture = await makeFixture();
+    git(fixture.source, 'tag', '-a', 'alias-demo', '-m', 'alias', fixture.commit);
+    await expect(
+      syncServerRoomDemo({
+        source: fixture.source,
+        tag: 'alias-demo',
+        expectedCommit: fixture.commit,
+        blogRoot: fixture.blogRoot,
+        expectedGlbSha256: createHash('sha256').update('fixture glb\n').digest('hex'),
+      }),
+    ).rejects.toThrow(/expected tag/i);
   });
 
   test.each([
@@ -301,5 +317,16 @@ describe('server room demo synchronization', () => {
         }),
       ).rejects.toThrow();
     }
+  });
+
+  test.each(['0'.repeat(40), '1'.repeat(40)])('rejects a well-formed but unexpected manifest commit %s', async (commit) => {
+    const fixture = await makeFixture();
+    await syncFixture(fixture);
+    const path = join(fixture.destination, 'upstream.json');
+    const manifest = JSON.parse(await readFile(path, 'utf8'));
+    manifest.upstream.commit = commit;
+    await writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`);
+
+    await expect(verifyFixture(fixture)).rejects.toThrow(/expected commit/i);
   });
 });
