@@ -16,13 +16,13 @@ Blenderサーバールーム連載の第4回で紹介したReact Three Fiber製�
 
 ## リポジトリとソースの扱い
 
-Blenderファイルと3Dアプリの制作原本は、引き続き`3d-server-room-dashboard`リポジトリで管理します。
+Blenderファイルと3Dアプリの制作原本は、引き続きローカルの`3d-server-room-dashboard`リポジトリで管理します。公開版Reactソースの正式な保存先は、リモートとCIがあるブログリポジトリです。
 
-まず3Dリポジトリの`episode-04`タグから公開対応ブランチを作り、サブパス対応、静的な戻るリンク、モバイル案内、no-JS案内、テスト用のready・カメラ変更契約を実装します。検証後に`episode-04-demo`タグを付け、そのコミットを公開版のソース・オブ・トゥルースとします。
+まず3Dリポジトリの`episode-04`タグから公開対応ブランチを作り、サブパス対応、静的な戻るリンク、モバイル案内、no-JS案内、テスト用のready・カメラ変更契約を実装します。検証後にローカルの`episode-04-demo`タグを付け、そのcommitから公開ファイルを抽出します。
 
-ブログのリポジトリには、`episode-04-demo`の公開用スナップショットを`demos/server-room/`へ取り込みます。`demos/server-room/upstream.json`へ、元のタグ、コミット、同期対象ファイル、各ファイルのSHA-256を記録します。
+ブログのリポジトリには、`episode-04-demo`の公開用スナップショットを`demos/server-room/`へ取り込みます。ブログへcommitしたスナップショットが、公開版のソース・オブ・トゥルースです。`demos/server-room/upstream.json`へ、制作元のタグ、commit、同期対象ファイル、各ファイルのSHA-256を来歴として記録します。
 
-同期には`node scripts/sync-server-room-demo.mjs --source <3Dリポジトリ>`を使います。このスクリプトは元のタグとコミットを確認し、許可したファイルだけをコピーしてmanifestを更新します。CIではmanifestとブログ内のファイルを照合し、手作業による変更や同期漏れがあれば失敗させます。ブログ側だけの独自機能は追加しません。
+同期には`node scripts/sync-server-room-demo.mjs --source <3Dリポジトリ>`を使います。このスクリプトはworking treeを読まず、`git show`でタグのimmutable treeから許可したファイルだけを一時領域へ抽出します。全ファイルとmanifestの検証成功後に、ブログ側の既存スナップショットと入れ替えます。CIではmanifestとブログ内のファイルを照合し、手作業による変更や同期漏れがあれば失敗させます。ブログ側だけの独自機能は追加しません。
 
 ## ビルド構成
 
@@ -233,4 +233,4 @@ Validatorの出力は一時領域またはメモリ内で扱い、追跡済み�
 - デスクトップと幅390 pxで利用でき、横あふれがありません。
 - ブログ、デモ、GLB、E2Eの検証がNode.js 24で成功します。
 - Cloudflareへのデプロイと本番スモークテストが成功します。
-- `episode-04-demo`タグ、upstream manifest、ブログ内の同期ファイルが一致します。
+- upstream manifestとブログ内の同期ファイルが一致し、ブログのremoteから公開版ソースを再取得できます。
