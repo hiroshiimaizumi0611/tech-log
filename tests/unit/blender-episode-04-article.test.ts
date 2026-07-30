@@ -80,6 +80,12 @@ describe('Blender server room episode four article', () => {
     expect(body).toMatch(/第4回[\s\S]{0,80}Blender(?:自体)?は触ら/);
   });
 
+  it('shows the dependencies and accessible selection fallback used by the implementation', () => {
+    expect(body).toMatch(/npm install react react-dom three \\\n\s+@react-three\/fiber @react-three\/drei/);
+    expect(body).toMatch(/npm install -D vite typescript \\\n\s+@vitejs\/plugin-react @types\/react @types\/react-dom @types\/three/);
+    expect(body).toMatch(/<option value="">3D画面から選択してください<\/option>\s+\{SERVER_IDS\.map/);
+  });
+
   it('records why AI made the author start learning 3D', () => {
     expect(body).toMatch(/AI[\s\S]{0,80}3Dへのハードルが以前より下がっていると思い[\s\S]{0,40}Blenderの勉強を始めました/);
   });
@@ -92,8 +98,8 @@ describe('Blender server room episode four article', () => {
     expect(body).toMatch(/読み込み失敗[\s\S]{0,100}「3Dモデルを読み込めませんでした」[\s\S]{0,100}`\/models\/server-room\.glb`/);
     expect(body).toMatch(/AWSやCloudWatch、監視APIには接続していません/);
     expect(body).toMatch(/ローカル(?:の)?state/);
-    expect(body).toContain('TypeScriptとViteのProduction buildは成功しました');
-    expect(body).toMatch(/チャンクが500KBを超えるという警告/);
+    expect(body).toMatch(/TypeScript[^。\n]{0,20}Vite[^。\n]{0,30}(?:build|ビルド)[^。\n]{0,10}成功/);
+    expect(body).toMatch(/チャンク[^。\n]{0,30}500\s?KB[^。\n]{0,20}(?:超|上回)[^。\n]{0,20}(?:警告|注意)/);
     expect(body).toMatch(/実ブラウザでも[\s\S]{0,100}を選択し、回転、ズーム、アラーム発生、正常復帰を確認/);
   });
 

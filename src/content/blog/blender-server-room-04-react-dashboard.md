@@ -19,7 +19,7 @@ AIに操作やコードを相談できるようになり、3Dへのハードル�
 
 画面の左側に3Dサーバールーム、右側に選択したサーバーの詳細を表示します。マウスやトラックパッドで視点を回転・ズームでき、3D上のサーバーをクリックすると、名前、オブジェクトID、役割、IPアドレス、状態が右側へ出る構成です。
 
-監視データは14台分のモックデータです。正常は緑、障害は赤で表し、「アラーム発生」と「正常に戻す」の2個のボタンで状態を切り替えます。
+監視データは14台分のモックデータです。正常は緑、障害は赤で表し、「アラーム発生」と「正常に戻す」の2つのボタンで状態を切り替えます。
 
 ![React Three Fiberを組み込む前のVite初期画面](../../assets/blog/blender-04-vite-initial.png)
 <span class="article-image-caption">図1：ViteとReactの起動を先に確認した画面です。この時点では3Dモデルをまだ読み込んでいません。</span>
@@ -43,7 +43,8 @@ cp models/episode-03-server-room.glb \
 ```sh
 npm install react react-dom three \
   @react-three/fiber @react-three/drei
-npm install -D vite typescript
+npm install -D vite typescript \
+  @vitejs/plugin-react @types/react @types/react-dom @types/three
 ```
 
 最初に通常のReact画面を表示し、Viteの開発サーバーとCSSが動くところまでを確認しました。その後に3D表示を足しています。初期設定とGLB読み込みを分けたので、どこまで動いているかを画面で追いやすくなりました。
@@ -60,7 +61,7 @@ function ServerRoomModel() {
 }
 ```
 
-Canvasにはカメラ、環境光、平行光源を置きました。第3回のGLBにはCameraとLightを含めていないため、この2つはReact側で用意しています。
+Canvasにはカメラ、環境光、平行光源を置きました。第3回のGLBにはCameraとLightを含めていないため、カメラと照明はReact側で用意しています。
 
 ![GLBを読み込み、14台のサーバーを緑で表示したダッシュボード](../../assets/blog/blender-04-react-viewer.png)
 <span class="article-image-caption">図2：床、壁2面、ラック2台、サーバー14台を表示した状態です。まだサーバーは選択していません。</span>
@@ -106,6 +107,7 @@ function handleClick(event: ThreeEvent<MouseEvent>) {
     setSelectedServerId(toServerId(event.currentTarget.value));
   }}
 >
+  <option value="">3D画面から選択してください</option>
   {SERVER_IDS.map((id) => (
     <option key={id} value={id}>
       {SERVERS[id].name} ({id})
@@ -149,7 +151,7 @@ const STATUS_VISUALS = {
 
 この段階では、AWSやCloudWatch、監視APIには接続していません。状態はブラウザ内のローカルstateだけにあり、ページを再読み込みすると初期状態へ戻ります。
 
-## 読み込み経路とProduction build
+## 読み込み経路と本番用ビルド
 
 GLBの取得には時間がかかる場合があるため、読み込み中は`Suspense`のfallbackで「3Dモデルを読み込んでいます」と表示します。読み込み失敗はError Boundaryで受け取り、「3Dモデルを読み込めませんでした」と`/models/server-room.glb`の確認案内を出す経路も用意しました。
 
@@ -162,9 +164,9 @@ npm run validate:episode-03
 npm run build
 ```
 
-TypeScriptとViteのProduction buildは成功しました。実ブラウザでも`server_01_01`と`server_02_08`を選択し、回転、ズーム、アラーム発生、正常復帰を確認しています。
+TypeScriptの型検査とViteの本番用ビルドは成功しました。実ブラウザでも`server_01_01`と`server_02_08`を選択し、回転、ズーム、アラーム発生、正常復帰を確認しています。
 
-一方、build時にはThree.jsとReact Three Fiberを含むチャンクが500KBを超えるという警告が出ています。今回はローカルで機能をつなぐところまでとし、チャンク分割は今後の改善点として残しました。
+一方、本番用ビルド時にはThree.jsとReact Three Fiberを含むチャンクが500KBを超えるという警告が出ています。今回はローカルで機能をつなぐところまでとし、チャンク分割は今後の改善点として残しました。
 
 ## 4回のまとめ
 
