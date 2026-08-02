@@ -23,7 +23,15 @@ AIに操作やコードを相談できるようになり、3Dへのハードル�
 
 公開した3Dデモでは、視点の回転とズーム、サーバー選択、アラーム発生、正常に戻す操作を試せます。表示する情報はモックデータで、実際の監視サービスには接続していません。操作領域が広いデスクトップでの利用を推奨します。
 
-<a href="/demos/server-room/" target="_blank" rel="noopener">3Dデモを開く</a>
+<aside data-demo-cta>
+  <p class="demo-cta__eyebrow">INTERACTIVE DEMO</p>
+  <h3>3Dサーバールームを操作できます</h3>
+  <p>視点の回転とズーム、サーバー選択、アラーム発生と正常復帰をブラウザで試せます。</p>
+  <p class="demo-cta__note">別タブで開きます。デスクトップ環境を推奨します。</p>
+  <a href="/demos/server-room/" target="_blank" rel="noopener">
+    3Dサーバールームを開く <span aria-hidden="true">→</span>
+  </a>
+</aside>
 
 ![React Three Fiberを組み込む前のVite初期画面](../../assets/blog/blender-04-vite-initial.png)
 <span class="article-image-caption">図1：ViteとReactの起動を先に確認した画面です。この時点では3Dモデルをまだ読み込んでいません。</span>
@@ -177,3 +185,13 @@ TypeScriptの型検査とViteの本番用ビルドは成功しました。実ブ
 4回を通して、Cubeから作ったラックを部屋へ広げ、GLBとして書き出し、Reactの監視状態とつなぎました。第4回ではBlenderを開いていませんが、第3回までにそろえたオブジェクト名とGLBが、React側の選択や状態変更にそのまま役立ちました。
 
 今の監視画面はローカルのモックデータで動く段階です。次に進めるなら、JSONやAPIから状態を取得する構成へ置き換え、CloudWatchなど実際の監視データとの連携を検討します。
+
+<aside data-demo-cta>
+  <p class="demo-cta__eyebrow">INTERACTIVE DEMO</p>
+  <h3>3Dサーバールームを操作できます</h3>
+  <p>視点の回転とズーム、サーバー選択、アラーム発生と正常復帰をブラウザで試せます。</p>
+  <p class="demo-cta__note">別タブで開きます。デスクトップ環境を推奨します。</p>
+  <a href="/demos/server-room/" target="_blank" rel="noopener">
+    3Dサーバールームを開く <span aria-hidden="true">→</span>
+  </a>
+</aside>
