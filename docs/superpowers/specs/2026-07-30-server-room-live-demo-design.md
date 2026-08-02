@@ -129,10 +129,12 @@ React rootの外にある静的ヘッダーへ、ブログへ戻るリンクと�
 - `X-Frame-Options: DENY`
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()`
-- `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'`
+- `Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'`
 - `X-Robots-Tag: noindex, follow`
 
-React Three FiberとDreiがDOM要素へ設定するstyle属性を動かせるよう、`style-src`に限って`'unsafe-inline'`を許可します。scriptは外部のハッシュ付きファイルだけを読み込み、`'unsafe-inline'`は許可しません。
+React Three FiberとDreiがDOM要素へ設定するstyle属性を動かせるよう、`style-src`に限って`'unsafe-inline'`を許可します。scriptは同一originのハッシュ付きファイルだけを読み込み、`'unsafe-inline'`は許可しません。
+
+WranglerとChromiumを使った実配信相当のREDでは、Dreiの`useGLTF`に同梱されたMeshopt decoderが`WebAssembly.validate()`と`WebAssembly.instantiate()`を呼び、従来のCSPではready状態に到達できませんでした。このため、`script-src`にはWebAssemblyのコンパイルだけを許可する`'wasm-unsafe-eval'`を追加します。JavaScript全般の動的評価を許す`'unsafe-eval'`は追加しません。
 
 Cloudflare Workers Static Assetsの既定である`Cache-Control: public, max-age=0, must-revalidate`とETagを、HTML、ハッシュ付きJS/CSS、固定名GLBのすべてで維持します。今回は独自の長期immutable設定を追加せず、デプロイ直後の古いGLB残存を避けます。
 
