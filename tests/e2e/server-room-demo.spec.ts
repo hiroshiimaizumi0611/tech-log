@@ -103,10 +103,83 @@ test('実デモで選択、状態変更、視点操作、記事導線を確認�
 
   await expect(page.getByRole('link', { name: '解説記事へ戻る' })).toHaveAttribute('href', articlePath);
   await page.goto(articlePath);
-  const cta = page.getByRole('link', { name: '3Dデモを開く' });
-  await expect(cta).toHaveAttribute('href', demoPath);
-  await expect(cta).toHaveAttribute('target', '_blank');
-  await expect(cta).toHaveAttribute('rel', 'noopener');
+  const cards = page.locator('[data-demo-cta]');
+  await expect(cards).toHaveCount(2);
+  for (const card of await cards.all()) {
+    await expect(card.getByText('INTERACTIVE DEMO', { exact: true })).toBeVisible();
+    await expect(card.getByRole('heading', { name: '3Dサーバールームを操作できます' })).toBeVisible();
+    await expect(card).toContainText('回転とズーム');
+    await expect(card).toContainText('サーバー選択');
+    await expect(card).toContainText('アラーム発生と正常復帰');
+    await expect(card).toContainText('別タブで開きます');
+    await expect(card).toContainText('デスクトップ環境を推奨します');
+    const link = card.getByRole('link', { name: /3Dサーバールームを開く/ });
+    await expect(link).toHaveAttribute('href', demoPath);
+    await expect(link).toHaveAttribute('target', '_blank');
+    await expect(link).toHaveAttribute('rel', 'noopener');
+  }
+});
+
+test('記事のデモカードがPC幅で640px以内に収まる', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(articlePath);
+  const cards = page.locator('[data-demo-cta]');
+  await expect(cards).toHaveCount(2);
+  for (const card of await cards.all()) {
+    await expect.poll(async () => (await card.boundingBox())?.width ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(640);
+  }
+});
+
+test('記事のデモカードが390px幅で横overflowを起こさずキーボード操作できる', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(articlePath);
+  const cards = page.locator('[data-demo-cta]');
+  await expect(cards).toHaveCount(2);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+
+  const links = cards.getByRole('link', { name: /3Dサーバールームを開く/ });
+  await expect(links).toHaveCount(2);
+  const articleBodyBox = await page.locator('.article-body').boundingBox();
+  expect(articleBodyBox).not.toBeNull();
+  for (const card of await cards.all()) {
+    const cardBox = await card.boundingBox();
+    expect(cardBox).not.toBeNull();
+    expect(Math.abs(cardBox!.width - articleBodyBox!.width)).toBeLessThanOrEqual(1);
+
+    const link = card.getByRole('link', { name: /3Dサーバールームを開く/ });
+    const linkBox = await link.boundingBox();
+    expect(linkBox).not.toBeNull();
+    const cardContentWidth = await card.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return (
+        element.getBoundingClientRect().width -
+        parseFloat(style.paddingInlineStart) -
+        parseFloat(style.paddingInlineEnd) -
+        parseFloat(style.borderInlineStartWidth) -
+        parseFloat(style.borderInlineEndWidth)
+      );
+    });
+    expect(Math.abs(linkBox!.width - cardContentWidth)).toBeLessThanOrEqual(1);
+  }
+
+  const focusedCtas: number[] = [];
+  for (let attempt = 0; attempt < 80 && focusedCtas.length < 2; attempt += 1) {
+    await page.keyboard.press('Tab');
+    const focusedIndex = await links.evaluateAll((elements) =>
+      elements.findIndex((element) => element === document.activeElement),
+    );
+    if (focusedIndex >= 0 && !focusedCtas.includes(focusedIndex)) {
+      focusedCtas.push(focusedIndex);
+      await expect(links.nth(focusedIndex)).toHaveCSS('outline-style', 'solid');
+    }
+  }
+  expect(focusedCtas).toEqual([0, 1]);
+});
+
+test('第4回記事にcriticalまたはseriousのaxe違反がない', async ({ page }) => {
+  await page.goto(articlePath);
+  const { violations } = await new AxeBuilder({ page }).analyze();
+  expect(violations.filter(({ impact }) => impact === 'critical' || impact === 'serious')).toEqual([]);
 });
 
 test('キーボードだけでサーバー選択と状態変更を操作する', async ({ page }) => {
