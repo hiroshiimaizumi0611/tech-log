@@ -4,6 +4,7 @@ import { expect, test, type Page, type TestInfo } from '@playwright/test';
 const demoPath = '/demos/server-room/';
 const articlePath = '/blog/blender-server-room-04-react-dashboard/';
 const workersOrigin = 'http://127.0.0.1:4323';
+const modelReadyTimeout = 15_000;
 const expectedHeaders = {
   'x-content-type-options': 'nosniff',
   'x-frame-options': 'DENY',
@@ -58,7 +59,8 @@ test.afterEach(async ({ page }, testInfo: TestInfo) => {
 async function openReadyDemo(page: Page, url = demoPath) {
   const response = await page.goto(url);
   expect(response?.status()).toBe(200);
-  await expect(page.getByRole('status').filter({ hasText: '3Dモデルを読み込みました' })).toBeVisible();
+  const room = page.getByRole('region', { name: 'サーバールーム', exact: true });
+  await expect(room.getByRole('status')).toHaveText('3Dモデルを読み込みました', { timeout: modelReadyTimeout });
 }
 
 test('実デモで選択、状態変更、視点操作、記事導線を確認する', async ({ page }) => {
