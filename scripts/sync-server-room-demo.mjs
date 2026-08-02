@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { copyFile, lstat, mkdir, open, readFile, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
@@ -19,8 +19,11 @@ const BLOG_OWNED_CONFIGS = ['vite.config.ts', 'vitest.config.ts', 'tsconfig.json
 const PIN_OVERRIDE_KEYS = ['expectedTag', 'expectedCommit', 'expectedGlbSha256', 'expectedSnapshotSha256', 'contract', 'hooks'];
 const LOCK_NAME = '.server-room-sync.lock';
 const TRANSACTION_NAME = '.server-room-sync-transaction';
-const TOMBSTONE_NAME = '.server-room-sync-tombstone';
+const TOMBSTONE_PREFIX = '.server-room-sync-tombstone-';
+const TOMBSTONE_OWNER_SUFFIX = '.owner';
+const JOURNAL_SCHEMA = 'server-room-demo-sync-journal-v1';
 const JOURNAL_STATES = new Set(['prepared', 'backing-up', 'installing', 'installed', 'committed', 'rolling-back', 'restored']);
+const CLEANUP_TOKEN_PATTERN = /^[a-f0-9]{32}$/;
 
 // Threat boundary: the lock coordinates cooperating sync processes and the journal
 // recovers process/host crashes. A separate process with arbitrary filesystem write
@@ -111,7 +114,9 @@ async function syncDirectory(path) {
 async function durableRename(source, destination, hooks, label) {
   await rename(source, destination);
   hooks?.onRenameDurabilityEvent?.({ type: 'rename', label });
-  const parents = [...new Set([dirname(source), dirname(destination)])];
+  // Persist the new name before the old name's removal. If power is lost
+  // between these fsyncs, recovery must retain at least the moved entry.
+  const parents = [...new Set([dirname(destination), dirname(source)])];
   for (const path of parents) {
     await hooks?.beforeRenameParentFsync?.({ label, path });
     await syncDirectory(path);
@@ -124,7 +129,12 @@ async function durableRename(source, destination, hooks, label) {
 }
 
 function validateJournal(journal, transactionRoot) {
-  if (!JOURNAL_STATES.has(journal?.state) || typeof journal?.hadDestination !== 'boolean') {
+  if (
+    journal?.schema !== JOURNAL_SCHEMA ||
+    !JOURNAL_STATES.has(journal?.state) ||
+    typeof journal?.hadDestination !== 'boolean' ||
+    !CLEANUP_TOKEN_PATTERN.test(journal?.cleanupToken)
+  ) {
     throw new Error(`Invalid orphan demo transaction journal; preserving it at ${transactionRoot}`);
   }
   return journal;
@@ -340,7 +350,68 @@ async function fsyncStagedTree(root, hooks) {
   await visit(root);
 }
 
-async function removeTombstone(tombstone, parent, hooks) {
+function tombstoneName(cleanupToken) {
+  return `${TOMBSTONE_PREFIX}${cleanupToken}`;
+}
+
+function tombstoneOwnerPath(parent, cleanupToken) {
+  return join(parent, `${tombstoneName(cleanupToken)}${TOMBSTONE_OWNER_SUFFIX}`);
+}
+
+function tombstoneOwnerRecord(cleanupToken) {
+  return {
+    schema: JOURNAL_SCHEMA,
+    cleanupToken,
+    tombstone: tombstoneName(cleanupToken),
+  };
+}
+
+async function writeTombstoneOwner(parent, cleanupToken) {
+  const ownerPath = tombstoneOwnerPath(parent, cleanupToken);
+  const handle = await open(ownerPath, 'wx', 0o600);
+  try {
+    await handle.writeFile(`${JSON.stringify(tombstoneOwnerRecord(cleanupToken))}\n`);
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  await syncDirectory(parent);
+  return ownerPath;
+}
+
+async function validateTombstoneOwner(parent, cleanupToken) {
+  const ownerPath = tombstoneOwnerPath(parent, cleanupToken);
+  const stat = await lstat(ownerPath).catch(() => undefined);
+  if (!stat?.isFile() || stat.isSymbolicLink()) {
+    throw new Error(`Tombstone ownership marker is missing or unsafe; preserving ${tombstoneName(cleanupToken)}`);
+  }
+  let record;
+  try {
+    record = JSON.parse(await readFile(ownerPath, 'utf8'));
+  } catch (error) {
+    throw new Error(`Cannot verify tombstone ownership marker at ${ownerPath}: ${error.message}`);
+  }
+  const expected = tombstoneOwnerRecord(cleanupToken);
+  if (
+    !record ||
+    typeof record !== 'object' ||
+    Array.isArray(record) ||
+    record?.schema !== expected.schema ||
+    record?.cleanupToken !== expected.cleanupToken ||
+    record?.tombstone !== expected.tombstone ||
+    Object.keys(record).sort().join(',') !== Object.keys(expected).sort().join(',')
+  ) {
+    throw new Error(`Invalid tombstone ownership marker; preserving ${ownerPath}`);
+  }
+  return ownerPath;
+}
+
+async function removeOwnerMarker(ownerPath, parent) {
+  await rm(ownerPath);
+  await syncDirectory(parent);
+}
+
+async function removeTombstone(tombstone, ownerPath, parent, hooks) {
   await hooks?.beforeTombstoneRemove?.(tombstone);
   await rm(tombstone, { recursive: true });
   await hooks?.beforeCleanupParentFsync?.({
@@ -348,27 +419,65 @@ async function removeTombstone(tombstone, parent, hooks) {
     path: parent,
   });
   await syncDirectory(parent);
+  await removeOwnerMarker(ownerPath, parent);
 }
 
-async function cleanupLeftoverTombstone(parent, hooks) {
-  const tombstone = join(parent, TOMBSTONE_NAME);
-  const stat = await lstat(tombstone).catch(() => undefined);
-  if (!stat) return;
-  if (!stat.isDirectory() || stat.isSymbolicLink()) {
-    throw new Error(`Unsafe tombstone entry; preserving it at ${tombstone}`);
+async function cleanupLeftoverTombstones(parent, hooks) {
+  const entries = (await readdir(parent, { withFileTypes: true })).filter((entry) => entry.name.startsWith(TOMBSTONE_PREFIX));
+  const tokens = new Set();
+  for (const entry of entries) {
+    const tokenWithSuffix = entry.name.slice(TOMBSTONE_PREFIX.length);
+    const token = tokenWithSuffix.endsWith(TOMBSTONE_OWNER_SUFFIX)
+      ? tokenWithSuffix.slice(0, -TOMBSTONE_OWNER_SUFFIX.length)
+      : tokenWithSuffix;
+    if (!CLEANUP_TOKEN_PATTERN.test(token)) {
+      throw new Error(`Unrecognized tombstone entry; preserving it at ${join(parent, entry.name)}`);
+    }
+    tokens.add(token);
   }
-  await removeTombstone(tombstone, parent, hooks);
+
+  for (const cleanupToken of [...tokens].sort()) {
+    const ownerPath = await validateTombstoneOwner(parent, cleanupToken);
+    const tombstone = join(parent, tombstoneName(cleanupToken));
+    const stat = await lstat(tombstone).catch(() => undefined);
+    if (!stat) {
+      await removeOwnerMarker(ownerPath, parent);
+      continue;
+    }
+    if (!stat.isDirectory() || stat.isSymbolicLink()) {
+      throw new Error(`Unsafe tombstone entry; preserving it at ${tombstone}`);
+    }
+    const journalPath = join(tombstone, 'journal.json');
+    const journalStat = await lstat(journalPath).catch(() => undefined);
+    if (journalStat) {
+      if (!journalStat.isFile() || journalStat.isSymbolicLink()) {
+        throw new Error(`Unsafe tombstone journal; preserving it at ${tombstone}`);
+      }
+      let journal;
+      try {
+        journal = validateJournal(JSON.parse(await readFile(journalPath, 'utf8')), tombstone);
+      } catch (error) {
+        throw new Error(`Cannot verify tombstone transaction; preserving ${tombstone}: ${error.message}`);
+      }
+      if (!['committed', 'restored'].includes(journal.state) || journal.cleanupToken !== cleanupToken) {
+        throw new Error(`Tombstone transaction is not safe to delete; preserving ${tombstone}`);
+      }
+    }
+    await removeTombstone(tombstone, ownerPath, parent, hooks);
+  }
 }
 
-async function tombstoneTransaction(transactionRoot, hooks, { bestEffort = false } = {}) {
+async function tombstoneTransaction(transactionRoot, cleanupToken, hooks, { bestEffort = false } = {}) {
   const parent = dirname(transactionRoot);
-  const tombstone = join(parent, TOMBSTONE_NAME);
+  const tombstone = join(parent, tombstoneName(cleanupToken));
+  let ownerPath;
   try {
     if (await lstat(tombstone).catch(() => undefined)) {
       throw new Error(`Tombstone path is already occupied: ${tombstone}`);
     }
+    ownerPath = await writeTombstoneOwner(parent, cleanupToken);
     await durableRename(transactionRoot, tombstone, hooks, 'transaction-to-tombstone');
-    await removeTombstone(tombstone, parent, hooks);
+    await removeTombstone(tombstone, ownerPath, parent, hooks);
     return undefined;
   } catch (error) {
     if (!bestEffort) throw error;
@@ -414,7 +523,7 @@ async function restoreOldDestination({ destination, transactionRoot, journal, ho
     journal = { ...journal, state: 'restored' };
     await writeJournal(transactionRoot, journal, hooks);
     assertLockHealthy();
-    await tombstoneTransaction(transactionRoot, hooks, { bestEffort: true });
+    await tombstoneTransaction(transactionRoot, journal.cleanupToken, hooks, { bestEffort: true });
   } catch (error) {
     throw new Error(`Demo sync rollback failed; backup retained at ${backup}: ${error.message}`, { cause: error });
   }
@@ -429,7 +538,7 @@ async function recoverOrphanTransaction({ destination, transactionRoot, hooks, a
   const journal = await readJournal(transactionRoot);
   if (journal.state === 'committed' || journal.state === 'restored') {
     assertLockHealthy();
-    await tombstoneTransaction(transactionRoot, hooks);
+    await tombstoneTransaction(transactionRoot, journal.cleanupToken, hooks);
     return;
   }
   await restoreOldDestination({
@@ -441,9 +550,17 @@ async function recoverOrphanTransaction({ destination, transactionRoot, hooks, a
   });
 }
 
-async function replaceDirectory({ destination, transactionRoot, stageDestination, hadDestination, hooks, assertLockHealthy }) {
+async function replaceDirectory({
+  destination,
+  transactionRoot,
+  stageDestination,
+  hadDestination,
+  cleanupToken,
+  hooks,
+  assertLockHealthy,
+}) {
   const backup = join(transactionRoot, 'backup');
-  let journal = { state: 'prepared', hadDestination };
+  let journal = { schema: JOURNAL_SCHEMA, state: 'prepared', hadDestination, cleanupToken };
   let committed = false;
   try {
     await writeJournal(transactionRoot, journal, hooks);
@@ -480,7 +597,7 @@ async function replaceDirectory({ destination, transactionRoot, stageDestination
   }
   if (committed) {
     assertLockHealthy();
-    await tombstoneTransaction(transactionRoot, hooks, { bestEffort: true });
+    await tombstoneTransaction(transactionRoot, cleanupToken, hooks, { bestEffort: true });
   }
 }
 
@@ -501,8 +618,9 @@ async function syncWithContract(options, contract, hooks = {}) {
   const heldLock = await acquireLock(parent, hooks.lockOptions);
   const transactionRoot = join(parent, TRANSACTION_NAME);
   const stageDestination = join(transactionRoot, 'stage');
+  const cleanupToken = randomBytes(16).toString('hex');
   try {
-    await cleanupLeftoverTombstone(parent, hooks);
+    await cleanupLeftoverTombstones(parent, hooks);
     await recoverOrphanTransaction({
       destination,
       transactionRoot,
@@ -536,6 +654,7 @@ async function syncWithContract(options, contract, hooks = {}) {
         transactionRoot,
         stageDestination,
         hadDestination,
+        cleanupToken,
         hooks,
         assertLockHealthy: () => heldLock.assertHealthy(),
       });
@@ -543,7 +662,7 @@ async function syncWithContract(options, contract, hooks = {}) {
     } catch (error) {
       const journalExists = await lstat(join(transactionRoot, 'journal.json')).catch(() => undefined);
       if (!journalExists && !error?.simulatedCrash) {
-        await tombstoneTransaction(transactionRoot, hooks, {
+        await tombstoneTransaction(transactionRoot, cleanupToken, hooks, {
           bestEffort: true,
         });
       }
@@ -570,7 +689,9 @@ export async function syncServerRoomDemo(options) {
 export const __testing = Object.freeze({
   syncServerRoomDemo: syncWithContract,
   transactionName: TRANSACTION_NAME,
-  tombstoneName: TOMBSTONE_NAME,
+  tombstonePrefix: TOMBSTONE_PREFIX,
+  tombstoneOwnerSuffix: TOMBSTONE_OWNER_SUFFIX,
+  journalSchema: JOURNAL_SCHEMA,
   lockName: LOCK_NAME,
 });
 

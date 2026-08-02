@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
-import { lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
@@ -110,6 +110,29 @@ async function treeSnapshot(root: string): Promise<Record<string, string>> {
   }
   if ((await lstat(root).catch(() => undefined))?.isDirectory()) await visit(root);
   return result;
+}
+
+async function tombstonePaths(fixture: Fixture) {
+  const parent = join(fixture.blogRoot, 'demos');
+  return (await readdir(parent).catch(() => []))
+    .filter((name) => {
+      const token = name.slice(syncTesting.tombstonePrefix.length);
+      return name.startsWith(syncTesting.tombstonePrefix) && /^[a-f0-9]{32}$/.test(token);
+    })
+    .map((name) => join(parent, name))
+    .sort();
+}
+
+async function writeTombstoneOwner(parent: string, token: string) {
+  const tombstone = `${syncTesting.tombstonePrefix}${token}`;
+  await writeFile(
+    join(parent, `${tombstone}${syncTesting.tombstoneOwnerSuffix}`),
+    `${JSON.stringify({
+      schema: syncTesting.journalSchema,
+      cleanupToken: token,
+      tombstone,
+    })}\n`,
+  );
 }
 
 function spawnSyncChild(fixture: Fixture, mode: 'crash' | 'normal', marker?: string) {
@@ -431,17 +454,20 @@ describe('server room demo synchronization', () => {
       }),
     ).rejects.toThrow('force installed rollback');
 
-    for (const label of [
-      'destination-to-backup',
-      'stage-to-destination',
-      'destination-to-interrupted',
-      'backup-to-destination',
-      'transaction-to-tombstone',
-    ]) {
+    const parent = join(await realpath(fixture.blogRoot), 'demos');
+    const transaction = join(parent, syncTesting.transactionName);
+    const expectedParentOrder = new Map([
+      ['destination-to-backup', [transaction, parent]],
+      ['stage-to-destination', [parent, transaction]],
+      ['destination-to-interrupted', [transaction, parent]],
+      ['backup-to-destination', [parent, transaction]],
+      ['transaction-to-tombstone', [parent]],
+    ]);
+    for (const [label, expectedParents] of expectedParentOrder) {
       const renameIndex = events.findIndex((event) => event.type === 'rename' && event.label === label);
       const parentFsyncs = events.filter((event) => event.type === 'parent-fsync' && event.label === label);
       expect(renameIndex).toBeGreaterThanOrEqual(0);
-      expect(parentFsyncs.length).toBeGreaterThanOrEqual(1);
+      expect(parentFsyncs.map((event) => event.path)).toEqual(expectedParents);
       for (const event of parentFsyncs) {
         expect(events.indexOf(event)).toBeGreaterThan(renameIndex);
       }
@@ -716,28 +742,85 @@ describe('server room demo synchronization', () => {
 
       await expect(syncFixture(fixture, { hooks })).resolves.toBeDefined();
       expect(await lstat(join(fixture.blogRoot, 'demos', syncTesting.transactionName)).catch(() => undefined)).toBeUndefined();
-      const tombstone = join(fixture.blogRoot, 'demos', syncTesting.tombstoneName);
+      const tombstones = await tombstonePaths(fixture);
       if (failurePoint === 'remove-parent-fsync') {
-        expect(await lstat(tombstone).catch(() => undefined)).toBeUndefined();
+        expect(tombstones).toEqual([]);
       } else {
-        expect((await lstat(tombstone)).isDirectory()).toBe(true);
+        expect(tombstones).toHaveLength(1);
+        expect((await lstat(tombstones[0])).isDirectory()).toBe(true);
       }
 
       await syncFixture(fixture);
 
       await expect(verifyFixture(fixture)).resolves.toBeDefined();
-      expect(await lstat(tombstone).catch(() => undefined)).toBeUndefined();
+      expect(await tombstonePaths(fixture)).toEqual([]);
     },
   );
 
-  test('preserves an unknown non-directory at the fixed tombstone path', async () => {
+  test('cleans multiple valid uniquely-owned tombstones under the lock', async () => {
     const fixture = await makeFixture();
     await mkdir(join(fixture.blogRoot, 'demos'));
-    const tombstone = join(fixture.blogRoot, 'demos', syncTesting.tombstoneName);
-    await writeFile(tombstone, 'unknown\n');
+    for (const [token, state] of [
+      ['1'.repeat(32), 'committed'],
+      ['2'.repeat(32), 'restored'],
+    ]) {
+      const tombstone = join(fixture.blogRoot, 'demos', `${syncTesting.tombstonePrefix}${token}`);
+      await mkdir(tombstone);
+      await writeFile(
+        join(tombstone, 'journal.json'),
+        `${JSON.stringify({
+          schema: syncTesting.journalSchema,
+          state,
+          hadDestination: true,
+          cleanupToken: token,
+        })}\n`,
+      );
+      await writeTombstoneOwner(join(fixture.blogRoot, 'demos'), token);
+    }
 
-    await expect(syncFixture(fixture)).rejects.toThrow(/unsafe tombstone/i);
-    await expect(readFile(tombstone, 'utf8')).resolves.toBe('unknown\n');
+    await syncFixture(fixture);
+
+    expect(await tombstonePaths(fixture)).toEqual([]);
+  });
+
+  test.each([
+    ['user-directory', 'directory'],
+    ['forged-token', 'forged'],
+    ['invalid-schema', 'invalid-schema'],
+    ['unknown-file', 'file'],
+    ['unknown-symlink', 'symlink'],
+  ] as const)('preserves and rejects an unowned tombstone candidate: %s', async (_name, kind) => {
+    const fixture = await makeFixture();
+    const parent = join(fixture.blogRoot, 'demos');
+    await mkdir(parent);
+    const token = 'a'.repeat(32);
+    const name = `${syncTesting.tombstonePrefix}${token}`;
+    const tombstone = join(parent, name);
+    if (kind === 'file') {
+      await writeFile(tombstone, 'unknown\n');
+    } else if (kind === 'symlink') {
+      const target = join(fixture.root, 'user-target');
+      await mkdir(target);
+      await symlink(target, tombstone);
+    } else {
+      await mkdir(tombstone);
+      await writeFile(join(tombstone, 'user.txt'), 'preserve me\n');
+      if (kind !== 'directory') {
+        await writeTombstoneOwner(parent, token);
+        await writeFile(
+          join(tombstone, 'journal.json'),
+          `${JSON.stringify({
+            schema: kind === 'invalid-schema' ? 999 : syncTesting.journalSchema,
+            state: 'committed',
+            hadDestination: true,
+            cleanupToken: kind === 'forged' ? 'b'.repeat(32) : token,
+          })}\n`,
+        );
+      }
+    }
+
+    await expect(syncFixture(fixture)).rejects.toThrow(/tombstone/i);
+    expect(await lstat(tombstone).catch(() => undefined)).toBeDefined();
   });
 
   test('does not mutate an existing snapshot when source validation fails', async () => {
