@@ -113,8 +113,8 @@ function glbJson(bytes) {
   return JSON.parse(json);
 }
 
-export async function validateServerRoomGlb(bytes) {
-  const report = await validateBytes(bytes, { uri: 'server-room.glb' });
+async function validateServerRoomGlbWithValidator(bytes, validator) {
+  const report = await validator(bytes, { uri: 'server-room.glb' });
   const numErrors = report.issues?.numErrors;
   const numWarnings = report.issues?.numWarnings;
   if (numErrors !== 0 || numWarnings !== 0) {
@@ -139,6 +139,10 @@ export async function validateServerRoomGlb(bytes) {
   }
 
   return { numErrors, numWarnings, serverNodeNames };
+}
+
+export async function validateServerRoomGlb(bytes) {
+  return validateServerRoomGlbWithValidator(bytes, validateBytes);
 }
 
 function assertContract(contract) {
@@ -294,6 +298,7 @@ export async function verifyServerRoomDemo(options = {}) {
 
 export const __testing = Object.freeze({
   verifyServerRoomDemo: verifyWithContract,
+  validateServerRoomGlb: validateServerRoomGlbWithValidator,
 });
 
 async function main() {

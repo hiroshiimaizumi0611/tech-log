@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { lstat, readFile, readdir } from 'node:fs/promises';
-import { isAbsolute, join, resolve } from 'node:path';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'parse5';
 import { EXPECTED_GLB_SHA256, validateServerRoomGlb } from './verify-server-room-demo.mjs';
@@ -8,9 +8,24 @@ import { EXPECTED_GLB_SHA256, validateServerRoomGlb } from './verify-server-room
 const DEMO_PATH = 'demos/server-room';
 const DEMO_BASE = `/${DEMO_PATH}/`;
 const EXPECTED_PAGE_COUNT = 14;
+const PAGEFIND_JAPANESE_HASH = /^ja_[a-f0-9]+$/;
 
 async function requireRegularFile(root, relativePath, label = relativePath) {
-  const absolute = join(root, ...relativePath.split('/'));
+  if (
+    typeof relativePath !== 'string' ||
+    relativePath.length === 0 ||
+    isAbsolute(relativePath) ||
+    relativePath.includes('\\') ||
+    relativePath.split('/').some((part) => part === '' || part === '.' || part === '..')
+  ) {
+    throw new Error(`Unsafe build artifact path for ${label}: ${relativePath}`);
+  }
+  const absoluteRoot = resolve(root);
+  const absolute = resolve(absoluteRoot, ...relativePath.split('/'));
+  const fromRoot = relative(absoluteRoot, absolute);
+  if (!fromRoot || fromRoot === '..' || fromRoot.startsWith(`..${sep}`) || isAbsolute(fromRoot)) {
+    throw new Error(`Build artifact path escapes the output directory for ${label}: ${relativePath}`);
+  }
   const stat = await lstat(absolute).catch(() => undefined);
   if (!stat?.isFile() || stat.isSymbolicLink()) {
     throw new Error(`Missing required ${label}: ${relativePath}`);
@@ -107,8 +122,11 @@ async function verifyPagefind(root) {
   const entryPath = await requireRegularFile(root, 'pagefind/pagefind-entry.json');
   const entry = JSON.parse(await readFile(entryPath, 'utf8'));
   const japaneseIndex = entry.languages?.ja;
-  if (!japaneseIndex?.hash || japaneseIndex.page_count !== EXPECTED_PAGE_COUNT) {
+  if (japaneseIndex?.page_count !== EXPECTED_PAGE_COUNT) {
     throw new Error(`Pagefind Japanese page_count must remain ${EXPECTED_PAGE_COUNT}; got ${japaneseIndex?.page_count ?? 'missing'}`);
+  }
+  if (typeof japaneseIndex.hash !== 'string' || !PAGEFIND_JAPANESE_HASH.test(japaneseIndex.hash)) {
+    throw new Error(`Invalid Pagefind Japanese hash; expected ja_ followed by lowercase hexadecimal characters`);
   }
   await requireRegularFile(root, `pagefind/pagefind.${japaneseIndex.hash}.pf_meta`);
   return japaneseIndex.page_count;

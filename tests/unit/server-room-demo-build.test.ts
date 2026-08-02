@@ -9,6 +9,22 @@ const blogRoot = path.resolve(import.meta.dirname, '../..');
 const demoRoot = path.join(blogRoot, 'demos/server-room');
 const expectedCanonical = 'https://example.invalid/demos/server-room/';
 const fixtureRoots: string[] = [];
+const expectedServerNodeNames = [
+  'server_01_01',
+  'server_01_02',
+  'server_01_03',
+  'server_01_04',
+  'server_01_05',
+  'server_01_06',
+  'server_02_01',
+  'server_02_02',
+  'server_02_03',
+  'server_02_04',
+  'server_02_05',
+  'server_02_06',
+  'server_02_07',
+  'server_02_08',
+] as const;
 
 const validDemoHtml = `<!doctype html>
 <html lang="ja">
@@ -27,6 +43,20 @@ async function writeFixtureFile(root: string, relativePath: string, contents: st
   const destination = path.join(root, ...relativePath.split('/'));
   await mkdir(path.dirname(destination), { recursive: true });
   await writeFile(destination, contents);
+}
+
+function glbWithNodeNames(nodeNames: readonly string[]) {
+  const encodedJson = new TextEncoder().encode(JSON.stringify({ asset: { version: '2.0' }, nodes: nodeNames.map((name) => ({ name })) }));
+  const paddedLength = Math.ceil(encodedJson.byteLength / 4) * 4;
+  const bytes = new Uint8Array(20 + paddedLength).fill(0x20, 20);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(0, 0x46546c67, true);
+  view.setUint32(4, 2, true);
+  view.setUint32(8, bytes.byteLength, true);
+  view.setUint32(12, paddedLength, true);
+  view.setUint32(16, 0x4e4f534a, true);
+  bytes.set(encodedJson, 20);
+  return bytes;
 }
 
 async function createValidDistFixture() {
@@ -49,8 +79,8 @@ async function createValidDistFixture() {
     ),
     writeFixtureFile(root, 'og-default.png', 'png'),
     writeFixtureFile(root, 'pagefind/pagefind.js', 'export const search = async () => ({ results: [] });'),
-    writeFixtureFile(root, 'pagefind/pagefind-entry.json', JSON.stringify({ languages: { ja: { hash: 'fixture', page_count: 14 } } })),
-    writeFixtureFile(root, 'pagefind/pagefind.fixture.pf_meta', 'fixture'),
+    writeFixtureFile(root, 'pagefind/pagefind-entry.json', JSON.stringify({ languages: { ja: { hash: 'ja_deadbeef', page_count: 14 } } })),
+    writeFixtureFile(root, 'pagefind/pagefind.ja_deadbeef.pf_meta', 'fixture'),
     writeFixtureFile(root, 'demos/server-room/index.html', validDemoHtml),
     writeFixtureFile(root, 'demos/server-room/assets/app.js', 'console.log("demo")'),
     writeFixtureFile(root, 'demos/server-room/assets/app.css', 'body { color: white; }'),
@@ -263,11 +293,21 @@ describe('server room demo build output', () => {
     await writeFixtureFile(
       root,
       'pagefind/pagefind-entry.json',
-      JSON.stringify({ languages: { ja: { hash: 'fixture', page_count: 15 } } }),
+      JSON.stringify({ languages: { ja: { hash: 'ja_deadbeef', page_count: 15 } } }),
     );
 
     await expect(verifyFixture(root)).rejects.toThrow(/page_count.*14/i);
   });
+
+  it.each(['../../outside', '/absolute', '..\\..\\outside', 'ja_deadbeef/../outside', 'ja_deadbeef/./outside'])(
+    'rejects an unsafe Pagefind Japanese hash before resolving artifacts: %s',
+    async (hash) => {
+      const root = await createValidDistFixture();
+      await writeFixtureFile(root, 'pagefind/pagefind-entry.json', JSON.stringify({ languages: { ja: { hash, page_count: 14 } } }));
+
+      await expect(verifyFixture(root)).rejects.toThrow(/Invalid Pagefind Japanese hash/i);
+    },
+  );
 
   it('rejects data-pagefind-body in the demo HTML', async () => {
     const root = await createValidDistFixture();
@@ -305,22 +345,28 @@ describe('server room demo build output', () => {
     await expect(validateServerRoomGlb(bytes)).resolves.toEqual({
       numErrors: 0,
       numWarnings: 0,
-      serverNodeNames: [
-        'server_01_01',
-        'server_01_02',
-        'server_01_03',
-        'server_01_04',
-        'server_01_05',
-        'server_01_06',
-        'server_02_01',
-        'server_02_02',
-        'server_02_03',
-        'server_02_04',
-        'server_02_05',
-        'server_02_06',
-        'server_02_07',
-        'server_02_08',
-      ],
+      serverNodeNames: expectedServerNodeNames,
     });
+  });
+
+  it.each([
+    ['a missing node', expectedServerNodeNames.slice(0, -1)],
+    ['a duplicate node', [...expectedServerNodeNames, expectedServerNodeNames[0]]],
+    ['a renamed or unexpected node', [...expectedServerNodeNames.slice(0, -1), 'server_02_09']],
+  ])('rejects a validator-clean GLB with %s', async (_scenario, serverNodeNames) => {
+    const { __testing } = await importFresh<{
+      __testing: {
+        validateServerRoomGlb: (
+          bytes: Uint8Array,
+          validator: () => Promise<{ issues: { numErrors: number; numWarnings: number } }>,
+        ) => Promise<unknown>;
+      };
+    }>(path.join(blogRoot, 'scripts/verify-server-room-demo.mjs'));
+
+    await expect(
+      __testing.validateServerRoomGlb(glbWithNodeNames(serverNodeNames), async () => ({
+        issues: { numErrors: 0, numWarnings: 0 },
+      })),
+    ).rejects.toThrow(/server node names/i);
   });
 });
