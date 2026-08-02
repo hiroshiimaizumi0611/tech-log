@@ -757,6 +757,57 @@ describe('server room demo synchronization', () => {
     },
   );
 
+  test.each(['afterOwnerTempCreated', 'afterOwnerTempSynced', 'afterOwnerPublished'] as const)(
+    'recovers an atomic owner-marker crash at %s',
+    async (failureHook) => {
+      const fixture = await makeFixture();
+      await syncFixture(fixture);
+      const committedCrash = Object.assign(new Error('leave committed transaction'), {
+        simulatedCrash: true,
+      });
+      await expect(
+        syncFixture(fixture, {
+          hooks: {
+            afterJournal(state: string) {
+              if (state === 'committed') throw committedCrash;
+            },
+          },
+        }),
+      ).rejects.toThrow('leave committed transaction');
+
+      const ownerCrash = Object.assign(new Error(`owner crash at ${failureHook}`), {
+        simulatedCrash: true,
+      });
+      await expect(
+        syncFixture(fixture, {
+          hooks: {
+            [failureHook]() {
+              throw ownerCrash;
+            },
+          },
+        }),
+      ).rejects.toThrow(`owner crash at ${failureHook}`);
+
+      await syncFixture(fixture);
+
+      await expect(verifyFixture(fixture)).resolves.toBeDefined();
+      const parentEntries = await readdir(join(fixture.blogRoot, 'demos'));
+      expect(parentEntries.some((name) => name.startsWith(syncTesting.tombstonePrefix))).toBe(false);
+      expect(parentEntries).not.toContain(syncTesting.transactionName);
+    },
+  );
+
+  test('preserves and rejects an unowned partial owner-marker temp file', async () => {
+    const fixture = await makeFixture();
+    const parent = join(fixture.blogRoot, 'demos');
+    await mkdir(parent);
+    const temporaryOwner = join(parent, `${syncTesting.tombstonePrefix}${'c'.repeat(32)}${syncTesting.tombstoneOwnerTempSuffix}`);
+    await writeFile(temporaryOwner, '');
+
+    await expect(syncFixture(fixture)).rejects.toThrow(/temporary tombstone ownership/i);
+    expect((await lstat(temporaryOwner)).isFile()).toBe(true);
+  });
+
   test('cleans multiple valid uniquely-owned tombstones under the lock', async () => {
     const fixture = await makeFixture();
     await mkdir(join(fixture.blogRoot, 'demos'));
