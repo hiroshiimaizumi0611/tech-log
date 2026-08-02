@@ -102,9 +102,7 @@
   padding: clamp(var(--space-5), 4vw, var(--space-8));
   border: 1px solid color-mix(in srgb, var(--color-accent) 34%, var(--color-border));
   border-radius: var(--radius-card-lg);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 56%),
-    var(--color-card);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 56%), var(--color-card);
 }
 .article-body [data-demo-cta] > * {
   margin-block: 0;

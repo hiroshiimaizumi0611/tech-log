@@ -165,9 +165,7 @@ test('記事のデモカードが390px幅で横overflowを起こさずキーボ�
   const focusedCtas: number[] = [];
   for (let attempt = 0; attempt < 80 && focusedCtas.length < 2; attempt += 1) {
     await page.keyboard.press('Tab');
-    const focusedIndex = await links.evaluateAll((elements) =>
-      elements.findIndex((element) => element === document.activeElement),
-    );
+    const focusedIndex = await links.evaluateAll((elements) => elements.findIndex((element) => element === document.activeElement));
     if (focusedIndex >= 0 && !focusedCtas.includes(focusedIndex)) {
       focusedCtas.push(focusedIndex);
       await expect(links.nth(focusedIndex)).toHaveCSS('outline-style', 'solid');

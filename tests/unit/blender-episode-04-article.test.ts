@@ -75,9 +75,7 @@ describe('Blender server room episode four article', () => {
       expect(card).toMatch(/回転[^<]+ズーム[^<]+サーバー選択[^<]+アラーム/);
       expect(card).toContain('別タブで開きます');
       expect(card).toContain('デスクトップ環境を推奨します');
-      expect(card).toMatch(
-        /<a href="\/demos\/server-room\/" target="_blank" rel="noopener">\s*3Dサーバールームを開く/,
-      );
+      expect(card).toMatch(/<a href="\/demos\/server-room\/" target="_blank" rel="noopener">\s*3Dサーバールームを開く/);
     }
 
     expect(body).toMatch(/回転.+ズーム.+サーバー選択.+アラーム/s);
