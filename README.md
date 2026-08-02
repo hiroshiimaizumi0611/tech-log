@@ -139,7 +139,7 @@ SITE_URL=https://example.invalid npm run build
 npm run preview
 ```
 
-`npm run build` はAstroでブログを生成し、サーバールームデモを追加してから、Pagefindの検索索引と成果物を検査します。続けて `npm run preview` を起動し、表示されたローカルURLで記事と検索を操作し、`/rss.xml` と `/sitemap-index.xml` も確認します。Productionでは `SITE_URL` を実際の公開HTTPS originへ置き換えてください。
+`npm run build` は最初にAstro buildでブログを生成し、サーバールームデモを追加します。その後、Pagefindで検索索引を作り、成果物を検査します。続けて `npm run preview` を起動し、表示されたローカルURLで記事と検索を操作し、`/rss.xml` と `/sitemap-index.xml` も確認します。Productionでは `SITE_URL` を実際の公開HTTPS originへ置き換えてください。
 
 ## Pagefind
 
