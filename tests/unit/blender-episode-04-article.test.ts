@@ -62,17 +62,36 @@ describe('Blender server room episode four article', () => {
     }
   });
 
-  it('links to the interactive demo before the first result image', () => {
-    expect(body).toMatch(/<a[^>]+href="\/demos\/server-room\/"[^>]+target="_blank"[^>]+rel="noopener"[^>]*>3Dデモを開く<\/a>/);
+  it('shows the interactive demo card near the introduction and at the end', () => {
+    const cards = [...body.matchAll(/<aside data-demo-cta>([\s\S]*?)<\/aside>/g)].map((match) => match[1]);
+
+    expect(cards).toHaveLength(2);
+    expect(body).not.toContain('>3Dデモを開く</a>');
+    expect([...body.matchAll(/href="\/demos\/server-room\/"/g)]).toHaveLength(2);
+    expect(cards[1].replace(/\s+/g, ' ').trim()).toBe(cards[0].replace(/\s+/g, ' ').trim());
+    for (const card of cards) {
+      expect(card).toContain('INTERACTIVE DEMO');
+      expect(card).toContain('<h3>3Dサーバールームを操作できます</h3>');
+      expect(card).toMatch(/回転[^<]+ズーム[^<]+サーバー選択[^<]+アラーム/);
+      expect(card).toContain('別タブで開きます');
+      expect(card).toContain('デスクトップ環境を推奨します');
+      expect(card).toMatch(
+        /<a href="\/demos\/server-room\/" target="_blank" rel="noopener">\s*3Dサーバールームを開く/,
+      );
+    }
+
     expect(body).toMatch(/回転.+ズーム.+サーバー選択.+アラーム/s);
     expect(body).toMatch(/モックデータ/);
     expect(body).toMatch(/デスクトップ.+推奨/);
 
-    const ctaPosition = body.indexOf('>3Dデモを開く</a>');
+    const firstCardPosition = body.indexOf('<aside data-demo-cta>');
     const resultImagePosition = body.indexOf('![React Three Fiberを組み込む前のVite初期画面]');
-    expect(ctaPosition).toBeGreaterThan(-1);
-    expect(resultImagePosition).toBeGreaterThan(-1);
-    expect(ctaPosition).toBeLessThan(resultImagePosition);
+    const summaryPosition = body.indexOf('## 4回のまとめ');
+    const lastCardPosition = body.lastIndexOf('<aside data-demo-cta>');
+
+    expect(firstCardPosition).toBeGreaterThan(-1);
+    expect(firstCardPosition).toBeLessThan(resultImagePosition);
+    expect(lastCardPosition).toBeGreaterThan(summaryPosition);
   });
 
   it('explains the React and GLB implementation', () => {
