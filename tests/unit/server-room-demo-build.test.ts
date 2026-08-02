@@ -32,7 +32,7 @@ const expectedDemoHeaders = [
   ['Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()'],
   [
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'",
+    "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'",
   ],
   ['X-Robots-Tag', 'noindex, follow'],
 ] as const;

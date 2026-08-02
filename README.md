@@ -39,6 +39,40 @@ npm run dev
 
 `npm run dev` は執筆中の表示確認用です。Production build後のPagefind索引は生成しないため、Productionと同じ検索は確認できません。検索を含む成果物は後述のbuildとpreviewで確認します。
 
+## 3Dサーバールームデモ
+
+公開用のReactソースは `demos/server-room/` で管理します。制作元を更新したときは、working treeではなく`episode-04-demo`タグの内容を次のコマンドで同期します。
+
+```sh
+node scripts/sync-server-room-demo.mjs \
+  --source /path/to/3d-server-room-dashboard \
+  --tag episode-04-demo
+node scripts/verify-server-room-demo.mjs
+```
+
+同期後は `demos/server-room/upstream.json` と差分を確認してください。公開用スナップショットの管理対象ファイルは、ブログ側で直接編集しません。
+
+ローカルでは、ブログとデモをまとめてビルドしてから確認します。
+
+```sh
+SITE_URL=https://example.invalid npm run build
+npm run preview -- --host 127.0.0.1
+```
+
+デモの確認先は `http://127.0.0.1:4321/demos/server-room/` です。Cloudflare Workersと同じredirectやheaderも確認する場合は、ビルド後に別のターミナルで次を実行します。
+
+```sh
+./node_modules/.bin/wrangler dev --port 4323 --ip 127.0.0.1
+```
+
+公開URLは、GitHub Variableの`SITE_URL`に設定したoriginへ `/demos/server-room/` を加えたURLです。表示する14台分の監視情報はモックデータで、実際の監視サービスには接続しません。このデモは第4回記事の補助画面として提供するため、`noindex, follow`を指定し、Pagefindとsitemapからも除外しています。
+
+型検査、単体テスト、GLB、ビルド成果物、操作E2Eをまとめて確認するには、Node.js 24で次を実行します。
+
+```sh
+SITE_URL=https://example.invalid npm run verify
+```
+
 ## 記事を追加する
 
 1. `src/content/blog/` に、URLに使う名前で `.md` または `.mdx` を追加します。
@@ -160,7 +194,7 @@ PRではCIの `verify` を必須checkにします。GitHubのbranch protection�
 6. 承認後に `main` へmergeし、Deploy workflowのbuild、deploy、smokeがすべて成功したことを確認する。
 7. 公開URLでトップ、4記事、検索、RSS、sitemap、404、faviconを確認する。
 
-smoke確認はレスポンス本文やSecretsをログへ出さず、HTTP statusだけを検査します。公開メールとGitHub URLが未設定の状態はローカル検証可能ですが、Production完成条件は満たしません。
+smoke確認では、既存ページのHTTP statusに加え、デモHTMLのasset参照、配信header、MIME、GLBのSHA-256を検査します。レスポンス本文やSecretsはログへ出しません。公開メールとGitHub URLが未設定の状態はローカル検証可能ですが、Production完成条件は満たしません。
 
 ## トラブルシューティング
 
