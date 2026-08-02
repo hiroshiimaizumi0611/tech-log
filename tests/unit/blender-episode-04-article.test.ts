@@ -62,6 +62,19 @@ describe('Blender server room episode four article', () => {
     }
   });
 
+  it('links to the interactive demo before the first result image', () => {
+    expect(body).toMatch(/<a[^>]+href="\/demos\/server-room\/"[^>]+target="_blank"[^>]+rel="noopener"[^>]*>3Dデモを開く<\/a>/);
+    expect(body).toMatch(/回転.+ズーム.+サーバー選択.+アラーム/s);
+    expect(body).toMatch(/モックデータ/);
+    expect(body).toMatch(/デスクトップ.+推奨/);
+
+    const ctaPosition = body.indexOf('>3Dデモを開く</a>');
+    const resultImagePosition = body.indexOf('![React Three Fiberを組み込む前のVite初期画面]');
+    expect(ctaPosition).toBeGreaterThan(-1);
+    expect(resultImagePosition).toBeGreaterThan(-1);
+    expect(ctaPosition).toBeLessThan(resultImagePosition);
+  });
+
   it('explains the React and GLB implementation', () => {
     for (const term of [
       'Vite',

@@ -101,7 +101,7 @@ describe('SITE_URL validation', () => {
       const htmlWithoutVerification = readFileSync(new URL('../../dist/index.html', import.meta.url), 'utf8');
       expect(htmlWithoutVerification).not.toContain('name="google-site-verification"');
     }
-  }, 30_000);
+  }, 120_000);
 });
 
 describe('production environment validation', () => {

@@ -5,6 +5,7 @@ dist/
 .astro/
 playwright-report/
 test-results/
+.wrangler/
 tests/e2e/fixtures/.dist/
 .env
 .env.*

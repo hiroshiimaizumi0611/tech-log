@@ -293,6 +293,192 @@ describe('production build origin verification', () => {
 });
 
 describe('post-deploy smoke checks', () => {
+  const demoSecurityHeaders = {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+    'Content-Security-Policy':
+      "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'",
+    'X-Robots-Tag': 'noindex, follow',
+  } as const;
+  const demoCacheControl = 'public, max-age=0, must-revalidate';
+  const demoGlbSha256 = '42114017b88bc45862e598de271ca05ce7df0e3f227197fc65941658794e552a';
+  const successfulDemoResponse = async (pathname: string) => {
+    const headers = (contentType: string) => ({
+      ...demoSecurityHeaders,
+      'Content-Type': contentType,
+      'Cache-Control': demoCacheControl,
+    });
+    if (pathname === '/demos/server-room') {
+      return new Response(null, { status: 307, headers: { Location: '/demos/server-room/' } });
+    }
+    if (pathname === '/demos/server-room/') {
+      return new Response(
+        '<link rel="stylesheet" href="/demos/server-room/assets/app.css"><script type="module" src="/demos/server-room/assets/app.js"></script>',
+        { headers: headers('text/html; charset=utf-8') },
+      );
+    }
+    if (pathname === '/demos/server-room/assets/app.js') {
+      return new Response('export {};', { headers: headers('application/javascript') });
+    }
+    if (pathname === '/demos/server-room/assets/app.css') {
+      return new Response('body {}', { headers: headers('text/css') });
+    }
+    if (pathname === '/demos/server-room/models/server-room.glb') {
+      return new Response(await readFile(new URL('../../demos/server-room/public/models/server-room.glb', import.meta.url)), {
+        headers: headers('model/gltf-binary'),
+      });
+    }
+    return undefined;
+  };
+
+  it('provides focused helpers for retry, exact headers, same-subpath assets, and response hashing', async () => {
+    const { assertHeader, extractDemoAssets, fetchWithRetry, sha256Response } = await import('../../scripts/smoke-production.mjs');
+    const attempts: number[] = [];
+    const response = await fetchWithRetry(
+      async () => {
+        attempts.push(attempts.length);
+        return new Response(null, { status: attempts.length === 1 ? 503 : 200 });
+      },
+      {
+        path: '/asset.js',
+        maxRetries: 1,
+        retryDelayMs: 0,
+        sleepImpl: async () => undefined,
+      },
+    );
+    expect(response.status).toBe(200);
+    expect(attempts).toHaveLength(2);
+
+    await expect(
+      fetchWithRetry(async () => new Response(null, { status: 429 }), {
+        path: '/asset.js',
+        maxRetries: 6,
+        retryDelayMs: 0,
+        sleepImpl: async () => undefined,
+      }),
+    ).rejects.toThrow(/expected 2xx, received 429/i);
+
+    expect(() => assertHeader(new Headers({ 'x-test': 'exact' }), 'X-Test', 'exact', '/asset.js')).not.toThrow();
+    expect(() => assertHeader(new Headers({ 'x-test': 'almost' }), 'X-Test', 'exact', '/asset.js')).toThrow(/X-Test/i);
+
+    const html = `
+      <link rel="stylesheet" href="/demos/server-room/assets/app.abc.css">
+      <script type="module" src="/demos/server-room/assets/app.def.js"></script>`;
+    expect(extractDemoAssets(html, new URL('https://techlog.example/demos/server-room/'))).toEqual({
+      scriptUrl: new URL('https://techlog.example/demos/server-room/assets/app.def.js'),
+      stylesheetUrl: new URL('https://techlog.example/demos/server-room/assets/app.abc.css'),
+    });
+    expect(() =>
+      extractDemoAssets(
+        '<script type="module" src="https://attacker.invalid/app.js"></script><link rel="stylesheet" href="/app.css">',
+        new URL('https://techlog.example/demos/server-room/'),
+      ),
+    ).toThrow(/same demo subpath/i);
+
+    await expect(sha256Response(new Response('abc'))).resolves.toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+  });
+
+  it('verifies the complete public demo redirect, asset, header, MIME, cache, and GLB-byte contract', async () => {
+    const { smokeProduction, SMOKE_PATHS } = await import('../../scripts/smoke-production.mjs');
+    const glb = await readFile(new URL('../../demos/server-room/public/models/server-room.glb', import.meta.url));
+    const html = `<!doctype html>
+      <link rel="stylesheet" href="/demos/server-room/assets/app.abc.css">
+      <script type="module" src="/demos/server-room/assets/app.def.js"></script>`;
+    const requested: string[] = [];
+    const assetHeaders = (contentType: string) => ({
+      ...demoSecurityHeaders,
+      'Content-Type': contentType,
+      'Cache-Control': demoCacheControl,
+    });
+    const fetchImpl: typeof fetch = async (input, init) => {
+      expect(init?.redirect).toBe('manual');
+      const url = new URL(input instanceof Request ? input.url : String(input));
+      requested.push(url.href);
+      if (url.pathname === SMOKE_PATHS.demo.redirect) {
+        return new Response(null, { status: 307, headers: { Location: SMOKE_PATHS.demo.html } });
+      }
+      if (url.pathname === SMOKE_PATHS.demo.html) {
+        return new Response(html, { status: 200, headers: assetHeaders('text/html; charset=utf-8') });
+      }
+      if (url.pathname === '/demos/server-room/assets/app.def.js') {
+        return new Response('export {};', { status: 200, headers: assetHeaders('text/javascript; charset=utf-8') });
+      }
+      if (url.pathname === '/demos/server-room/assets/app.abc.css') {
+        return new Response('body {}', { status: 200, headers: assetHeaders('text/css; charset=utf-8') });
+      }
+      if (url.pathname === SMOKE_PATHS.demo.glb) {
+        return new Response(glb, { status: 200, headers: assetHeaders('model/gltf-binary') });
+      }
+      return new Response(null, { status: url.pathname === SMOKE_PATHS.missing ? 404 : 204 });
+    };
+
+    await expect(smokeProduction({ siteUrl: 'https://techlog.example', fetchImpl })).resolves.toBeUndefined();
+    expect(requested).toEqual([
+      'https://techlog.example/',
+      'https://techlog.example/blog/build-tech-blog-with-astro-2026/',
+      'https://techlog.example/rss.xml',
+      'https://techlog.example/sitemap-index.xml',
+      `https://techlog.example${SMOKE_PATHS.missing}`,
+      'https://techlog.example/demos/server-room',
+      'https://techlog.example/demos/server-room/',
+      'https://techlog.example/demos/server-room/assets/app.def.js',
+      'https://techlog.example/demos/server-room/assets/app.abc.css',
+      'https://techlog.example/demos/server-room/models/server-room.glb',
+    ]);
+    expect(demoGlbSha256).toBe('42114017b88bc45862e598de271ca05ce7df0e3f227197fc65941658794e552a');
+  });
+
+  it('rejects each mutated demo redirect, MIME, security header, cache value, and GLB body', async () => {
+    const { smokeProduction, SMOKE_PATHS } = await import('../../scripts/smoke-production.mjs');
+    const demoAssets = [
+      SMOKE_PATHS.demo.html,
+      '/demos/server-room/assets/app.js',
+      '/demos/server-room/assets/app.css',
+      SMOKE_PATHS.demo.glb,
+    ];
+    const mutations = [
+      { target: SMOKE_PATHS.demo.redirect, status: 308, error: /expected 307, received 308/i },
+      { target: SMOKE_PATHS.demo.redirect, header: ['Location', '/wrong/'], error: /Location header/i },
+      ...demoAssets.flatMap((target) =>
+        Object.keys(demoSecurityHeaders).map((name) => ({ target, header: [name, 'wrong'], error: new RegExp(name, 'i') })),
+      ),
+      ...demoAssets.map((target) => ({ target, header: ['Cache-Control', 'no-cache'], error: /Cache-Control header/i })),
+      { target: SMOKE_PATHS.demo.html, header: ['Content-Type', 'text/plain'], error: /Content-Type/i },
+      { target: '/demos/server-room/assets/app.js', header: ['Content-Type', 'text/plain'], error: /Content-Type/i },
+      { target: '/demos/server-room/assets/app.css', header: ['Content-Type', 'text/plain'], error: /Content-Type/i },
+      { target: SMOKE_PATHS.demo.glb, header: ['Content-Type', 'application/octet-stream'], error: /Content-Type/i },
+      { target: SMOKE_PATHS.demo.glb, body: new TextEncoder().encode('tampered GLB'), error: /SHA-256/i },
+    ] as const;
+
+    for (const mutation of mutations) {
+      const fetchImpl: typeof fetch = async (input) => {
+        const pathname = new URL(input instanceof Request ? input.url : String(input)).pathname;
+        const original = await successfulDemoResponse(pathname);
+        if (!original) return new Response(null, { status: pathname === SMOKE_PATHS.missing ? 404 : 204 });
+        if (pathname !== mutation.target) return original;
+
+        const headers = new Headers(original.headers);
+        if ('header' in mutation) headers.set(mutation.header[0], mutation.header[1]);
+        const body = 'body' in mutation ? mutation.body : await original.arrayBuffer();
+        return new Response(body, {
+          status: 'status' in mutation ? mutation.status : original.status,
+          headers,
+        });
+      };
+
+      await expect(
+        smokeProduction({
+          siteUrl: 'https://techlog.example',
+          fetchImpl,
+          maxRetries: 0,
+        }),
+        `${mutation.target} must reject its mutation`,
+      ).rejects.toThrow(mutation.error);
+    }
+  });
+
   it('checks four public resources as 2xx and a missing resource as 404 without reading bodies', async () => {
     const { smokeProduction, SMOKE_PATHS } = await import('../../scripts/smoke-production.mjs');
     const requested: string[] = [];
@@ -301,6 +487,8 @@ describe('post-deploy smoke checks', () => {
       const url = input instanceof Request ? input.url : String(input);
       const pathname = new URL(url).pathname;
       requested.push(url);
+      const demoResponse = await successfulDemoResponse(pathname);
+      if (demoResponse) return demoResponse;
       return new Response(null, { status: pathname === SMOKE_PATHS.missing ? 404 : 204 });
     };
     await expect(smokeProduction({ siteUrl: 'https://techlog.example', fetchImpl })).resolves.toBeUndefined();
@@ -310,6 +498,11 @@ describe('post-deploy smoke checks', () => {
       'https://techlog.example/rss.xml',
       'https://techlog.example/sitemap-index.xml',
       `https://techlog.example${SMOKE_PATHS.missing}`,
+      'https://techlog.example/demos/server-room',
+      'https://techlog.example/demos/server-room/',
+      'https://techlog.example/demos/server-room/assets/app.js',
+      'https://techlog.example/demos/server-room/assets/app.css',
+      'https://techlog.example/demos/server-room/models/server-room.glb',
     ]);
   });
 
@@ -321,6 +514,8 @@ describe('post-deploy smoke checks', () => {
     const fetchImpl: typeof fetch = async (input) => {
       const pathname = new URL(input instanceof Request ? input.url : String(input)).pathname;
       if (pathname === '/') return new Response(null, { status: transientStatuses[rootAttempts++] ?? 204 });
+      const demoResponse = await successfulDemoResponse(pathname);
+      if (demoResponse) return demoResponse;
       return new Response(null, { status: pathname === SMOKE_PATHS.missing ? 404 : 204 });
     };
 

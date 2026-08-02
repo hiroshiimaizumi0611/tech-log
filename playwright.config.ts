@@ -23,5 +23,10 @@ export default defineConfig({
       url: 'http://127.0.0.1:4322',
       reuseExistingServer: false,
     },
+    {
+      command: './node_modules/.bin/wrangler dev --port 4323 --ip 127.0.0.1',
+      url: 'http://127.0.0.1:4323/demos/server-room/',
+      reuseExistingServer: false,
+    },
   ],
 });
