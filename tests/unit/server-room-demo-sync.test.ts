@@ -25,6 +25,11 @@ type Fixture = {
   commit: string;
 };
 
+type SyncTestingParameters = Parameters<typeof syncTesting.syncServerRoomDemo>;
+type SyncFixtureOptions = Partial<Omit<NonNullable<SyncTestingParameters[0]>, 'source' | 'tag' | 'blogRoot'>> & {
+  hooks?: SyncTestingParameters[2];
+};
+
 function fixtureContract(fixture: Fixture) {
   const files = [
     ['index.html', '<main>tagged</main>\n'],
@@ -80,7 +85,7 @@ async function makeFixture(): Promise<Fixture> {
   return { root, source, blogRoot, destination, commit };
 }
 
-async function syncFixture(fixture: Fixture, options: Record<string, unknown> = {}) {
+async function syncFixture(fixture: Fixture, options: SyncFixtureOptions = {}) {
   const { hooks, ...syncOptions } = options;
   return syncTesting.syncServerRoomDemo(
     {
