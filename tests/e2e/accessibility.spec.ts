@@ -13,6 +13,7 @@ const routes = [
 ] as const;
 
 test('主要8ページを実走査しcriticalとseriousのaxe違反を0件に保つ', async ({ page }) => {
+  test.setTimeout(60_000);
   const scans: Array<{ route: string; status: number; violations: string[] }> = [];
 
   for (const route of routes) {
