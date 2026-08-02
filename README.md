@@ -139,15 +139,17 @@ SITE_URL=https://example.invalid npm run build
 npm run preview
 ```
 
-`npm run build` は最初にAstro buildで静的ファイルを `dist/` に生成し、その完了後に検索処理と成果物検査を実行します。続けて `npm run preview` を起動し、表示されたローカルURLで記事と検索を操作し、`/rss.xml` と `/sitemap-index.xml` も確認します。Productionでは `SITE_URL` を実際の公開HTTPS originへ置き換えてください。
+`npm run build` はAstroでブログを生成し、サーバールームデモを追加してから、Pagefindの検索索引と成果物を検査します。続けて `npm run preview` を起動し、表示されたローカルURLで記事と検索を操作し、`/rss.xml` と `/sitemap-index.xml` も確認します。Productionでは `SITE_URL` を実際の公開HTTPS originへ置き換えてください。
 
 ## Pagefind
 
-PagefindはMarkdownではなく、Astroが生成したHTMLを索引化します。`npm run build` ではAstroの生成後にPagefindで `dist/pagefind/` を作るため、通常は個別実行不要です。
+PagefindはMarkdownではなく、Astroが生成したHTMLを索引化します。`npm run build` ではAstro、サーバールームデモ、Pagefind、成果物検査の順に実行するため、通常は個別実行不要です。
 
 ```sh
 npm run build:astro
+npm run build:demo
 npm run build:search
+SITE_URL=https://example.invalid node scripts/verify-build.mjs
 ```
 
 上記を分けて実行する場合も、この順序を守ります。検索へ記事が出ないときは、`draft`、`dist/pagefind/`、buildログの索引ページ数を確認してからプレビューを更新します。

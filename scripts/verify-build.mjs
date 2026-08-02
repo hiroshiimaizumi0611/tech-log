@@ -7,7 +7,6 @@ import { EXPECTED_GLB_SHA256, validateServerRoomGlb } from './verify-server-room
 
 const DEMO_PATH = 'demos/server-room';
 const DEMO_BASE = `/${DEMO_PATH}/`;
-const EXPECTED_PAGE_COUNT = 14;
 const PAGEFIND_JAPANESE_HASH = /^ja_[a-f0-9]+$/;
 
 async function requireRegularFile(root, relativePath, label = relativePath) {
@@ -60,6 +59,10 @@ function elements(document) {
 
 function attributes(node) {
   return Object.fromEntries((node.attrs ?? []).map(({ name, value }) => [name, value]));
+}
+
+function hasAttribute(node, attributeName) {
+  return (node.attrs ?? []).some(({ name }) => name === attributeName);
 }
 
 async function verifyDemoHtml(root, expectedCanonicalUrl) {
@@ -117,13 +120,29 @@ async function verifyDemoHtml(root, expectedCanonicalUrl) {
   }
 }
 
-async function verifyPagefind(root) {
+async function countIndexableHtmlFiles(root, allFiles) {
+  let count = 0;
+  for (const relativePath of allFiles.filter((file) => file.toLowerCase().endsWith('.html'))) {
+    const htmlPath = await requireRegularFile(root, relativePath, 'built HTML');
+    const html = await readFile(htmlPath, 'utf8');
+    if (elements(parse(html)).some((node) => hasAttribute(node, 'data-pagefind-body'))) count += 1;
+  }
+  return count;
+}
+
+async function verifyPagefind(root, allFiles) {
   await requireRegularFile(root, 'pagefind/pagefind.js');
   const entryPath = await requireRegularFile(root, 'pagefind/pagefind-entry.json');
   const entry = JSON.parse(await readFile(entryPath, 'utf8'));
   const japaneseIndex = entry.languages?.ja;
-  if (japaneseIndex?.page_count !== EXPECTED_PAGE_COUNT) {
-    throw new Error(`Pagefind Japanese page_count must remain ${EXPECTED_PAGE_COUNT}; got ${japaneseIndex?.page_count ?? 'missing'}`);
+  const expectedPageCount = await countIndexableHtmlFiles(root, allFiles);
+  if (expectedPageCount < 1) {
+    throw new Error('Pagefind must have at least one built HTML file with a data-pagefind-body attribute');
+  }
+  if (japaneseIndex?.page_count !== expectedPageCount) {
+    throw new Error(
+      `Pagefind Japanese page_count must match ${expectedPageCount} indexable built HTML files; got ${japaneseIndex?.page_count ?? 'missing'}`,
+    );
   }
   if (typeof japaneseIndex.hash !== 'string' || !PAGEFIND_JAPANESE_HASH.test(japaneseIndex.hash)) {
     throw new Error(`Invalid Pagefind Japanese hash; expected ja_ followed by lowercase hexadecimal characters`);
@@ -185,7 +204,7 @@ export async function verifyBuild({ distDirectory = fileURLToPath(new URL('../di
   }
   const allFiles = await listFiles(root);
   await verifyDemoHtml(root, expectedCanonicalUrl);
-  const pageCount = await verifyPagefind(root);
+  const pageCount = await verifyPagefind(root, allFiles);
   await verifySitemaps(root, allFiles);
   const glb = await verifyGlb(root, allFiles);
   return { pageCount, serverNodeCount: glb.serverNodeNames.length, glb };

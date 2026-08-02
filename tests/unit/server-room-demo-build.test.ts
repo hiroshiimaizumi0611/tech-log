@@ -76,6 +76,11 @@ async function createValidDistFixture() {
   const glb = await readFile(path.join(demoRoot, 'public/models/server-room.glb'));
   await Promise.all([
     writeFixtureFile(root, 'index.html', '<!doctype html><title>Blog</title>'),
+    writeFixtureFile(
+      root,
+      'blog/fixture-article/index.html',
+      '<!doctype html><html lang="ja"><body><main data-pagefind-body>Fixture article</main></body></html>',
+    ),
     writeFixtureFile(root, 'rss.xml', '<rss><channel><title>Blog</title></channel></rss>'),
     writeFixtureFile(
       root,
@@ -90,7 +95,7 @@ async function createValidDistFixture() {
     ),
     writeFixtureFile(root, 'og-default.png', 'png'),
     writeFixtureFile(root, 'pagefind/pagefind.js', 'export const search = async () => ({ results: [] });'),
-    writeFixtureFile(root, 'pagefind/pagefind-entry.json', JSON.stringify({ languages: { ja: { hash: 'ja_deadbeef', page_count: 14 } } })),
+    writeFixtureFile(root, 'pagefind/pagefind-entry.json', JSON.stringify({ languages: { ja: { hash: 'ja_deadbeef', page_count: 1 } } })),
     writeFixtureFile(root, 'pagefind/pagefind.ja_deadbeef.pf_meta', 'fixture'),
     writeFixtureFile(root, 'demos/server-room/index.html', validDemoHtml),
     writeFixtureFile(root, 'demos/server-room/assets/app.js', 'console.log("demo")'),
@@ -245,7 +250,7 @@ describe('server room demo build output', () => {
   it('accepts a complete combined blog and demo fixture', async () => {
     const root = await createValidDistFixture();
 
-    await expect(verifyFixture(root)).resolves.toMatchObject({ pageCount: 14, serverNodeCount: 14 });
+    await expect(verifyFixture(root)).resolves.toMatchObject({ pageCount: 1, serverNodeCount: 14 });
   });
 
   it('rejects a missing demo index', async () => {
@@ -311,22 +316,61 @@ describe('server room demo build output', () => {
     await expect(verifyFixture(root)).rejects.toThrow(/canonical/i);
   });
 
-  it('rejects a Pagefind index whose Japanese page count grows beyond 14', async () => {
+  it('rejects a Pagefind page_count that differs from the indexable built HTML count', async () => {
     const root = await createValidDistFixture();
     await writeFixtureFile(
       root,
       'pagefind/pagefind-entry.json',
-      JSON.stringify({ languages: { ja: { hash: 'ja_deadbeef', page_count: 15 } } }),
+      JSON.stringify({ languages: { ja: { hash: 'ja_deadbeef', page_count: 2 } } }),
     );
 
-    await expect(verifyFixture(root)).rejects.toThrow(/page_count.*14/i);
+    await expect(verifyFixture(root)).rejects.toThrow(/page_count.*1.*got 2/i);
+  });
+
+  it('rejects a build with no indexable HTML pages even when Pagefind page_count is zero', async () => {
+    const root = await createValidDistFixture();
+    await writeFixtureFile(root, 'blog/fixture-article/index.html', '<!doctype html><html lang="ja"><body>Not indexed</body></html>');
+    await writeFixtureFile(
+      root,
+      'pagefind/pagefind-entry.json',
+      JSON.stringify({ languages: { ja: { hash: 'ja_deadbeef', page_count: 0 } } }),
+    );
+
+    await expect(verifyFixture(root)).rejects.toThrow(/at least one.*data-pagefind-body/i);
+  });
+
+  it('accepts a newly built indexable article when Pagefind page_count increases with it', async () => {
+    const root = await createValidDistFixture();
+    await writeFixtureFile(
+      root,
+      'blog/new-article/index.html',
+      '<!doctype html><html lang="ja"><body><article data-pagefind-body>New article</article></body></html>',
+    );
+    await writeFixtureFile(
+      root,
+      'pagefind/pagefind-entry.json',
+      JSON.stringify({ languages: { ja: { hash: 'ja_deadbeef', page_count: 2 } } }),
+    );
+
+    await expect(verifyFixture(root)).resolves.toMatchObject({ pageCount: 2, serverNodeCount: 14 });
+  });
+
+  it('rejects a newly built indexable article when Pagefind page_count does not increase', async () => {
+    const root = await createValidDistFixture();
+    await writeFixtureFile(
+      root,
+      'blog/new-article/index.html',
+      '<!doctype html><html lang="ja"><body><article data-pagefind-body>New article</article></body></html>',
+    );
+
+    await expect(verifyFixture(root)).rejects.toThrow(/page_count.*2.*got 1/i);
   });
 
   it.each(['../../outside', '/absolute', '..\\..\\outside', 'ja_deadbeef/../outside', 'ja_deadbeef/./outside'])(
     'rejects an unsafe Pagefind Japanese hash before resolving artifacts: %s',
     async (hash) => {
       const root = await createValidDistFixture();
-      await writeFixtureFile(root, 'pagefind/pagefind-entry.json', JSON.stringify({ languages: { ja: { hash, page_count: 14 } } }));
+      await writeFixtureFile(root, 'pagefind/pagefind-entry.json', JSON.stringify({ languages: { ja: { hash, page_count: 1 } } }));
 
       await expect(verifyFixture(root)).rejects.toThrow(/Invalid Pagefind Japanese hash/i);
     },
