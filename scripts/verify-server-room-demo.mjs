@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { lstat, readFile, readdir, realpath } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { validateBytes } from 'gltf-validator';
 
 export const MANIFEST_SCHEMA = 'server-room-demo-upstream';
 export const MANIFEST_VERSION = 1;
@@ -9,6 +10,22 @@ export const EXPECTED_TAG = 'episode-04-demo';
 export const EXPECTED_COMMIT = '13bf472051782ff3373e52b1e312b2b380363bc5';
 export const EXPECTED_GLB_SHA256 = '42114017b88bc45862e598de271ca05ce7df0e3f227197fc65941658794e552a';
 export const EXPECTED_SNAPSHOT_SHA256 = '32ef5b3f89ecbd35dfee62daf0ab69349aea48ddda7826dd36068da41afb9385';
+export const EXPECTED_SERVER_NODE_NAMES = Object.freeze([
+  'server_01_01',
+  'server_01_02',
+  'server_01_03',
+  'server_01_04',
+  'server_01_05',
+  'server_01_06',
+  'server_02_01',
+  'server_02_02',
+  'server_02_03',
+  'server_02_04',
+  'server_02_05',
+  'server_02_06',
+  'server_02_07',
+  'server_02_08',
+]);
 
 export const PRODUCTION_CONTRACT = Object.freeze({
   tag: EXPECTED_TAG,
@@ -76,6 +93,52 @@ async function sha256(path) {
   return createHash('sha256')
     .update(await readFile(path))
     .digest('hex');
+}
+
+function glbJson(bytes) {
+  if (!(bytes instanceof Uint8Array) || bytes.byteLength < 20) {
+    throw new Error('Published GLB is too short to contain a glTF 2.0 JSON chunk');
+  }
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (view.getUint32(0, true) !== 0x46546c67 || view.getUint32(4, true) !== 2) {
+    throw new Error('Published GLB must use the glTF 2.0 binary container');
+  }
+  const declaredLength = view.getUint32(8, true);
+  const jsonLength = view.getUint32(12, true);
+  const jsonType = view.getUint32(16, true);
+  if (declaredLength !== bytes.byteLength || jsonType !== 0x4e4f534a || 20 + jsonLength > bytes.byteLength) {
+    throw new Error('Published GLB has an invalid JSON chunk');
+  }
+  const json = new TextDecoder().decode(bytes.subarray(20, 20 + jsonLength)).replace(/[\u0000 ]+$/u, '');
+  return JSON.parse(json);
+}
+
+export async function validateServerRoomGlb(bytes) {
+  const report = await validateBytes(bytes, { uri: 'server-room.glb' });
+  const numErrors = report.issues?.numErrors;
+  const numWarnings = report.issues?.numWarnings;
+  if (numErrors !== 0 || numWarnings !== 0) {
+    throw new Error(`GLB Validator failed: ${numErrors ?? 'unknown'} errors, ${numWarnings ?? 'unknown'} warnings`);
+  }
+
+  const document = glbJson(bytes);
+  const serverNodeNames = (document.nodes ?? [])
+    .map((node) => node?.name)
+    .filter((name) => typeof name === 'string' && /^server_\d{2}_\d{2}$/.test(name))
+    .sort();
+  if (new Set(serverNodeNames).size !== serverNodeNames.length) {
+    throw new Error('Published GLB server node names must be unique');
+  }
+  if (
+    serverNodeNames.length !== EXPECTED_SERVER_NODE_NAMES.length ||
+    serverNodeNames.some((name, index) => name !== EXPECTED_SERVER_NODE_NAMES[index])
+  ) {
+    throw new Error(
+      `Published GLB server node names mismatch: expected ${EXPECTED_SERVER_NODE_NAMES.join(', ')}, got ${serverNodeNames.join(', ')}`,
+    );
+  }
+
+  return { numErrors, numWarnings, serverNodeNames };
 }
 
 function assertContract(contract) {
@@ -224,7 +287,9 @@ function rejectPinOverrides(options) {
 
 export async function verifyServerRoomDemo(options = {}) {
   rejectPinOverrides(options);
-  return verifyWithContract(options, PRODUCTION_CONTRACT);
+  const result = await verifyWithContract(options, PRODUCTION_CONTRACT);
+  const glbValidation = await validateServerRoomGlb(await readFile(join(result.destination, 'public/models/server-room.glb')));
+  return { ...result, glbValidation };
 }
 
 export const __testing = Object.freeze({
@@ -235,7 +300,7 @@ async function main() {
   try {
     const result = await verifyServerRoomDemo();
     console.log(
-      `Verified ${result.fileCount} server room demo files from ${result.manifest.upstream.tag} (${result.manifest.upstream.commit}).`,
+      `Verified ${result.fileCount} server room demo files from ${result.manifest.upstream.tag} (${result.manifest.upstream.commit}); GLB: ${result.glbValidation.numErrors} errors, ${result.glbValidation.numWarnings} warnings, ${result.glbValidation.serverNodeNames.length} server nodes.`,
     );
   } catch (error) {
     console.error(`Server room demo verification failed: ${error.message}`);

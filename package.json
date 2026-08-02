@@ -10,7 +10,7 @@
     "prebuild": "node scripts/validate-site-url.mjs",
     "build:astro": "astro build",
     "build:search": "pagefind --site dist",
-    "build": "npm run build:astro && npm run build:search && node scripts/verify-build.mjs",
+    "build": "npm run build:astro && npm run build:demo && npm run build:search && node scripts/verify-build.mjs",
     "preview": "astro preview",
     "check": "astro check",
     "check:demo": "tsc --noEmit -p demos/server-room/tsconfig.json",

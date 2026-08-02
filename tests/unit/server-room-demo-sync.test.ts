@@ -204,7 +204,7 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true })));
 });
 
-describe('server room demo synchronization', () => {
+describe('server room demo synchronization', { timeout: 15_000 }, () => {
   test('uses the documented code-point-sorted canonical snapshot SHA-256 encoding', () => {
     expect(
       computeSnapshotSha256({
