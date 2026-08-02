@@ -25,6 +25,17 @@ const expectedServerNodeNames = [
   'server_02_07',
   'server_02_08',
 ] as const;
+const expectedDemoHeaders = [
+  ['X-Content-Type-Options', 'nosniff'],
+  ['X-Frame-Options', 'DENY'],
+  ['Referrer-Policy', 'strict-origin-when-cross-origin'],
+  ['Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()'],
+  [
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'",
+  ],
+  ['X-Robots-Tag', 'noindex, follow'],
+] as const;
 
 const validDemoHtml = `<!doctype html>
 <html lang="ja">
@@ -219,6 +230,18 @@ describe('server room demo toolchain', () => {
 });
 
 describe('server room demo build output', () => {
+  it('publishes the exact demo-only security and robots headers without overriding cache control', async () => {
+    const source = await readFile(path.join(blogRoot, 'public/_headers'), 'utf8');
+    const lines = source
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(lines[0]).toBe('/demos/server-room/*');
+    expect(lines.slice(1)).toEqual(expectedDemoHeaders.map(([name, value]) => `${name}: ${value}`));
+    expect(source).not.toMatch(/^\s*Cache-Control\s*:/imu);
+  });
+
   it('accepts a complete combined blog and demo fixture', async () => {
     const root = await createValidDistFixture();
 
